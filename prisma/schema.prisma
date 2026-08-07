@@ -1,0 +1,360 @@
+// ============================================================================
+// Bela Cereais — Sistema de Exportação
+// Schema derivado de:
+//   - "PROCESSO DE EXPORTACAO - BELA CEREAIS.docx" (mapeamento por fase)
+//   - "Backlog_Exportacao_Feijoes_FINAL.xlsx" (48 etapas, raias, automação)
+//   - Aba "Estrutura GED" (convenção de pastas/nomes de documento)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Supabase / Neon
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// IDENTIDADE / ACESSO
+// ---------------------------------------------------------------------------
+
+enum Papel {
+  COMERCIAL
+  ADMINISTRATIVO
+  FINANCEIRO
+  DIRETORIA
+  ADMIN
+  CLIENTE_PORTAL // acesso restrito (aprovação de docs), fase 2
+}
+
+model Usuario {
+  id            String   @id @default(cuid())
+  nome          String
+  email         String   @unique
+  papel         Papel
+  ativo         Boolean  @default(true)
+  criadoEm      DateTime @default(now())
+
+  processosCriados   Processo[]       @relation("ProcessoCriadoPor")
+  etapasResponsavel  ProcessoEtapa[]  @relation("EtapaResponsavel")
+  documentosEnviados Documento[]      @relation("DocumentoUploadedBy")
+  mensagens          ChatMessage[]
+  logs               AuditLog[]
+  custosAtualizados  CustoItem[]
+}
+
+// ---------------------------------------------------------------------------
+// PARCEIROS EXTERNOS (raia "Executor / Contato" na planilha)
+// Buonny, CROMO, SCAN, Port Inspect, SURVEY, UNICCA, DHL, Banco do Brasil...
+// ---------------------------------------------------------------------------
+
+enum TipoParceiro {
+  GERENCIADORA_RISCO   // Buonny
+  AGENTE_DESPACHANTE    // CROMO
+  AGENTE_BOOKING        // SCAN
+  INSPETORIA            // Port Inspect
+  SURVEY_FUMIGACAO      // SURVEY / UNICCA
+  TRANSPORTADORA
+  SEGURADORA            // AT&M
+  BANCO                 // Banco do Brasil
+  TRANSPORTADORA_INTL   // DHL
+  OUTRO
+}
+
+model Parceiro {
+  id        String       @id @default(cuid())
+  nome      String
+  tipo      TipoParceiro
+  contato   String?
+  ativo     Boolean      @default(true)
+
+  etapaTemplates EtapaTemplate[]
+  documentos     Documento[]
+}
+
+// ---------------------------------------------------------------------------
+// FASES — usa a nomenclatura da planilha (10 raias), mapeável para as
+// 6 macro-fases do docx (ex: BOOKING_TRANSPORTE + CARREGAMENTO + CARREGAMENTO_REDEX
+// = "4. ARMAZÉM REDEX" do docx). Mantemos a granularidade da planilha porque
+// é o nível em que a operação realmente trabalha.
+// ---------------------------------------------------------------------------
+
+enum Fase {
+  COMERCIAL
+  PRODUTOR_VENDEDOR
+  ADMINISTRATIVO
+  INDUSTRIA_BENEFICIAMENTO
+  BOOKING_TRANSPORTE
+  CARREGAMENTO
+  CARREGAMENTO_REDEX
+  DOCUMENTACAO_EXPORTACAO
+  TERMINAL_PORTO
+  FECHAMENTO_BANCARIO
+}
+
+enum StatusEtapa {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+  BLOQUEADA   // aguardando decisão / caminho NÃO da planilha
+  NAO_APLICAVEL
+}
+
+enum NivelAutomacao {
+  MANUAL
+  N8N_SIMPLES
+  API_RPA_FASE2
+}
+
+// EtapaTemplate = as 48 linhas do "Backlog Automação", como CONFIGURAÇÃO.
+// Isso é seedado uma vez (prisma/seed.ts) e reaproveitado por todo processo novo.
+model EtapaTemplate {
+  id                 String          @id @default(cuid())
+  numero             String          @unique // "1", "10", "44-A", "46-A" (mantém numeração original da planilha)
+  ordem              Int             // ordem de execução linear, p/ sort
+  fase               Fase
+  etapa              String          // nome da etapa/coluna "Etapa"
+  raiaResponsavel    String          // coluna "Raia / Responsável"
+  parceiroId         String?
+  parceiro           Parceiro?       @relation(fields: [parceiroId], references: [id])
+  canal              String?         // ERP / E-mail / Site / API...
+  gatilho            String?         // "Gatilho (trigger)"
+  entrada            String?         // "Input"
+  saida              String?         // "Output"
+  ehDecisao          Boolean         @default(false) // etapas "Decisão: ..."
+  automacaoSugerida  NivelAutomacao  @default(MANUAL)
+  geraDocumento      Boolean         @default(false)
+  tipoDocumentoId    String?
+  tipoDocumento      TipoDocumento?  @relation(fields: [tipoDocumentoId], references: [id])
+
+  instancias ProcessoEtapa[]
+}
+
+// ProcessoEtapa = a instância real de cada etapa dentro de um processo.
+// É isso que alimenta o checklist, o status do processo e o dashboard —
+// nada disso é mais hardcoded no front.
+model ProcessoEtapa {
+  id               String        @id @default(cuid())
+  processoId       String
+  processo         Processo      @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  etapaTemplateId  String
+  etapaTemplate    EtapaTemplate @relation(fields: [etapaTemplateId], references: [id])
+  status           StatusEtapa   @default(PENDENTE)
+  responsavelId    String?
+  responsavel      Usuario?      @relation("EtapaResponsavel", fields: [responsavelId], references: [id])
+  observacao       String?
+  iniciadoEm       DateTime?
+  concluidoEm      DateTime?
+
+  documentos Documento[]
+
+  @@unique([processoId, etapaTemplateId])
+  @@index([processoId, status])
+}
+
+// ---------------------------------------------------------------------------
+// PROCESSO (a "negociação" do rascunho, renomeada p/ refletir que é um
+// processo de exportação ponta a ponta, não só a etapa comercial)
+// ---------------------------------------------------------------------------
+
+model Processo {
+  id               String    @id @default(cuid())
+  numeroProcesso   String    @unique // ex: BC202608060001 (mesmo gerador do rascunho)
+  clienteFinal     String
+  traderIntermedio String?
+  produto          String
+  volumeKg         Decimal   @db.Decimal(14, 3)
+  incoterm         String
+  portoDestino     String
+  redex            String?
+  valorDeclaradoUsd Decimal? @db.Decimal(14, 2)
+
+  bookingNumero    String?
+  navio            String?
+  deadlineEmbarque DateTime?
+
+  criadoPorId String
+  criadoPor   Usuario  @relation("ProcessoCriadoPor", fields: [criadoPorId], references: [id])
+  criadoEm    DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  etapas      ProcessoEtapa[]
+  documentos  Documento[]
+  financeiro  Financeiro?
+  mensagens   ChatMessage[]
+  logs        AuditLog[]
+
+  // status NÃO é mais um campo digitado: é calculado a partir de `etapas`
+  // (ver src/lib/workflow.ts -> deriveStatusProcesso). Mantido aqui apenas
+  // como cache opcional para permitir index/filtro rápido nas listagens.
+  statusCache String? // "Criado" | "Docs Pendentes" | "Embarcando" | "Concluído"
+
+  @@index([deadlineEmbarque])
+  @@index([statusCache])
+}
+
+// ---------------------------------------------------------------------------
+// GED — DOCUMENTOS
+// Taxonomia baseada na aba "Estrutura GED": ~25 tipos de documento que hoje
+// circulam soltos (e-mail/papel) + os 10 do checklist final de embarque.
+// ---------------------------------------------------------------------------
+
+enum CategoriaDocumento {
+  COMERCIAL
+  ADMINISTRATIVO
+  PRODUCAO_INDUSTRIA
+  BOOKING_TRANSPORTE
+  REDEX_CARREGAMENTO
+  DOCUMENTACAO_EXPORTACAO
+  FECHAMENTO_BANCARIO
+}
+
+model TipoDocumento {
+  id         String             @id @default(cuid())
+  nome       String             @unique // "Minuta de Contrato de Compra", "BL Original", ...
+  categoria  CategoriaDocumento
+  obrigatorioNoPacoteFinal Boolean @default(false) // é 1 dos 10 docs do checklist final?
+
+  etapasQueGeram EtapaTemplate[]
+  documentos     Documento[]
+}
+
+enum StatusDocumento {
+  RASCUNHO
+  APROVADO
+  ENVIADO_CLIENTE
+  ARQUIVADO
+  REPROVADO
+}
+
+model Documento {
+  id              String          @id @default(cuid())
+  processoId      String
+  processo        Processo        @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  tipoDocumentoId String
+  tipoDocumento   TipoDocumento   @relation(fields: [tipoDocumentoId], references: [id])
+  etapaOrigemId   String?
+  etapaOrigem     ProcessoEtapa?  @relation(fields: [etapaOrigemId], references: [id])
+  parceiroEmissorId String?
+  parceiroEmissor Parceiro?       @relation(fields: [parceiroEmissorId], references: [id])
+
+  // storagePath segue a convenção já definida na aba "Estrutura GED":
+  // processos/{numeroProcesso}/{faseCodigo}_{faseNome}/{TipoDocumento}_{AAAAMMDD}.ext
+  nomeArquivo  String
+  storagePath  String
+  versao       Int             @default(1)
+  status       StatusDocumento @default(RASCUNHO)
+
+  uploadedById String
+  uploadedBy   Usuario  @relation("DocumentoUploadedBy", fields: [uploadedById], references: [id])
+  uploadedEm   DateTime @default(now())
+
+  @@index([processoId, tipoDocumentoId])
+}
+
+// ---------------------------------------------------------------------------
+// FINANCEIRO (DRE por processo)
+// custos como linhas próprias (auditável campo a campo) em vez de um blob
+// JSON só editável via prompt() do navegador, como no rascunho.
+// ---------------------------------------------------------------------------
+
+model Financeiro {
+  id         String   @id @default(cuid())
+  processoId String   @unique
+  processo   Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  precoUsd   Decimal  @db.Decimal(12, 2)
+  ptax       Decimal  @db.Decimal(8, 4)
+  atualizadoEm DateTime @updatedAt
+
+  custos CustoItem[]
+}
+
+enum CategoriaCusto {
+  COMPRA_MATERIA_PRIMA
+  BENEFICIAMENTO
+  FRETE_TERRESTRE
+  FRETE_MARITIMO
+  TARIFA_ARMADOR_PORTO
+  ESTUFAGEM_REDEX
+  COMISSAO_INTERMEDIACAO
+  OUTROS
+}
+
+model CustoItem {
+  id            String         @id @default(cuid())
+  financeiroId  String
+  financeiro    Financeiro     @relation(fields: [financeiroId], references: [id], onDelete: Cascade)
+  categoria     CategoriaCusto
+  valor         Decimal        @db.Decimal(14, 2)
+  atualizadoPorId String
+  atualizadoPor Usuario        @relation(fields: [atualizadoPorId], references: [id])
+  atualizadoEm  DateTime       @updatedAt
+
+  @@unique([financeiroId, categoria])
+}
+
+// ---------------------------------------------------------------------------
+// CHAT INTERNO
+// ---------------------------------------------------------------------------
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  processoId String
+  processo   Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  autorId    String
+  autor      Usuario  @relation(fields: [autorId], references: [id])
+  texto      String
+  criadoEm   DateTime @default(now())
+
+  @@index([processoId, criadoEm])
+}
+
+// ---------------------------------------------------------------------------
+// AUDITORIA — sempre gerada no servidor (nunca recebida pronta do cliente)
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  processoId String
+  processo   Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  usuarioId  String
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+  acao       String   // "ETAPA_CONCLUIDA", "DOCUMENTO_ANEXADO", "FINANCEIRO_EDITADO"...
+  detalhe    String
+  criadoEm   DateTime @default(now())
+
+  @@index([processoId, criadoEm])
+}
+
+// ---------------------------------------------------------------------------
+// LOG DE WEBHOOKS N8N (rastreabilidade das automações da aba "Primeiros Passos n8n")
+// ---------------------------------------------------------------------------
+
+model WebhookEvent {
+  id           String   @id @default(cuid())
+  origem       String   // "n8n"
+  evento       String   // ex: "certificado.recebido", "etapa.concluida"
+  payload      Json
+  processado   Boolean  @default(false)
+  erro         String?
+  recebidoEm   DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// STATUS MANUAL (Pendente / Em negociação / Embarcado / Finalizado / Cancelado)
+// ---------------------------------------------------------------------------
+ 
+ enum StatusNegociacao {
+  PENDENTE
+  EM_NEGOCIACAO
+  EMBARCADO
+  FINALIZADO
+  CANCELADO
+}
+
+model Processo {
+  // ...campos existentes
+  status StatusNegociacao @default(PENDENTE)
+  // ...
+}

@@ -1,0 +1,24 @@
+# Dependências do Node (Isso aqui é o que mais pesa!)
+node_modules/
+
+# Pastas de build e cache do Next.js
+.next/
+out/
+build/
+
+# Arquivos de ambiente (NUNCA envie senhas e chaves do banco/Supabase para o GitHub)
+.env
+.env*.local
+
+# Arquivos de log e do Sistema Operacional
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Pastas de documentos locais (Caso o seu GED tenha salvo PDFs de teste localmente)
+/documentos
+/processos
+/uploads
