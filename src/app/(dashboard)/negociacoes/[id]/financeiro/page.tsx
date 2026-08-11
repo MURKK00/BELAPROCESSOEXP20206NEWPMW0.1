@@ -29,7 +29,7 @@ export default async function FinanceiroPage({ params }: { params: { id: string 
   const totalCustos = f.custos.reduce((sum, c) => sum + Number(c.valor), 0);
   const resultadoLiquido = receitaBrl - totalCustos;
   const sacas60kg = Number(processo.volumeKg) / 60;
-  const lucroPorSaca = sacas60kg > 0 ? resultadoLiquido / sacas60kg : 0;
+  const lucroPorSaca = sacas60kg > 0 ? resultadoLiquido / 60 : 0;
 
   return (
     <div className="bg-surface border border-border rounded-2xl p-8">

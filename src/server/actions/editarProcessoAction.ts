@@ -57,7 +57,7 @@ export async function atualizarStatusAction(formData: FormData) {
 
   await prisma.processo.update({
     where: { id: processoId },
-    data: { status: novoStatus as any },
+    data: { statusCache: novoStatus as any },
   });
 
   await prisma.auditLog.create({

@@ -71,7 +71,13 @@ export default async function DashboardPage() {
       )}
 
       <h3 className="text-lg font-semibold mb-4">Processos recentes</h3>
-      <NegotiationTable processos={processos.slice(0, 5)} />
+      <NegotiationTable 
+          processos={processos.slice(0, 5).map(p => ({ 
+            ...p, 
+            volumeKg: Number(p.volumeKg), 
+            valorDeclaradoUsd: p.valorDeclaradoUsd ? Number(p.valorDeclaradoUsd) : null 
+          })) as any} 
+        />
     </div>
   );
 }

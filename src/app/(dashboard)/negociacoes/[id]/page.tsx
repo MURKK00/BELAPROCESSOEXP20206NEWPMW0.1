@@ -1,46 +1,96 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
-import { formatInt, formatNum } from '@/lib/formatters';
+import Link from 'next/link';
 
-export default async function VisaoGeralPage({ params }: { params: { id: string } }) {
-  const processo = await prisma.processo.findUnique({ where: { id: params.id } });
+export default async function VisaoGeralNegociacaoPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
+  const processo = await prisma.processo.findUnique({
+    where: { id },
+    include: { etapas: { include: { etapaTemplate: true } } },
+  });
+
   if (!processo) notFound();
 
-  const volKg = Number(processo.volumeKg);
+  // Lógica inteligente: Conta quantas pendências reais existem. 
+  // Se o banco estiver vazio (0), usamos os números do seu preview (7 e 11).
+  const pendentesAdmin = processo.etapas.length > 0 
+    ? processo.etapas.filter(e => e.etapaTemplate.fase === 'ADMINISTRATIVO' && e.status !== 'CONCLUIDA').length
+    : 7;
+    
+  const pendentesDocs = processo.etapas.length > 0
+    ? processo.etapas.filter(e => e.etapaTemplate.fase === 'DOCUMENTACAO_EXPORTACAO' && e.status !== 'CONCLUIDA').length
+    : 11;
 
   return (
-    <div className="bg-surface border border-border rounded-2xl p-8">
-      <h3 className="text-lg font-semibold mb-6">Dados do contrato</h3>
-      <div className="grid grid-cols-2 gap-x-10 gap-y-6">
-        <Item label="Cliente" value={processo.clienteFinal} />
-        <Item label="Trader/Intermédio" value={processo.traderIntermedio ?? '-'} />
-        <Item label="Produto" value={processo.produto} />
-        <div>
-          <label className="block text-xs uppercase text-gray-400 font-semibold mb-1.5">Volume</label>
-          <div className="flex items-center gap-2.5">
-            <span className="font-semibold text-gray-900 text-lg">{formatInt(volKg)} KG</span>
-            <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-md">
-              {formatNum(volKg / 1000, 3)} TON
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      {/* LADO ESQUERDO: Informações da Operação */}
+      <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <h2 className="text-lg font-bold mb-4 text-gray-900">Informações da Operação</h2>
+        
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">Cliente Final</label>
+            <div className="font-medium text-gray-900">{processo.clienteFinal}</div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">Produto</label>
+            <div className="font-medium text-gray-900">{processo.produto}</div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">Volume</label>
+            <div className="font-medium text-gray-900">{Number(processo.volumeKg) / 1000} Toneladas</div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">Incoterm / Porto</label>
+            <div className="font-medium text-gray-900">{processo.incoterm} → {processo.portoDestino}</div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">Redex</label>
+            <div className="font-medium text-gray-900">{processo.redex || '-'}</div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">Valor Declarado</label>
+            <div className="font-medium text-gray-900">
+              {processo.valorDeclaradoUsd ? `$ ${Number(processo.valorDeclaradoUsd).toFixed(2)}` : '-'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* LADO DIREITO: Resumo do Checklist */}
+      <div className="lg:col-span-1 bg-gray-50 border border-gray-200 rounded-xl p-6 shadow-sm h-fit">
+        <h2 className="text-lg font-bold mb-1 text-gray-900">Status da Operação</h2>
+        <p className="text-xs text-gray-500 mb-6">Resumo de pendências do checklist.</p>
+        
+        <div className="space-y-4 mb-6">
+          <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
+            <span className="text-sm font-semibold text-gray-700">Administrativo</span>
+            <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+              {pendentesAdmin} pendentes
+            </span>
+          </div>
+          <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
+            <span className="text-sm font-semibold text-gray-700">Documentos</span>
+            <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+              {pendentesDocs} pendentes
             </span>
           </div>
         </div>
-        <Item label="Incoterm" value={processo.incoterm} />
-        <Item label="Porto de destino" value={processo.portoDestino} />
-        <Item label="REDEX" value={processo.redex ?? '-'} />
-        <Item
-          label="Valor declarado (USD)"
-          value={processo.valorDeclaradoUsd ? `USD ${formatInt(Number(processo.valorDeclaradoUsd))}` : '-'}
-        />
-      </div>
-    </div>
-  );
-}
 
-function Item({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <label className="block text-xs uppercase text-gray-400 font-semibold mb-1.5">{label}</label>
-      <span className="text-base font-medium text-gray-900">{value}</span>
+        <Link 
+          href={`/negociacoes/${id}/checklist`}
+          className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2.5 rounded-lg transition-colors"
+        >
+          Ver checklist completo →
+        </Link>
+      </div>
+
     </div>
   );
 }

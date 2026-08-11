@@ -3,14 +3,33 @@ import { notFound } from 'next/navigation';
 import { formatDateTimeBR } from '@/lib/formatters';
 import { uploadDocumentoAction } from '@/server/actions/documentoActions';
 
-export default async function DocumentosPage({ params }: { params: { id: string } }) {
-  const [processo, tipos] = await Promise.all([
-    prisma.processo.findUnique({
-      where: { id: params.id },
-      include: { documentos: { include: { tipoDocumento: true, uploadedBy: true }, orderBy: { uploadedEm: 'desc' } } },
-    }),
-    prisma.tipoDocumento.findMany({ orderBy: { nome: 'asc' } }),
-  ]);
+export default async function DocumentosPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
+  // 1. Busca os tipos no banco de dados
+  let tipos = await prisma.tipoDocumento.findMany({ orderBy: { nome: 'asc' } });
+
+  // ✨ A MÁGICA AQUI: Se a gaveta estiver vazia, cadastra os básicos usando AS PALAVRAS EXATAS DO SEU SCHEMA!
+  if (tipos.length === 0) {
+    await prisma.tipoDocumento.createMany({
+      data: [
+        { nome: 'Contrato', categoria: 'COMERCIAL' },
+        { nome: 'Booking', categoria: 'BOOKING_TRANSPORTE' },
+        { nome: 'B/L', categoria: 'BOOKING_TRANSPORTE' },
+        { nome: 'Fatura / Invoice', categoria: 'FECHAMENTO_BANCARIO' },
+        { nome: 'Certificado', categoria: 'DOCUMENTACAO_EXPORTACAO' },
+      ],
+    });
+    // Busca novamente agora que a gaveta foi preenchida
+    tipos = await prisma.tipoDocumento.findMany({ orderBy: { nome: 'asc' } });
+  }
+
+  // 2. Busca os dados da negociação
+  const processo = await prisma.processo.findUnique({
+    where: { id },
+    include: { documentos: { include: { tipoDocumento: true, uploadedBy: true }, orderBy: { uploadedEm: 'desc' } } },
+  });
+  
   if (!processo) notFound();
 
   return (
@@ -24,18 +43,24 @@ export default async function DocumentosPage({ params }: { params: { id: string 
         className="bg-surface border border-border rounded-2xl p-5 mb-5 flex gap-3 items-end flex-wrap"
       >
         <input type="hidden" name="processoId" value={processo.id} />
+        
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold text-gray-500">Tipo de documento</label>
-          <select name="tipoDocumentoId" required className="border border-border rounded-lg px-3 py-2 text-sm">
-            {tipos.map((t) => (
-              <option key={t.id} value={t.id}>{t.nome}</option>
+          <select name="tipoDocumentoId" className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" defaultValue="" required>
+            <option value="" disabled>Selecione um item...</option>
+            {tipos.map((tipo) => (
+              <option key={tipo.id} value={tipo.id}>
+                {tipo.nome}
+              </option>
             ))}
           </select>
         </div>
+        
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold text-gray-500">Arquivo</label>
           <input type="file" name="file" required className="text-sm" />
         </div>
+        
         <button type="submit" className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-100">
           Anexar
         </button>

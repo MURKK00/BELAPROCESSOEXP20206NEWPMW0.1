@@ -1,12 +1,34 @@
+"use client";
+
 import Link from 'next/link';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { StatusBadge } from './StatusBadge';
 import { formatDateBR } from '@/lib/formatters';
-import { StatusSelect } from '@/components/negociacoes/StatusSelect';
+import { atualizarStatusAction } from '@/server/actions/editarProcessoAction';
 import type { Processo, ProcessoEtapa } from '@prisma/client';
 
 type ProcessoComEtapas = Processo & { etapas: ProcessoEtapa[] };
 
 export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[] }) {
+  const router = useRouter();
+  
+  // Controle do nosso filtro: começa escondendo os cancelados (false)
+  const [mostrarCancelados, setMostrarCancelados] = useState(false);
+
+  // Filtra a lista com base no botão
+  const processosFiltrados = mostrarCancelados
+    ? processos 
+    : processos.filter(p => p.status !== 'CANCELADO');
+
+  // Função real da lixeira
+  const handleCancelar = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja cancelar esta negociação?')) {
+      await atualizarStatusAction(id, 'CANCELADO');
+      router.refresh(); // Recarrega os dados na hora
+    }
+  };
+
   if (processos.length === 0) {
     return (
       <div className="bg-surface border border-border rounded-xl p-10 text-center text-gray-500 text-sm">
@@ -20,35 +42,60 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
   }
 
   return (
-    <div className="bg-surface border border-border rounded-xl overflow-hidden">
-      <table className="w-full">
-        <thead>
-          <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-            <th className="text-left px-6 py-4 font-semibold">Nº Processo</th>
-            <th className="text-left px-6 py-4 font-semibold">Cliente</th>
-            <th className="text-left px-6 py-4 font-semibold">Produto</th>
-            <th className="text-left px-6 py-4 font-semibold">Status</th>
-            <th className="text-left px-6 py-4 font-semibold">Deadline</th>
-          </tr>
-        </thead>
-        <tbody>
-          {processos.map((p) => (
-            <tr key={p.id} className="border-t border-border hover:bg-gray-50">
-              <td className="px-6 py-4 text-sm font-semibold">
-                <Link href={`/negociacoes/${p.id}`}>{p.numeroProcesso}</Link>
-              </td>
-              <td className="px-6 py-4 text-sm">
-                <Link href={`/negociacoes/${p.id}`}>{p.clienteFinal}</Link>
-              </td>
-              <td className="px-6 py-4 text-sm">{p.produto}</td>
-              <td className="px-6 py-4">
-                <StatusBadge status={p.status} />
-              </td>
-              <td className="px-6 py-4 text-sm text-gray-500">{formatDateBR(p.deadlineEmbarque)}</td>
+    <div>
+      {/* Botão de Filtro */}
+      <div className="flex justify-end mb-4">
+        <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-600">
+          <input 
+            type="checkbox" 
+            checked={mostrarCancelados}
+            onChange={(e) => setMostrarCancelados(e.target.checked)}
+            className="rounded text-blue-600 focus:ring-blue-500"
+          />
+          Mostrar negociações canceladas
+        </label>
+      </div>
+
+      <div className="bg-surface border border-border rounded-xl overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+              <th className="text-left px-6 py-4 font-semibold">Nº Processo</th>
+              <th className="text-left px-6 py-4 font-semibold">Cliente</th>
+              <th className="text-left px-6 py-4 font-semibold">Produto</th>
+              <th className="text-left px-6 py-4 font-semibold">Status</th>
+              <th className="text-left px-6 py-4 font-semibold">Deadline</th>
+              <th className="text-left px-6 py-4 font-semibold text-center">Ações</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {processosFiltrados.map((p) => (
+              <tr key={p.id} className={`border-t border-border hover:bg-gray-50 ${p.status === 'CANCELADO' ? 'bg-red-100' : 'bg-white'}`}>
+                <td className="px-6 py-4 text-sm font-semibold">
+                  <Link href={`/negociacoes/${p.id}`}>{p.numeroProcesso}</Link>
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  <Link href={`/negociacoes/${p.id}`}>{p.clienteFinal}</Link>
+                </td>
+                <td className="px-6 py-4 text-sm">{p.produto}</td>
+                <td className="px-6 py-4">
+                  <StatusBadge status={p.status} />
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">{formatDateBR(p.deadlineEmbarque)}</td>
+                <td className="px-6 py-4 text-sm text-center">
+                  <button 
+                    onClick={() => handleCancelar(p.id)}
+                    title="Cancelar Negociação"
+                    className="hover:scale-110 transition-transform"
+                  > 
+                    🗑️
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

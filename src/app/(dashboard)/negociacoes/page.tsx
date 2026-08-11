@@ -8,6 +8,13 @@ export default async function NegociacoesPage() {
     orderBy: { criadoEm: 'desc' },
   });
 
+  // Vacina anti-erro: Converte os Decimais para Números normais
+  const processosFormatados = processos.map((p) => ({
+    ...p,
+    volumeKg: Number(p.volumeKg),
+    valorDeclaradoUsd: p.valorDeclaradoUsd ? Number(p.valorDeclaradoUsd) : null,
+  })) as any;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -19,7 +26,7 @@ export default async function NegociacoesPage() {
           + Nova negociação
         </Link>
       </div>
-      <NegotiationTable processos={processos} />
+      <NegotiationTable processos={processosFormatados} />
     </div>
   );
 }

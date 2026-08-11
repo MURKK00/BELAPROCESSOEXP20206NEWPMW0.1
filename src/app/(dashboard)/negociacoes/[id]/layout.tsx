@@ -4,26 +4,33 @@ import { prisma } from '@/lib/prisma';
 import { StatusBadge } from '@/components/negociacoes/StatusBadge';
 import { StatusSelect } from '@/components/negociacoes/StatusSelect';
 import { formatDateBR } from '@/lib/formatters';
+import { deriveStatusProcesso } from '@/lib/workflow';
 
 export default async function DetailLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  // 1. Extraímos o 'id' da URL (obrigatório ser 'await' no Next.js 15)
+  const { id } = await params;
+
+  // 2. Buscamos as informações no banco de dados
   const processo = await prisma.processo.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     include: { etapas: true },
   });
+
+  // 3. Se não encontrar nada, vai para a página de erro 404
   if (!processo) notFound();
 
   const status = deriveStatusProcesso(processo.etapas);
   const base = `/negociacoes/${processo.id}`;
   const tabs = [
     { href: base, label: 'Visão geral' },
-    { href: `${base}/financeiro`, label: 'Financeiro' },
     { href: `${base}/checklist`, label: 'Checklist' },
+    { href: `${base}/financeiro`, label: 'Financeiro' },
     { href: `${base}/documentos`, label: 'Documentos' },
     { href: `${base}/chat`, label: 'Chat interno' },
     { href: `${base}/auditoria`, label: 'Auditoria' },
@@ -43,14 +50,22 @@ export default async function DetailLayout({
             {processo.produto} · {processo.incoterm} → {processo.portoDestino}
           </div>
         </div>
-        <div className="flex gap-2">
+        
+        {/* Aqui é o lugar correto dos botões: dentro do Layout e com acesso ao 'id' e 'processo' */}
+        <div className="flex gap-2 items-center">
           <Link
             href="/negociacoes"
             className="border border-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50"
           >
             ← Voltar
           </Link>
-          <StatusBadge status={status} />
+          <Link
+            href={`/negociacoes/${id}/editar`}
+            className="border border-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50"
+          >
+            ✎ Editar dados
+          </Link>
+          <StatusSelect processoId={processo.id} status={processo.status} />
         </div>
       </div>
 
@@ -85,19 +100,3 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-<div className="flex gap-2 items-center">
-  <Link
-    href="/negociacoes"
-    className="border border-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50"
-  >
-    ← Voltar
-  </Link>
-  <Link
-  href={`/negociacoes/${processo.id}/editar`}
-  className="border border-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50"
->
-  ✎ Editar dados
-</Link>
-  <StatusSelect processoId={processo.id} status={processo.status} />
-</div>
