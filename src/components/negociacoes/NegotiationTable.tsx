@@ -7,6 +7,7 @@ import { StatusBadge } from './StatusBadge';
 import { formatDateBR } from '@/lib/formatters';
 import { atualizarStatusAction } from '@/server/actions/editarProcessoAction';
 import type { Processo, ProcessoEtapa } from '@prisma/client';
+import { StatusBadge } from './StatusBadge';
 
 type ProcessoComEtapas = Processo & { etapas: ProcessoEtapa[] };
 
@@ -69,6 +70,7 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
               <th className="text-left px-6 py-4 font-semibold">Status</th>
               <th className="text-left px-6 py-4 font-semibold">Deadline</th>
               <th className="text-left px-6 py-4 font-semibold text-center">Ações</th>
+              <th className="text-left px-6 py-4 font-semibold text-gray-600">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -83,6 +85,9 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                 <td className="px-6 py-4 text-sm">{p.produto}</td>
                 <td className="px-6 py-4">
                   <StatusBadge status={p.status} />
+                </td>
+                <td className="px-6 py-4 text-sm font-medium">
+                  <StatusBadge status={processo.status} />
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-500">{formatDateBR(p.deadlineEmbarque)}</td>
                 <td className="px-6 py-4 text-sm text-center">

@@ -1,21 +1,28 @@
-import type { StatusNegociacao } from '@prisma/client';
+export function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    PENDENTE: 'bg-gray-100 text-gray-600 border-gray-200',
+    EM_NEGOCIACAO: 'bg-amber-100 text-amber-700 border-amber-200',
+    EM_EXECUCAO: 'bg-blue-100 text-blue-700 border-blue-200',
+    EMBARCADO: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    FINALIZADO: 'bg-green-100 text-green-700 border-green-200',
+    CANCELADO: 'bg-red-100 text-red-700 border-red-200',
+  };
 
-const LABEL: Record<StatusNegociacao, string> = {
-  PENDENTE: 'Pendente',
-  EM_NEGOCIACAO: 'Em negociação',
-  EMBARCADO: 'Embarcado',
-  FINALIZADO: 'Finalizado',
-  CANCELADO: 'Cancelado',
-};
+  const labels: Record<string, string> = {
+    PENDENTE: 'Pendente',
+    EM_NEGOCIACAO: 'Em negociação',
+    EM_EXECUCAO: 'Em execução',
+    EMBARCADO: 'Embarcado',
+    FINALIZADO: 'Finalizado',
+    CANCELADO: 'Cancelado',
+  };
 
-const STYLES: Record<StatusNegociacao, string> = {
-  PENDENTE: 'badge-criado',
-  EM_NEGOCIACAO: 'badge-pendente',
-  EMBARCADO: 'badge-embarcando',
-  FINALIZADO: 'badge-concluido',
-  CANCELADO: 'badge-alerta',
-};
+  const style = colors[status] || colors.PENDENTE;
+  const label = labels[status] || status;
 
-export function StatusBadge({ status }: { status: StatusNegociacao }) {
-  return <span className={`badge ${STYLES[status]}`}>{LABEL[status]}</span>;
+  return (
+    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border shadow-sm ${style}`}>
+      {label}
+    </span>
+  );
 }

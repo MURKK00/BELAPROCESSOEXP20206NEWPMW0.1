@@ -140,6 +140,7 @@ model ProcessoEtapa {
 enum StatusNegociacao {
   PENDENTE
   EM_NEGOCIACAO
+  EM_EXECUCAO
   EMBARCADO
   FINALIZADO
   CANCELADO
@@ -210,6 +211,7 @@ enum CategoriaDocumento {
   REDEX_CARREGAMENTO
   DOCUMENTACAO_EXPORTACAO
   FECHAMENTO_BANCARIO
+  ETIQUETA
 }
 
 model TipoDocumento {

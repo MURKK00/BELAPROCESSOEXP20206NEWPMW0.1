@@ -49,20 +49,24 @@ export default async function DetailLayout({
           </div>
         </div>
         
-        {/* Aqui é o lugar correto dos botões: dentro do Layout e com acesso ao 'id' e 'processo' */}
-        <div className="flex gap-2 items-center">
+        {/* AQUI ESTÁ A MÁGICA: Os botões novos, modernos e com ícones! */}
+        <div className="flex items-center gap-3">
           <Link
             href="/negociacoes"
-            className="border border-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50"
+            className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
             ← Voltar
           </Link>
+          
           <Link
-            href={`/negociacoes/${id}/editar`}
-            className="border border-gray-300 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50"
+            href={`/negociacoes/${processo.id}/editar`}
+            className="flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
-            ✎ Editar dados
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            Editar dados
           </Link>
+
+          {/* O seletor de status continua aqui, mas agora os botões do lado dele estão com a altura e design corretos */}
           <StatusSelect processoId={processo.id} status={processo.status} />
         </div>
       </div>
