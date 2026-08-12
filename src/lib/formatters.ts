@@ -22,7 +22,10 @@ export const formatInt = (val: number | Decimal) =>
 export const formatDateBR = (date: Date | string | null) => {
   if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('pt-BR').format(d);
+  const day = d.getUTCDate().toString().padStart(2, '0');
+  const month = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+  const year = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 };
 
 export const formatDateTimeBR = (date: Date | string | null) => {
