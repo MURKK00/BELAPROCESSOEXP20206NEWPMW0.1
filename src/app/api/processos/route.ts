@@ -10,13 +10,14 @@ export async function GET() {
     include: { etapas: true },
   });
 
-  // status sempre recalculado na leitura — nunca confia só no cache
-  const withStatus = processos.map((p) => ({
+  // `status` vem direto do banco (enum StatusNegociacao — fonte única de verdade).
+  // `progresso` é só informativo, calculado a partir do checklist de etapas.
+  const comProgresso = processos.map((p) => ({
     ...p,
-    status: deriveStatusProcesso(p.etapas),
+    progresso: deriveStatusProcesso(p.etapas),
   }));
 
-  return NextResponse.json(withStatus);
+  return NextResponse.json(comProgresso);
 }
 
 export async function POST(req: NextRequest) {

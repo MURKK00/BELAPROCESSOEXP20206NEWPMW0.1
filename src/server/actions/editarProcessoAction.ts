@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
+import { StatusNegociacao } from '@prisma/client';
 
 export async function atualizarProcessoAction(formData: FormData) {
   const user = await getSessionUser();
@@ -57,7 +58,7 @@ export async function atualizarStatusAction(formData: FormData) {
 
   await prisma.processo.update({
     where: { id: processoId },
-    data: { statusCache: novoStatus as any },
+    data: { status: novoStatus as any },
   });
 
   await prisma.auditLog.create({

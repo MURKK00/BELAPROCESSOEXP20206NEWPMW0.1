@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma';
 import { StatusBadge } from '@/components/negociacoes/StatusBadge';
 import { StatusSelect } from '@/components/negociacoes/StatusSelect';
 import { formatDateBR } from '@/lib/formatters';
-import { deriveStatusProcesso } from '@/lib/workflow';
 
 export default async function DetailLayout({
   children,
@@ -25,7 +24,6 @@ export default async function DetailLayout({
   // 3. Se não encontrar nada, vai para a página de erro 404
   if (!processo) notFound();
 
-  const status = deriveStatusProcesso(processo.etapas);
   const base = `/negociacoes/${processo.id}`;
   const tabs = [
     { href: base, label: 'Visão geral' },

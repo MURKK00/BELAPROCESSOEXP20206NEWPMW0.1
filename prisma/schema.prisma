@@ -29,16 +29,16 @@ enum Papel {
 }
 
 model Usuario {
-  id            String   @id @default(cuid())
-  nome          String
-  email         String   @unique
-  papel         Papel
-  ativo         Boolean  @default(true)
-  criadoEm      DateTime @default(now())
+  id       String   @id @default(cuid())
+  nome     String
+  email    String   @unique
+  papel    Papel
+  ativo    Boolean  @default(true)
+  criadoEm DateTime @default(now())
 
-  processosCriados   Processo[]       @relation("ProcessoCriadoPor")
-  etapasResponsavel  ProcessoEtapa[]  @relation("EtapaResponsavel")
-  documentosEnviados Documento[]      @relation("DocumentoUploadedBy")
+  processosCriados   Processo[]      @relation("ProcessoCriadoPor")
+  etapasResponsavel  ProcessoEtapa[] @relation("EtapaResponsavel")
+  documentosEnviados Documento[]     @relation("DocumentoUploadedBy")
   mensagens          ChatMessage[]
   logs               AuditLog[]
   custosAtualizados  CustoItem[]
@@ -50,24 +50,24 @@ model Usuario {
 // ---------------------------------------------------------------------------
 
 enum TipoParceiro {
-  GERENCIADORA_RISCO   // Buonny
-  AGENTE_DESPACHANTE    // CROMO
-  AGENTE_BOOKING        // SCAN
-  INSPETORIA            // Port Inspect
-  SURVEY_FUMIGACAO      // SURVEY / UNICCA
+  GERENCIADORA_RISCO // Buonny
+  AGENTE_DESPACHANTE // CROMO
+  AGENTE_BOOKING // SCAN
+  INSPETORIA // Port Inspect
+  SURVEY_FUMIGACAO // SURVEY / UNICCA
   TRANSPORTADORA
-  SEGURADORA            // AT&M
-  BANCO                 // Banco do Brasil
-  TRANSPORTADORA_INTL   // DHL
+  SEGURADORA // AT&M
+  BANCO // Banco do Brasil
+  TRANSPORTADORA_INTL // DHL
   OUTRO
 }
 
 model Parceiro {
-  id        String       @id @default(cuid())
-  nome      String
-  tipo      TipoParceiro
-  contato   String?
-  ativo     Boolean      @default(true)
+  id      String       @id @default(cuid())
+  nome    String
+  tipo    TipoParceiro
+  contato String?
+  ativo   Boolean      @default(true)
 
   etapaTemplates EtapaTemplate[]
   documentos     Documento[]
@@ -97,7 +97,7 @@ enum StatusEtapa {
   PENDENTE
   EM_ANDAMENTO
   CONCLUIDA
-  BLOQUEADA   // aguardando decisão / caminho NÃO da planilha
+  BLOQUEADA // aguardando decisão / caminho NÃO da planilha
   NAO_APLICAVEL
 }
 
@@ -110,23 +110,23 @@ enum NivelAutomacao {
 // EtapaTemplate = as 48 linhas do "Backlog Automação", como CONFIGURAÇÃO.
 // Isso é seedado uma vez (prisma/seed.ts) e reaproveitado por todo processo novo.
 model EtapaTemplate {
-  id                 String          @id @default(cuid())
-  numero             String          @unique // "1", "10", "44-A", "46-A" (mantém numeração original da planilha)
-  ordem              Int             // ordem de execução linear, p/ sort
-  fase               Fase
-  etapa              String          // nome da etapa/coluna "Etapa"
-  raiaResponsavel    String          // coluna "Raia / Responsável"
-  parceiroId         String?
-  parceiro           Parceiro?       @relation(fields: [parceiroId], references: [id])
-  canal              String?         // ERP / E-mail / Site / API...
-  gatilho            String?         // "Gatilho (trigger)"
-  entrada            String?         // "Input"
-  saida              String?         // "Output"
-  ehDecisao          Boolean         @default(false) // etapas "Decisão: ..."
-  automacaoSugerida  NivelAutomacao  @default(MANUAL)
-  geraDocumento      Boolean         @default(false)
-  tipoDocumentoId    String?
-  tipoDocumento      TipoDocumento?  @relation(fields: [tipoDocumentoId], references: [id])
+  id                String         @id @default(cuid())
+  numero            String         @unique // "1", "10", "44-A", "46-A" (mantém numeração original da planilha)
+  ordem             Int // ordem de execução linear, p/ sort
+  fase              Fase
+  etapa             String // nome da etapa/coluna "Etapa"
+  raiaResponsavel   String // coluna "Raia / Responsável"
+  parceiroId        String?
+  parceiro          Parceiro?      @relation(fields: [parceiroId], references: [id])
+  canal             String? // ERP / E-mail / Site / API...
+  gatilho           String? // "Gatilho (trigger)"
+  entrada           String? // "Input"
+  saida             String? // "Output"
+  ehDecisao         Boolean        @default(false) // etapas "Decisão: ..."
+  automacaoSugerida NivelAutomacao @default(MANUAL)
+  geraDocumento     Boolean        @default(false)
+  tipoDocumentoId   String?
+  tipoDocumento     TipoDocumento? @relation(fields: [tipoDocumentoId], references: [id])
 
   instancias ProcessoEtapa[]
 }
@@ -135,17 +135,17 @@ model EtapaTemplate {
 // É isso que alimenta o checklist, o status do processo e o dashboard —
 // nada disso é mais hardcoded no front.
 model ProcessoEtapa {
-  id               String        @id @default(cuid())
-  processoId       String
-  processo         Processo      @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  etapaTemplateId  String
-  etapaTemplate    EtapaTemplate @relation(fields: [etapaTemplateId], references: [id])
-  status           StatusEtapa   @default(PENDENTE)
-  responsavelId    String?
-  responsavel      Usuario?      @relation("EtapaResponsavel", fields: [responsavelId], references: [id])
-  observacao       String?
-  iniciadoEm       DateTime?
-  concluidoEm      DateTime?
+  id              String        @id @default(cuid())
+  processoId      String
+  processo        Processo      @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  etapaTemplateId String
+  etapaTemplate   EtapaTemplate @relation(fields: [etapaTemplateId], references: [id])
+  status          StatusEtapa   @default(PENDENTE)
+  responsavelId   String?
+  responsavel     Usuario?      @relation("EtapaResponsavel", fields: [responsavelId], references: [id])
+  observacao      String?
+  iniciadoEm      DateTime?
+  concluidoEm     DateTime?
 
   documentos Documento[]
 
@@ -153,46 +153,6 @@ model ProcessoEtapa {
   @@index([processoId, status])
 }
 
-// ---------------------------------------------------------------------------
-// PROCESSO (a "negociação" do rascunho, renomeada p/ refletir que é um
-// processo de exportação ponta a ponta, não só a etapa comercial)
-// ---------------------------------------------------------------------------
-
-model Processo {
-  id               String    @id @default(cuid())
-  numeroProcesso   String    @unique // ex: BC202608060001 (mesmo gerador do rascunho)
-  clienteFinal     String
-  traderIntermedio String?
-  produto          String
-  volumeKg         Decimal   @db.Decimal(14, 3)
-  incoterm         String
-  portoDestino     String
-  redex            String?
-  valorDeclaradoUsd Decimal? @db.Decimal(14, 2)
-
-  bookingNumero    String?
-  navio            String?
-  deadlineEmbarque DateTime?
-
-  criadoPorId String
-  criadoPor   Usuario  @relation("ProcessoCriadoPor", fields: [criadoPorId], references: [id])
-  criadoEm    DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
-
-  etapas      ProcessoEtapa[]
-  documentos  Documento[]
-  financeiro  Financeiro?
-  mensagens   ChatMessage[]
-  logs        AuditLog[]
-
-  // status NÃO é mais um campo digitado: é calculado a partir de `etapas`
-  // (ver src/lib/workflow.ts -> deriveStatusProcesso). Mantido aqui apenas
-  // como cache opcional para permitir index/filtro rápido nas listagens.
-  statusCache String? // "Criado" | "Docs Pendentes" | "Embarcando" | "Concluído"
-
-  @@index([deadlineEmbarque])
-  @@index([statusCache])
-}
 
 // ---------------------------------------------------------------------------
 // GED — DOCUMENTOS
@@ -211,10 +171,10 @@ enum CategoriaDocumento {
 }
 
 model TipoDocumento {
-  id         String             @id @default(cuid())
-  nome       String             @unique // "Minuta de Contrato de Compra", "BL Original", ...
-  categoria  CategoriaDocumento
-  obrigatorioNoPacoteFinal Boolean @default(false) // é 1 dos 10 docs do checklist final?
+  id                       String             @id @default(cuid())
+  nome                     String             @unique // "Minuta de Contrato de Compra", "BL Original", ...
+  categoria                CategoriaDocumento
+  obrigatorioNoPacoteFinal Boolean            @default(false) // é 1 dos 10 docs do checklist final?
 
   etapasQueGeram EtapaTemplate[]
   documentos     Documento[]
@@ -229,22 +189,22 @@ enum StatusDocumento {
 }
 
 model Documento {
-  id              String          @id @default(cuid())
-  processoId      String
-  processo        Processo        @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  tipoDocumentoId String
-  tipoDocumento   TipoDocumento   @relation(fields: [tipoDocumentoId], references: [id])
-  etapaOrigemId   String?
-  etapaOrigem     ProcessoEtapa?  @relation(fields: [etapaOrigemId], references: [id])
+  id                String         @id @default(cuid())
+  processoId        String
+  processo          Processo       @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  tipoDocumentoId   String
+  tipoDocumento     TipoDocumento  @relation(fields: [tipoDocumentoId], references: [id])
+  etapaOrigemId     String?
+  etapaOrigem       ProcessoEtapa? @relation(fields: [etapaOrigemId], references: [id])
   parceiroEmissorId String?
-  parceiroEmissor Parceiro?       @relation(fields: [parceiroEmissorId], references: [id])
+  parceiroEmissor   Parceiro?      @relation(fields: [parceiroEmissorId], references: [id])
 
   // storagePath segue a convenção já definida na aba "Estrutura GED":
   // processos/{numeroProcesso}/{faseCodigo}_{faseNome}/{TipoDocumento}_{AAAAMMDD}.ext
-  nomeArquivo  String
-  storagePath  String
-  versao       Int             @default(1)
-  status       StatusDocumento @default(RASCUNHO)
+  nomeArquivo String
+  storagePath String
+  versao      Int             @default(1)
+  status      StatusDocumento @default(RASCUNHO)
 
   uploadedById String
   uploadedBy   Usuario  @relation("DocumentoUploadedBy", fields: [uploadedById], references: [id])
@@ -260,11 +220,11 @@ model Documento {
 // ---------------------------------------------------------------------------
 
 model Financeiro {
-  id         String   @id @default(cuid())
-  processoId String   @unique
-  processo   Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  precoUsd   Decimal  @db.Decimal(12, 2)
-  ptax       Decimal  @db.Decimal(8, 4)
+  id           String   @id @default(cuid())
+  processoId   String   @unique
+  processo     Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  precoUsd     Decimal  @db.Decimal(12, 2)
+  ptax         Decimal  @db.Decimal(8, 4)
   atualizadoEm DateTime @updatedAt
 
   custos CustoItem[]
@@ -282,14 +242,14 @@ enum CategoriaCusto {
 }
 
 model CustoItem {
-  id            String         @id @default(cuid())
-  financeiroId  String
-  financeiro    Financeiro     @relation(fields: [financeiroId], references: [id], onDelete: Cascade)
-  categoria     CategoriaCusto
-  valor         Decimal        @db.Decimal(14, 2)
+  id              String         @id @default(cuid())
+  financeiroId    String
+  financeiro      Financeiro     @relation(fields: [financeiroId], references: [id], onDelete: Cascade)
+  categoria       CategoriaCusto
+  valor           Decimal        @db.Decimal(14, 2)
   atualizadoPorId String
-  atualizadoPor Usuario        @relation(fields: [atualizadoPorId], references: [id])
-  atualizadoEm  DateTime       @updatedAt
+  atualizadoPor   Usuario        @relation(fields: [atualizadoPorId], references: [id])
+  atualizadoEm    DateTime       @updatedAt
 
   @@unique([financeiroId, categoria])
 }
@@ -320,7 +280,7 @@ model AuditLog {
   processo   Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
   usuarioId  String
   usuario    Usuario  @relation(fields: [usuarioId], references: [id])
-  acao       String   // "ETAPA_CONCLUIDA", "DOCUMENTO_ANEXADO", "FINANCEIRO_EDITADO"...
+  acao       String // "ETAPA_CONCLUIDA", "DOCUMENTO_ANEXADO", "FINANCEIRO_EDITADO"...
   detalhe    String
   criadoEm   DateTime @default(now())
 
@@ -332,29 +292,19 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model WebhookEvent {
-  id           String   @id @default(cuid())
-  origem       String   // "n8n"
-  evento       String   // ex: "certificado.recebido", "etapa.concluida"
-  payload      Json
-  processado   Boolean  @default(false)
-  erro         String?
-  recebidoEm   DateTime @default(now())
+  id         String   @id @default(cuid())
+  origem     String // "n8n"
+  evento     String // ex: "certificado.recebido", "etapa.concluida"
+  payload    Json
+  processado Boolean  @default(false)
+  erro       String?
+  recebidoEm DateTime @default(now())
 }
 
-// ---------------------------------------------------------------------------
-// STATUS MANUAL (Pendente / Em negociação / Embarcado / Finalizado / Cancelado)
-// ---------------------------------------------------------------------------
- 
- enum StatusNegociacao {
+enum StatusNegociacao {
   PENDENTE
   EM_NEGOCIACAO
   EMBARCADO
   FINALIZADO
   CANCELADO
-}
-
-model Processo {
-  // ...campos existentes
-  status StatusNegociacao @default(PENDENTE)
-  // ...
 }

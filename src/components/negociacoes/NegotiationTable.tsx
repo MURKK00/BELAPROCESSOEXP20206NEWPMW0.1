@@ -21,13 +21,16 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
     ? processos 
     : processos.filter(p => p.status !== 'CANCELADO');
 
-  // Função real da lixeira
+  // Função lixeira
   const handleCancelar = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja cancelar esta negociação?')) {
-      await atualizarStatusAction(id, 'CANCELADO');
-      router.refresh(); // Recarrega os dados na hora
-    }
-  };
+  if (window.confirm('Tem certeza que deseja cancelar esta negociação?')) {
+    const formData = new FormData();
+    formData.set('processoId', id);
+    formData.set('status', 'CANCELADO');
+    await atualizarStatusAction(formData);
+    router.refresh();
+  }
+};
 
   if (processos.length === 0) {
     return (
