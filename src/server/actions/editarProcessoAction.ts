@@ -6,6 +6,17 @@ import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { StatusNegociacao } from '@prisma/client';
 
+function parseSimNao(value: FormDataEntryValue | null): boolean | undefined {
+  if (value === 'sim') return true;
+  if (value === 'nao') return false;
+  return undefined;
+}
+
+function parseDate(value: FormDataEntryValue | null): Date | undefined {
+  const str = String(value ?? '');
+  return str ? new Date(str) : undefined;
+}
+
 export async function atualizarProcessoAction(formData: FormData) {
   const user = await getSessionUser();
   if (!user) throw new Error('Não autenticado');
@@ -29,6 +40,21 @@ export async function atualizarProcessoAction(formData: FormData) {
       bookingNumero: String(formData.get('bookingNumero') ?? '') || null,
       navio: String(formData.get('navio') ?? '') || null,
       deadlineEmbarque: deadlineStr ? new Date(deadlineStr) : null,
+
+      localEstufagem: String(formData.get('localEstufagem') ?? '') || null,
+      containerQtd: formData.get('containerQtd') ? Number(formData.get('containerQtd')) : null,
+      containerTipo: String(formData.get('containerTipo') ?? "20' DRY"),
+      embalagemTipo: String(formData.get('embalagemTipo') ?? 'Sacaria 30kg'),
+      sacasPorContainer: formData.get('sacasPorContainer') ? Number(formData.get('sacasPorContainer')) : null,
+      fumigacaoNecessaria: parseSimNao(formData.get('fumigacaoNecessaria')) ?? null,
+      fumigacaoTipo: String(formData.get('fumigacaoTipo') ?? '') || null,
+      fumigacaoTempoHoras: formData.get('fumigacaoTempoHoras') ? Number(formData.get('fumigacaoTempoHoras')) : 24,
+      armador: String(formData.get('armador') ?? 'ONE'),
+
+      estufagemInicio: parseDate(formData.get('estufagemInicio')) ?? null,
+      estufagemFim: parseDate(formData.get('estufagemFim')) ?? null,
+      mapaNaSequencia: parseSimNao(formData.get('mapaNaSequencia')) ?? null,
+      ncm: String(formData.get('ncm') ?? '') || null,
     },
   });
 

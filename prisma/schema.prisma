@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" 
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------
@@ -53,7 +54,7 @@ enum TipoParceiro {
 
 model Parceiro {
   id             String          @id @default(cuid())
-  nome           String
+  nome           String          @unique
   tipo           TipoParceiro
   contato        String?
   ativo          Boolean         @default(true)
@@ -162,6 +163,23 @@ model Processo {
   bookingNumero     String?
   navio             String?
   deadlineEmbarque  DateTime?
+
+// --- Informações (contêiner / fumigação) ---
+  localEstufagem      String?
+  containerQtd        Int?
+  containerTipo       String?   @default("20' DRY")
+  embalagemTipo       String?   @default("Sacaria 30kg")
+  sacasPorContainer   Int?
+  fumigacaoNecessaria Boolean?
+  fumigacaoTipo       String?
+  fumigacaoTempoHoras Int?      @default(24)
+  armador             String?   @default("ONE")
+
+  // --- Características ---
+  estufagemInicio     DateTime?
+  estufagemFim        DateTime?
+  mapaNaSequencia     Boolean?
+  ncm                 String?
 
   criadoPorId       String
   criadoPor         Usuario   @relation("ProcessoCriadoPor", fields: [criadoPorId], references: [id])

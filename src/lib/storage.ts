@@ -20,3 +20,15 @@ export async function uploadDocumentToStorage(path: string, file: Blob): Promise
   });
   if (error) throw new Error(`Falha no upload: ${error.message}`);
 }
+
+export async function getDocumentSignedUrl(path: string, opts?: { download?: boolean }): Promise<string> {
+  const supabase = getClient();
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(path, 60 * 5, { download: opts?.download ?? false });
+
+  if (error || !data?.signedUrl) {
+    throw new Error(`Falha ao gerar link do documento: ${error?.message}`);
+  }
+  return data.signedUrl;
+}

@@ -17,6 +17,20 @@ export async function criarProcesso(input: {
   portoDestino: string;
   redex?: string;
   valorDeclaradoUsd?: number;
+  localEstufagem?: string;
+  containerQtd?: number;
+  containerTipo?: string;
+  embalagemTipo?: string;
+  sacasPorContainer?: number;
+  fumigacaoNecessaria?: boolean;
+  fumigacaoTipo?: string;
+  fumigacaoTempoHoras?: number;
+  armador?: string;
+
+  estufagemInicio?: Date;
+  estufagemFim?: Date;
+  mapaNaSequencia?: boolean;
+  ncm?: string;
   criadoPorId: string;
 }) {
   const totalHoje = await prisma.processo.count({
@@ -42,6 +56,20 @@ export async function criarProcesso(input: {
         portoDestino: input.portoDestino,
         redex: input.redex,
         valorDeclaradoUsd: input.valorDeclaradoUsd,
+        localEstufagem: input.localEstufagem,
+        containerQtd: input.containerQtd,
+        containerTipo: input.containerTipo,
+        embalagemTipo: input.embalagemTipo,
+        sacasPorContainer: input.sacasPorContainer,
+        fumigacaoNecessaria: input.fumigacaoNecessaria,
+        fumigacaoTipo: input.fumigacaoTipo,
+        fumigacaoTempoHoras: input.fumigacaoTempoHoras,
+        armador: input.armador,
+
+        estufagemInicio: input.estufagemInicio,
+        estufagemFim: input.estufagemFim,
+        mapaNaSequencia: input.mapaNaSequencia,
+        ncm: input.ncm,
         criadoPorId: input.criadoPorId,
         statusCache: 'Criado',
         etapas: {

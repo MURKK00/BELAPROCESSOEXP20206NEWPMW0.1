@@ -9,7 +9,7 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
   // 1. Busca os tipos no banco de dados
   let tipos = await prisma.tipoDocumento.findMany({ orderBy: { nome: 'asc' } });
 
-  // ✨ A MÁGICA AQUI: Se a gaveta estiver vazia, cadastra os básicos usando AS PALAVRAS EXATAS DO SEU SCHEMA!
+  // Se a gaveta estiver vazia, cadastra os básicos usando as palavras exatas do schema
   if (tipos.length === 0) {
     await prisma.tipoDocumento.createMany({
       data: [
@@ -29,7 +29,7 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
     where: { id },
     include: { documentos: { include: { tipoDocumento: true, uploadedBy: true }, orderBy: { uploadedEm: 'desc' } } },
   });
-  
+
   if (!processo) notFound();
 
   return (
@@ -43,7 +43,7 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
         className="bg-surface border border-border rounded-2xl p-5 mb-5 flex gap-3 items-end flex-wrap"
       >
         <input type="hidden" name="processoId" value={processo.id} />
-        
+
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold text-gray-500">Tipo de documento</label>
           <select name="tipoDocumentoId" className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white" defaultValue="" required>
@@ -55,12 +55,12 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
             ))}
           </select>
         </div>
-        
+
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold text-gray-500">Arquivo</label>
           <input type="file" name="file" required className="text-sm" />
         </div>
-        
+
         <button type="submit" className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-100">
           Anexar
         </button>
@@ -77,6 +77,7 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
                 <th className="text-left px-6 py-4 font-semibold">Categoria</th>
                 <th className="text-left px-6 py-4 font-semibold">Data/Hora</th>
                 <th className="text-left px-6 py-4 font-semibold">Responsável</th>
+                <th className="text-left px-6 py-4 font-semibold">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -86,6 +87,24 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
                   <td className="px-6 py-4 text-sm">{d.tipoDocumento.categoria}</td>
                   <td className="px-6 py-4 text-sm text-gray-500">{formatDateTimeBR(d.uploadedEm)}</td>
                   <td className="px-6 py-4 text-sm">{d.uploadedBy.nome}</td>
+                  <td className="px-6 py-4 text-sm">
+                    <div className="flex gap-3">
+                      <a
+                        href={`/api/documentos/${d.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-secondary font-semibold hover:underline"
+                      >
+                        Visualizar
+                      </a>
+                      <a
+                        href={`/api/documentos/${d.id}?download=1`}
+                        className="text-secondary font-semibold hover:underline"
+                      >
+                        Baixar
+                      </a>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
