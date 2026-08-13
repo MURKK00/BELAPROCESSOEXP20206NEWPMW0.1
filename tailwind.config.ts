@@ -5,8 +5,8 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: '#1e3a8a',
-        secondary: '#3b82f6',
+        primary: '#F58025',
+        secondary: '#1A7A43',
         bg: '#f3f4f6',
         surface: '#ffffff',
         border: '#e5e7eb',
