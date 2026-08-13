@@ -7,7 +7,6 @@ import { StatusBadge } from './StatusBadge';
 import { formatDateBR } from '@/lib/formatters';
 import { atualizarStatusAction } from '@/server/actions/editarProcessoAction';
 import type { Processo, ProcessoEtapa } from '@prisma/client';
-import { StatusBadge } from './StatusBadge';
 
 type ProcessoComEtapas = Processo & { etapas: ProcessoEtapa[] };
 
@@ -24,14 +23,14 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
 
   // Função lixeira
   const handleCancelar = async (id: string) => {
-  if (window.confirm('Tem certeza que deseja cancelar esta negociação?')) {
-    const formData = new FormData();
-    formData.set('processoId', id);
-    formData.set('status', 'CANCELADO');
-    await atualizarStatusAction(formData);
-    router.refresh();
-  }
-};
+    if (window.confirm('Tem certeza que deseja cancelar esta negociação?')) {
+      const formData = new FormData();
+      formData.set('processoId', id);
+      formData.set('status', 'CANCELADO');
+      await atualizarStatusAction(formData);
+      router.refresh();
+    }
+  };
 
   if (processos.length === 0) {
     return (
@@ -67,10 +66,9 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
               <th className="text-left px-6 py-4 font-semibold">Nº Processo</th>
               <th className="text-left px-6 py-4 font-semibold">Cliente</th>
               <th className="text-left px-6 py-4 font-semibold">Produto</th>
-              <th className="text-left px-6 py-4 font-semibold">Status</th>
+              <th className="text-left px-6 py-4 font-semibold whitespace-nowrap">Status</th>
               <th className="text-left px-6 py-4 font-semibold">Deadline</th>
-              <th className="text-left px-6 py-4 font-semibold text-center">Ações</th>
-              <th className="text-left px-6 py-4 font-semibold text-gray-600">Status</th>
+              <th className="text-center px-6 py-4 font-semibold">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -83,12 +81,12 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                   <Link href={`/negociacoes/${p.id}`}>{p.clienteFinal}</Link>
                 </td>
                 <td className="px-6 py-4 text-sm">{p.produto}</td>
-                <td className="px-6 py-4">
+                
+                {/* Aqui está o segredo: whitespace-nowrap impede o texto de quebrar */}
+                <td className="px-6 py-4 whitespace-nowrap">
                   <StatusBadge status={p.status} />
                 </td>
-                <td className="px-6 py-4 text-sm font-medium">
-                  <StatusBadge status={processo.status} />
-                </td>
+                
                 <td className="px-6 py-4 text-sm text-gray-500">{formatDateBR(p.deadlineEmbarque)}</td>
                 <td className="px-6 py-4 text-sm text-center">
                   <button 
