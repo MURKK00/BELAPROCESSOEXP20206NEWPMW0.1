@@ -164,6 +164,7 @@ model Processo {
   bookingNumero     String?
   navio             String?
   deadlineEmbarque  DateTime?
+  dataEstufagem       DateTime?
 
 // --- Informações (contêiner / fumigação) ---
   localEstufagem      String?
@@ -180,6 +181,7 @@ model Processo {
   estufagemInicio     DateTime?
   estufagemFim        DateTime?
   mapaNaSequencia     Boolean?
+  necessitaEtiqueta   Boolean?
   ncm                 String?
 
   criadoPorId       String

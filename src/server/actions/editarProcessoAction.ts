@@ -39,7 +39,9 @@ export async function atualizarProcessoAction(formData: FormData) {
         : null,
       bookingNumero: String(formData.get('bookingNumero') ?? '') || null,
       navio: String(formData.get('navio') ?? '') || null,
-      deadlineEmbarque: deadlineStr ? new Date(deadlineStr) : null,
+      
+      // Datas formatadas com T12:00:00Z para evitar o bug de fuso horário no Brasil
+      deadlineEmbarque: deadlineStr ? new Date(deadlineStr + 'T12:00:00Z') : null,
 
       localEstufagem: String(formData.get('localEstufagem') ?? '') || null,
       containerQtd: formData.get('containerQtd') ? Number(formData.get('containerQtd')) : null,
@@ -54,6 +56,10 @@ export async function atualizarProcessoAction(formData: FormData) {
       estufagemInicio: parseDate(formData.get('estufagemInicio')) ?? null,
       estufagemFim: parseDate(formData.get('estufagemFim')) ?? null,
       mapaNaSequencia: parseSimNao(formData.get('mapaNaSequencia')) ?? null,
+      
+      // Salvando a nova pergunta de Etiqueta:
+      necessitaEtiqueta: parseSimNao(formData.get('necessitaEtiqueta')) ?? null,
+      
       ncm: String(formData.get('ncm') ?? '') || null,
     },
   });
@@ -63,7 +69,7 @@ export async function atualizarProcessoAction(formData: FormData) {
       processoId,
       usuarioId: user.id,
       acao: 'PROCESSO_EDITADO',
-      detalhe: 'Dados do processo atualizados (cadastro / booking / navio / deadline).',
+      detalhe: 'Dados do processo atualizados.',
     },
   });
 

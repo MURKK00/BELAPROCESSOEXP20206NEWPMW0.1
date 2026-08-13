@@ -60,6 +60,20 @@ export default async function VisaoGeralNegociacaoPage({
               {processo.valorDeclaradoUsd ? `$ ${Number(processo.valorDeclaradoUsd).toFixed(2)}` : '-'}
             </div>
           </div>
+          
+          {/* NOVOS CAMPOS: Contêineres e Sacas */}
+          <div>
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">Contêineres (Qtd)</label>
+            <div className="font-medium text-gray-900">
+              {processo.containerQtd ? `${processo.containerQtd}x ${processo.containerTipo}` : '-'}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">Sacas por contêiner</label>
+            <div className="font-medium text-gray-900">
+              {processo.sacasPorContainer ? `${processo.sacasPorContainer} sacas` : '-'}
+            </div>
+          </div>
         </div>
       </div>
 

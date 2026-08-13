@@ -34,6 +34,14 @@ export default async function DetailLayout({
     { href: `${base}/auditoria`, label: 'Auditoria' },
   ];
 
+  // Lógica inteligente para juntar a data de início e fim da estufagem
+  let estufagemStr = '-';
+  if (processo.estufagemInicio && processo.estufagemFim) {
+    estufagemStr = `${formatDateBR(processo.estufagemInicio)} → ${formatDateBR(processo.estufagemFim)}`;
+  } else if (processo.estufagemInicio) {
+    estufagemStr = formatDateBR(processo.estufagemInicio);
+  }
+
   return (
     <div>
       <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
@@ -71,12 +79,13 @@ export default async function DetailLayout({
         </div>
       </div>
 
-      <div className="bg-surface border border-border rounded-2xl px-8 py-6 grid grid-cols-4 mb-6">
+      {/* Caixinha de informações atualizada para espalhar o conteúdo */}
+      <div className="bg-surface border border-border rounded-2xl px-10 py-6 flex flex-wrap justify-between items-center gap-6 mb-6">
         <SummaryItem label="Booking" value={processo.bookingNumero ?? '-'} />
         <SummaryItem label="Navio" value={processo.navio ?? '-'} />
-        <SummaryItem label="Estufagem" value={processo.estufagemInicio || processo.estufagemFim ? `${formatDateBR(processo.estufagemInicio)} → ${formatDateBR(processo.estufagemFim)}`: '-'}/>
+        {/* Aqui entra a string inteligente que acabamos de criar! */}
+        <SummaryItem label="Estufagem" value={estufagemStr} />
         <SummaryItem label="Deadline" value={formatDateBR(processo.deadlineEmbarque)} />
-        
       </div>
 
       <div className="flex gap-2 bg-gray-100 p-1.5 rounded-xl mb-6 w-fit flex-wrap">

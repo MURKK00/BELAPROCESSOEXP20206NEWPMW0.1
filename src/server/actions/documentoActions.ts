@@ -3,8 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
-import { uploadDocumentToStorage } from '@/lib/storage';
-import { deleteDocumentFromStorage } from '@/lib/storage';
+import { uploadDocumentToStorage, deleteDocumentFromStorage } from '@/lib/storage';
 import { buildManualUploadPath } from '@/lib/uploadPath';
 
 export async function uploadDocumentoAction(formData: FormData) {
@@ -56,8 +55,6 @@ export async function uploadDocumentoAction(formData: FormData) {
   revalidatePath(`/negociacoes/${processoId}/documentos`);
   revalidatePath(`/negociacoes/${processoId}/auditoria`);
 }
-
-import { deleteDocumentFromStorage } from '@/lib/storage';
 
 export async function excluirDocumentoAction(formData: FormData) {
   const user = await getSessionUser();

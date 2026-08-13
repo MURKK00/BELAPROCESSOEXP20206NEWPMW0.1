@@ -46,6 +46,16 @@ export default async function EditarNegociacaoPage({ params }: { params: { id: s
           />
           <Field label="Tipo de fumigação" name="fumigacaoTipo" defaultValue={processo.fumigacaoTipo ?? ''} />
           <Field label="Tempo de fumigação (horas)" name="fumigacaoTempoHoras" defaultValue={String(processo.fumigacaoTempoHoras ?? 24)} readOnly required />
+          
+          {/* CAMPO DA ETIQUETA ADICIONADO AQUI! */}
+          <SelectField
+            label="Necessita etiqueta?"
+            name="necessitaEtiqueta"
+            required
+            defaultValue={toSimNao(processo.necessitaEtiqueta)}
+            options={[{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }]}
+          />
+
           <Field label="Armador" name="armador" defaultValue={processo.armador ?? 'ONE'} readOnly required />
         </Section>
 

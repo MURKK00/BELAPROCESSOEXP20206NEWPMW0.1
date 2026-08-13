@@ -23,6 +23,7 @@ export default function NovaNegociacaoPage() {
           <Field label="Tipo de contêiner" name="containerTipo" defaultValue="20' DRY" readOnly required />
           <Field label="Tipo de embalagem" name="embalagemTipo" defaultValue="Sacaria 30kg" readOnly required />
           <Field label="Quantidade por contêiner (sacas)" name="sacasPorContainer" type="number" placeholder="Ex: 700" required />
+          
           <SelectField
             label="Fumigação necessária?"
             name="fumigacaoNecessaria"
@@ -31,6 +32,15 @@ export default function NovaNegociacaoPage() {
           />
           <Field label="Tipo de fumigação" name="fumigacaoTipo" placeholder="Ex: Brometo (preencher se Fumigação = Sim)" />
           <Field label="Tempo de fumigação (horas)" name="fumigacaoTempoHoras" defaultValue="24" readOnly required />
+          
+          {/* NOVA PERGUNTA: Etiqueta */}
+          <SelectField
+            label="Necessita etiqueta?"
+            name="necessitaEtiqueta"
+            required
+            options={[{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }]}
+          />
+          
           <Field label="Armador" name="armador" defaultValue="ONE" readOnly required />
         </Section>
 

@@ -41,6 +41,9 @@ export async function criarProcessoAction(formData: FormData) {
     fumigacaoTempoHoras: formData.get('fumigacaoTempoHoras') ? Number(formData.get('fumigacaoTempoHoras')) : 24,
     armador: String(formData.get('armador') ?? 'ONE'),
 
+    // Salvando a Etiqueta aqui:
+    necessitaEtiqueta: parseSimNao(formData.get('necessitaEtiqueta')),
+
     estufagemInicio: parseDate(formData.get('estufagemInicio')),
     estufagemFim: parseDate(formData.get('estufagemFim')),
     mapaNaSequencia: parseSimNao(formData.get('mapaNaSequencia')),
