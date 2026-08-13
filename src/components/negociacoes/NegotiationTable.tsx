@@ -10,18 +10,23 @@ import type { Processo, ProcessoEtapa } from '@prisma/client';
 
 type ProcessoComEtapas = Processo & { etapas: ProcessoEtapa[] };
 
+const STATUS_OPTIONS = [
+  { value: 'TODOS', label: 'Todos os status' },
+  { value: 'PENDENTE', label: 'Pendente' },
+  { value: 'EM_NEGOCIACAO', label: 'Em negociação' },
+  { value: 'EM_EXECUCAO', label: 'Em execução' },
+  { value: 'EMBARCADO', label: 'Embarcado' },
+  { value: 'FINALIZADO', label: 'Finalizado' },
+  { value: 'CANCELADO', label: 'Cancelado' },
+];
+
 export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[] }) {
   const router = useRouter();
-  
-  // Controle do nosso filtro: começa escondendo os cancelados (false)
-  const [mostrarCancelados, setMostrarCancelados] = useState(false);
+  const [statusFiltro, setStatusFiltro] = useState('TODOS');
 
-  // Filtra a lista com base no botão
-  const processosFiltrados = mostrarCancelados
-    ? processos 
-    : processos.filter(p => p.status !== 'CANCELADO');
+  const processosFiltrados =
+    statusFiltro === 'TODOS' ? processos : processos.filter((p) => p.status === statusFiltro);
 
-  // Função lixeira
   const handleCancelar = async (id: string) => {
     if (window.confirm('Tem certeza que deseja cancelar esta negociação?')) {
       const formData = new FormData();
@@ -46,17 +51,16 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
 
   return (
     <div>
-      {/* Botão de Filtro */}
       <div className="flex justify-end mb-4">
-        <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-600">
-          <input 
-            type="checkbox" 
-            checked={mostrarCancelados}
-            onChange={(e) => setMostrarCancelados(e.target.checked)}
-            className="rounded text-blue-600 focus:ring-blue-500"
-          />
-          Mostrar negociações canceladas
-        </label>
+        <select
+          value={statusFiltro}
+          onChange={(e) => setStatusFiltro(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold outline-none hover:bg-gray-50 focus:border-blue-500 bg-white shadow-sm cursor-pointer"
+        >
+          {STATUS_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </div>
 
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
@@ -81,19 +85,16 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                   <Link href={`/negociacoes/${p.id}`}>{p.clienteFinal}</Link>
                 </td>
                 <td className="px-6 py-4 text-sm">{p.produto}</td>
-                
-                {/* Aqui está o segredo: whitespace-nowrap impede o texto de quebrar */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <StatusBadge status={p.status} />
                 </td>
-                
                 <td className="px-6 py-4 text-sm text-gray-500">{formatDateBR(p.deadlineEmbarque)}</td>
                 <td className="px-6 py-4 text-sm text-center">
-                  <button 
+                  <button
                     onClick={() => handleCancelar(p.id)}
                     title="Cancelar Negociação"
                     className="hover:scale-110 transition-transform"
-                  > 
+                  >
                     🗑️
                   </button>
                 </td>

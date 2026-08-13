@@ -32,3 +32,9 @@ export async function getDocumentSignedUrl(path: string, opts?: { download?: boo
   }
   return data.signedUrl;
 }
+
+export async function deleteDocumentFromStorage(path: string): Promise<void> {
+  const supabase = getClient();
+  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  if (error) throw new Error(`Falha ao excluir arquivo: ${error.message}`);
+}

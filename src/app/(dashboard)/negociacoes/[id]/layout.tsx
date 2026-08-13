@@ -71,10 +71,12 @@ export default async function DetailLayout({
         </div>
       </div>
 
-      <div className="bg-surface border border-border rounded-2xl px-8 py-6 grid grid-cols-3 mb-6">
+      <div className="bg-surface border border-border rounded-2xl px-8 py-6 grid grid-cols-4 mb-6">
         <SummaryItem label="Booking" value={processo.bookingNumero ?? '-'} />
         <SummaryItem label="Navio" value={processo.navio ?? '-'} />
+        <SummaryItem label="Estufagem" value={processo.estufagemInicio || processo.estufagemFim ? `${formatDateBR(processo.estufagemInicio)} → ${formatDateBR(processo.estufagemFim)}`: '-'}/>
         <SummaryItem label="Deadline" value={formatDateBR(processo.deadlineEmbarque)} />
+        
       </div>
 
       <div className="flex gap-2 bg-gray-100 p-1.5 rounded-xl mb-6 w-fit flex-wrap">

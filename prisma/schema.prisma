@@ -212,6 +212,7 @@ enum CategoriaDocumento {
   DOCUMENTACAO_EXPORTACAO
   FECHAMENTO_BANCARIO
   ETIQUETA
+  OUTRO
 }
 
 model TipoDocumento {
@@ -252,6 +253,7 @@ model Documento {
   uploadedBy        Usuario         @relation("DocumentoUploadedBy", fields: [uploadedById], references: [id])
   uploadedEm        DateTime        @default(now())
 
+  descricaoOutro    String?
   @@index([processoId, tipoDocumentoId])
 }
 
