@@ -24,13 +24,13 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
 
   // 2. Busca os tipos no banco de dados
   const tipos = await prisma.tipoDocumento.findMany({ orderBy: { nome: 'asc' } });
-  
+
   // 3. Busca os dados da negociação
   const processo = await prisma.processo.findUnique({
     where: { id },
     include: { documentos: { include: { tipoDocumento: true, uploadedBy: true }, orderBy: { uploadedEm: 'desc' } } },
   });
-  
+
   if (!processo) notFound();
 
   return (
@@ -45,17 +45,17 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
         className="bg-surface border border-border rounded-2xl p-5 mb-5 flex gap-3 items-start flex-wrap"
       >
         <input type="hidden" name="processoId" value={processo.id} />
-        
+
         <div className="flex flex-col gap-1.5 w-64">
           {/* A Label repetida foi removida daqui! */}
           <TipoDocumentoSelect tipos={tipos} />
         </div>
-        
+
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold text-gray-500">Arquivo</label>
-          <input type="file" name="file" required className="text-sm mt-2" /> 
+          <input type="file" name="file" required className="text-sm mt-2" />
         </div>
-        
+
         <div className="flex items-end h-full mt-6">
           <button type="submit" className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-100">
             Anexar
@@ -91,7 +91,25 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
                   <td className="px-6 py-4 text-sm text-gray-500">{formatDateTimeBR(d.uploadedEm)}</td>
                   <td className="px-6 py-4 text-sm">{d.uploadedBy.nome}</td>
                   <td className="px-6 py-4 text-sm text-center">
-                    <DeleteDocumentButton documentoId={d.id} processoId={processo.id} />
+                    <div className="flex items-center justify-center gap-3">
+                      <a
+                        href={`/api/documentos/${d.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 font-semibold"
+                        title="Abrir documento em nova aba"
+                      >
+                        Visualizar
+                      </a>
+                      <a
+                        href={`/api/documentos/${d.id}?download=1`}
+                        className="text-gray-600 hover:text-gray-900 font-semibold"
+                        title="Baixar documento"
+                      >
+                        Baixar
+                      </a>
+                      <DeleteDocumentButton documentoId={d.id} processoId={processo.id} />
+                    </div>
                   </td>
                 </tr>
               ))}

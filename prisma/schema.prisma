@@ -1,3 +1,5 @@
+// LOCAL FINAL DESTE ARQUIVO: prisma/schema.prisma (SUBSTITUI o arquivo atual)
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -194,12 +196,32 @@ model Processo {
   financeiro        Financeiro?
   mensagens         ChatMessage[]
   logs              AuditLog[]
+  containers        Container[]
 
   statusCache       String? 
   status            StatusNegociacao @default(PENDENTE)
 
   @@index([deadlineEmbarque])
   @@index([statusCache])
+}
+
+// ---------------------------------------------------------------------------
+// CONTÊINERES
+// ---------------------------------------------------------------------------
+model Container {
+  id              String   @id @default(cuid())
+  processoId      String
+  processo        Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  ordem           Int
+  numeroContainer String?
+  lacre           String?
+  pesoBruto       Decimal? @db.Decimal(12, 3)
+  pesoLiquido     Decimal? @db.Decimal(12, 3)
+  totalSacos      Int?
+  tara            Decimal? @db.Decimal(12, 3)
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([processoId, ordem])
 }
 
 // ---------------------------------------------------------------------------

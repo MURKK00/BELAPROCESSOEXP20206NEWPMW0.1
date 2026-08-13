@@ -1,12 +1,13 @@
+// LOCAL FINAL DESTE ARQUIVO: src/server/services/processoService.ts (SUBSTITUI o arquivo atual)
+
 import { prisma } from '@/lib/prisma';
 import { generateNumeroProcesso } from '@/lib/workflow';
 import { CategoriaCusto } from '@prisma/client';
 
 /**
  * Cria um novo processo E já instancia TODAS as etapas do template
- * (EtapaTemplate) como ProcessoEtapa pendentes. É isso que faz o checklist
- * e o dashboard nascerem "vivos" desde o dia 1, em vez de listas fixas
- * copiadas no HTML de cada view.
+ * (EtapaTemplate) como ProcessoEtapa pendentes, além das linhas de
+ * contêiner (uma por unidade informada em containerQtd).
  */
 export async function criarProcesso(input: {
   clienteFinal: string;
@@ -26,6 +27,7 @@ export async function criarProcesso(input: {
   fumigacaoTipo?: string;
   fumigacaoTempoHoras?: number;
   armador?: string;
+  necessitaEtiqueta?: boolean;
 
   estufagemInicio?: Date;
   estufagemFim?: Date;
@@ -65,6 +67,7 @@ export async function criarProcesso(input: {
         fumigacaoTipo: input.fumigacaoTipo,
         fumigacaoTempoHoras: input.fumigacaoTempoHoras,
         armador: input.armador,
+        necessitaEtiqueta: input.necessitaEtiqueta,
 
         estufagemInicio: input.estufagemInicio,
         estufagemFim: input.estufagemFim,
@@ -78,12 +81,18 @@ export async function criarProcesso(input: {
             status: 'PENDENTE' as const,
           })),
         },
+        // Cria uma linha de contêiner vazia para cada unidade informada.
+        containers: input.containerQtd
+          ? {
+              create: Array.from({ length: input.containerQtd }, (_, i) => ({
+                ordem: i + 1,
+              })),
+            }
+          : undefined,
         financeiro: {
           create: {
             precoUsd: input.valorDeclaradoUsd ?? 0,
             ptax: 0,
-            // inicializa as 8 categorias de custo zeradas, como no protótipo,
-            // pra a aba Financeiro já nascer completa em vez de vazia.
             custos: {
               create: Object.values(CategoriaCusto).map((categoria) => ({
                 categoria,

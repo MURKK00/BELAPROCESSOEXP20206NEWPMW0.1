@@ -1,3 +1,5 @@
+// LOCAL FINAL DESTE ARQUIVO: src/app/(dashboard)/negociacoes/[id]/layout.tsx (SUBSTITUI o arquivo atual)
+
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
@@ -12,16 +14,13 @@ export default async function DetailLayout({
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }) {
-  // 1. Extraímos o 'id' da URL (obrigatório ser 'await' no Next.js 15)
   const { id } = await params;
 
-  // 2. Buscamos as informações no banco de dados
   const processo = await prisma.processo.findUnique({
     where: { id: id },
     include: { etapas: true },
   });
 
-  // 3. Se não encontrar nada, vai para a página de erro 404
   if (!processo) notFound();
 
   const base = `/negociacoes/${processo.id}`;
@@ -29,12 +28,12 @@ export default async function DetailLayout({
     { href: base, label: 'Visão geral' },
     { href: `${base}/checklist`, label: 'Checklist' },
     { href: `${base}/financeiro`, label: 'Financeiro' },
+    { href: `${base}/containers`, label: 'Contêineres' },
     { href: `${base}/documentos`, label: 'Documentos' },
     { href: `${base}/chat`, label: 'Chat interno' },
     { href: `${base}/auditoria`, label: 'Auditoria' },
   ];
 
-  // Lógica inteligente para juntar a data de início e fim da estufagem
   let estufagemStr = '-';
   if (processo.estufagemInicio && processo.estufagemFim) {
     estufagemStr = `${formatDateBR(processo.estufagemInicio)} → ${formatDateBR(processo.estufagemFim)}`;
@@ -56,8 +55,7 @@ export default async function DetailLayout({
             {processo.produto} · {processo.incoterm} → {processo.portoDestino}
           </div>
         </div>
-        
-        {/* AQUI ESTÁ A MÁGICA: Os botões novos, modernos e com ícones! */}
+
         <div className="flex items-center gap-3">
           <Link
             href="/negociacoes"
@@ -65,7 +63,7 @@ export default async function DetailLayout({
           >
             ← Voltar
           </Link>
-          
+
           <Link
             href={`/negociacoes/${processo.id}/editar`}
             className="flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
@@ -74,16 +72,13 @@ export default async function DetailLayout({
             Editar dados
           </Link>
 
-          {/* O seletor de status continua aqui, mas agora os botões do lado dele estão com a altura e design corretos */}
           <StatusSelect processoId={processo.id} status={processo.status} />
         </div>
       </div>
 
-      {/* Caixinha de informações atualizada para espalhar o conteúdo */}
       <div className="bg-surface border border-border rounded-2xl px-10 py-6 flex flex-wrap justify-between items-center gap-6 mb-6">
         <SummaryItem label="Booking" value={processo.bookingNumero ?? '-'} />
         <SummaryItem label="Navio" value={processo.navio ?? '-'} />
-        {/* Aqui entra a string inteligente que acabamos de criar! */}
         <SummaryItem label="Estufagem" value={estufagemStr} />
         <SummaryItem label="Deadline" value={formatDateBR(processo.deadlineEmbarque)} />
       </div>

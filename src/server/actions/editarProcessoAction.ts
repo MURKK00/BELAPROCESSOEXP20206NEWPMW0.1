@@ -1,10 +1,11 @@
+// LOCAL FINAL DESTE ARQUIVO: src/server/actions/editarProcessoAction.ts (SUBSTITUI o arquivo atual)
+
 'use server';
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
-import { StatusNegociacao } from '@prisma/client';
 
 function parseSimNao(value: FormDataEntryValue | null): boolean | undefined {
   if (value === 'sim') return true;
@@ -23,6 +24,7 @@ export async function atualizarProcessoAction(formData: FormData) {
 
   const processoId = String(formData.get('processoId'));
   const deadlineStr = String(formData.get('deadlineEmbarque') ?? '');
+  const containerQtd = formData.get('containerQtd') ? Number(formData.get('containerQtd')) : null;
 
   await prisma.processo.update({
     where: { id: processoId },
@@ -39,12 +41,12 @@ export async function atualizarProcessoAction(formData: FormData) {
         : null,
       bookingNumero: String(formData.get('bookingNumero') ?? '') || null,
       navio: String(formData.get('navio') ?? '') || null,
-      
+
       // Datas formatadas com T12:00:00Z para evitar o bug de fuso horário no Brasil
       deadlineEmbarque: deadlineStr ? new Date(deadlineStr + 'T12:00:00Z') : null,
 
       localEstufagem: String(formData.get('localEstufagem') ?? '') || null,
-      containerQtd: formData.get('containerQtd') ? Number(formData.get('containerQtd')) : null,
+      containerQtd: containerQtd,
       containerTipo: String(formData.get('containerTipo') ?? "20' DRY"),
       embalagemTipo: String(formData.get('embalagemTipo') ?? 'Sacaria 30kg'),
       sacasPorContainer: formData.get('sacasPorContainer') ? Number(formData.get('sacasPorContainer')) : null,
@@ -56,13 +58,26 @@ export async function atualizarProcessoAction(formData: FormData) {
       estufagemInicio: parseDate(formData.get('estufagemInicio')) ?? null,
       estufagemFim: parseDate(formData.get('estufagemFim')) ?? null,
       mapaNaSequencia: parseSimNao(formData.get('mapaNaSequencia')) ?? null,
-      
-      // Salvando a nova pergunta de Etiqueta:
       necessitaEtiqueta: parseSimNao(formData.get('necessitaEtiqueta')) ?? null,
-      
+
       ncm: String(formData.get('ncm') ?? '') || null,
     },
   });
+
+  // Se a quantidade de contêineres foi aumentada, cria as linhas que faltam
+  // na tabela de contêineres. Se foi reduzida, as linhas extras NÃO são
+  // apagadas (para não perder dados já preenchidos) — apague manualmente
+  // na aba Contêineres se precisar.
+  if (containerQtd && containerQtd > 0) {
+    const existentes = await prisma.container.count({ where: { processoId } });
+    if (existentes < containerQtd) {
+      const novasLinhas = Array.from({ length: containerQtd - existentes }, (_, i) => ({
+        processoId,
+        ordem: existentes + i + 1,
+      }));
+      await prisma.container.createMany({ data: novasLinhas });
+    }
+  }
 
   await prisma.auditLog.create({
     data: {
@@ -74,6 +89,7 @@ export async function atualizarProcessoAction(formData: FormData) {
   });
 
   revalidatePath(`/negociacoes/${processoId}`);
+  revalidatePath(`/negociacoes/${processoId}/containers`);
   revalidatePath('/negociacoes');
   revalidatePath('/');
   redirect(`/negociacoes/${processoId}`);
