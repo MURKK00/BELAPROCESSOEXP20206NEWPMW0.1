@@ -16,15 +16,14 @@ export default async function VisaoGeralNegociacaoPage({
 
   if (!processo) notFound();
 
-  // Lógica inteligente: Conta quantas pendências reais existem. 
-  // Se o banco estiver vazio (0), usamos os números do seu preview (7 e 11).
-  const pendentesAdmin = processo.etapas.length > 0 
-    ? processo.etapas.filter(e => e.etapaTemplate.fase === 'ADMINISTRATIVO' && e.status !== 'CONCLUIDA').length
-    : 7;
-    
-  const pendentesDocs = processo.etapas.length > 0
-    ? processo.etapas.filter(e => e.etapaTemplate.fase === 'DOCUMENTACAO_EXPORTACAO' && e.status !== 'CONCLUIDA').length
-    : 11;
+  // Lógica funcional real: Conta quantas pendências reais existem no processo.
+  const pendentesAdmin = processo.etapas.filter(
+    (e) => e.etapaTemplate.fase === 'ADMINISTRATIVO' && e.status !== 'CONCLUIDA'
+  ).length;
+
+  const pendentesDocs = processo.etapas.filter(
+    (e) => e.etapaTemplate.fase === 'DOCUMENTACAO_EXPORTACAO' && e.status !== 'CONCLUIDA'
+  ).length;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -4,9 +4,11 @@ import { formatDateTimeBR } from '@/lib/formatters';
 import { enviarMensagemAction } from '@/server/actions/chatActions';
 import { getSessionUser } from '@/lib/auth';
 
-export default async function ChatPage({ params }: { params: { id: string } }) {
+export default async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  
   const processo = await prisma.processo.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { mensagens: { include: { autor: true }, orderBy: { criadoEm: 'asc' } } },
   });
   if (!processo) notFound();

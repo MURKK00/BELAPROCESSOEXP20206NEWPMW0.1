@@ -15,9 +15,11 @@ const CUSTO_LABEL: Record<string, string> = {
   OUTROS: 'Outros Custos / Diversos',
 };
 
-export default async function FinanceiroPage({ params }: { params: { id: string } }) {
+export default async function FinanceiroPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
   const processo = await prisma.processo.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { financeiro: { include: { custos: true } } },
   });
   if (!processo || !processo.financeiro) notFound();
@@ -29,7 +31,9 @@ export default async function FinanceiroPage({ params }: { params: { id: string 
   const totalCustos = f.custos.reduce((sum, c) => sum + Number(c.valor), 0);
   const resultadoLiquido = receitaBrl - totalCustos;
   const sacas60kg = Number(processo.volumeKg) / 60;
-  const lucroPorSaca = sacas60kg > 0 ? resultadoLiquido / 60 : 0;
+  
+  // BUG CORRIGIDO: Agora divide pela variável 'sacas60kg' e não pela constante '60'
+  const lucroPorSaca = sacas60kg > 0 ? resultadoLiquido / sacas60kg : 0;
 
   return (
     <div className="bg-surface border border-border rounded-2xl p-8">

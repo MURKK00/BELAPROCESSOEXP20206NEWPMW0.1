@@ -4,20 +4,16 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { StatusBadge } from './StatusBadge';
-import { formatDateBR } from '@/lib/formatters';
+import { formatDateBR, STATUS_NEGOCIACAO_MAP } from '@/lib/formatters';
 import { atualizarStatusAction } from '@/server/actions/editarProcessoAction';
 import type { Processo, ProcessoEtapa } from '@prisma/client';
 
 type ProcessoComEtapas = Processo & { etapas: ProcessoEtapa[] };
 
+// Monta as opções dinamicamente baseadas no dicionário central
 const STATUS_OPTIONS = [
   { value: 'TODOS', label: 'Todos os status' },
-  { value: 'PENDENTE', label: 'Pendente' },
-  { value: 'EM_NEGOCIACAO', label: 'Em negociação' },
-  { value: 'EM_EXECUCAO', label: 'Em execução' },
-  { value: 'EMBARCADO', label: 'Embarcado' },
-  { value: 'FINALIZADO', label: 'Finalizado' },
-  { value: 'CANCELADO', label: 'Cancelado' },
+  ...Object.entries(STATUS_NEGOCIACAO_MAP).map(([value, label]) => ({ value, label }))
 ];
 
 export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[] }) {

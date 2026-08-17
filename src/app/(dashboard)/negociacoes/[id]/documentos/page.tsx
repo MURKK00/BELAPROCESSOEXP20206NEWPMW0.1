@@ -8,24 +8,10 @@ import { TipoDocumentoSelect } from '@/components/documentos/TipoDocumentoSelect
 export default async function DocumentosPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // 1. Garante de forma segura que "Etiqueta" e "Outro" existam no banco
-  // O comando 'upsert' previne erros de duplicidade (já existe? ignora. não existe? cria.)
-  await prisma.tipoDocumento.upsert({
-    where: { nome: 'Etiqueta' },
-    update: {},
-    create: { nome: 'Etiqueta', categoria: 'ETIQUETA' }
-  });
-
-  await prisma.tipoDocumento.upsert({
-    where: { nome: 'Outro' },
-    update: {},
-    create: { nome: 'Outro', categoria: 'OUTRO' }
-  });
-
-  // 2. Busca os tipos no banco de dados
+  // 1. Busca os tipos no banco de dados (A escrita/upsert foi movida para o seed)
   const tipos = await prisma.tipoDocumento.findMany({ orderBy: { nome: 'asc' } });
 
-  // 3. Busca os dados da negociação
+  // 2. Busca os dados da negociação
   const processo = await prisma.processo.findUnique({
     where: { id },
     include: { documentos: { include: { tipoDocumento: true, uploadedBy: true }, orderBy: { uploadedEm: 'desc' } } },
@@ -47,7 +33,6 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
         <input type="hidden" name="processoId" value={processo.id} />
 
         <div className="flex flex-col gap-1.5 w-64">
-          {/* A Label repetida foi removida daqui! */}
           <TipoDocumentoSelect tipos={tipos} />
         </div>
 

@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation';
 import { atualizarProcessoAction } from '@/server/actions/editarProcessoAction';
 import { Section, Field, SelectField, PRODUTOS_FEIJAO } from '@/components/negociacoes/FormFields';
 
-export default async function EditarNegociacaoPage({ params }: { params: { id: string } }) {
-  const processo = await prisma.processo.findUnique({ where: { id: params.id } });
+export default async function EditarNegociacaoPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  
+  const processo = await prisma.processo.findUnique({ where: { id } });
   if (!processo) notFound();
 
   const toDateInput = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : '');
@@ -47,7 +49,6 @@ export default async function EditarNegociacaoPage({ params }: { params: { id: s
           <Field label="Tipo de fumigação" name="fumigacaoTipo" defaultValue={processo.fumigacaoTipo ?? ''} />
           <Field label="Tempo de fumigação (horas)" name="fumigacaoTempoHoras" defaultValue={String(processo.fumigacaoTempoHoras ?? 24)} readOnly required />
           
-          {/* CAMPO DA ETIQUETA ADICIONADO AQUI! */}
           <SelectField
             label="Necessita etiqueta?"
             name="necessitaEtiqueta"

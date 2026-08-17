@@ -1,3 +1,5 @@
+import { STATUS_NEGOCIACAO_MAP } from '@/lib/formatters';
+
 export function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
     PENDENTE: 'bg-gray-100 text-gray-600 border-gray-200',
@@ -8,17 +10,8 @@ export function StatusBadge({ status }: { status: string }) {
     CANCELADO: 'bg-red-100 text-red-700 border-red-200',
   };
 
-  const labels: Record<string, string> = {
-    PENDENTE: 'Pendente',
-    EM_NEGOCIACAO: 'Em negociação',
-    EM_EXECUCAO: 'Em execução',
-    EMBARCADO: 'Embarcado',
-    FINALIZADO: 'Finalizado',
-    CANCELADO: 'Cancelado',
-  };
-
   const style = colors[status] || colors.PENDENTE;
-  const label = labels[status] || status;
+  const label = STATUS_NEGOCIACAO_MAP[status] || status;
 
   return (
     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border shadow-sm ${style}`}>

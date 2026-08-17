@@ -36,3 +36,13 @@ export const formatDateTimeBR = (date: Date | string | null) => {
     .toString()
     .padStart(2, '0')}`;
 };
+
+// NOVO: Mapa centralizado de status do sistema
+export const STATUS_NEGOCIACAO_MAP: Record<string, string> = {
+  PENDENTE: 'Pendente',
+  EM_NEGOCIACAO: 'Em negociação',
+  EM_EXECUCAO: 'Em execução',
+  EMBARCADO: 'Embarcado',
+  FINALIZADO: 'Finalizado',
+  CANCELADO: 'Cancelado',
+};

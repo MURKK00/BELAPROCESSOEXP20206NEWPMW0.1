@@ -1,16 +1,9 @@
+// LOCAL FINAL DESTE ARQUIVO: src/components/negociacoes/StatusSelect.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';
 import { atualizarStatusAction } from '@/server/actions/editarProcessoAction';
-
-const OPTIONS = [
-  { value: 'PENDENTE', label: 'Pendente' },
-  { value: 'EM_NEGOCIACAO', label: 'Em negociação' },
-  { value: 'EM_EXECUCAO', label: 'Em execução' },
-  { value: 'EMBARCADO', label: 'Embarcado' },
-  { value: 'FINALIZADO', label: 'Finalizado' },
-  { value: 'CANCELADO', label: 'Cancelado' },
-];
+import { STATUS_NEGOCIACAO_MAP } from '@/lib/formatters';
 
 export function StatusSelect({ processoId, status }: { processoId: string; status: string }) {
   const router = useRouter();
@@ -33,8 +26,8 @@ export function StatusSelect({ processoId, status }: { processoId: string; statu
       onChange={handleChange}
       className="border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold outline-none hover:bg-gray-50 focus:border-blue-500 bg-white shadow-sm transition-colors cursor-pointer"
     >
-      {OPTIONS.map((o) => (
-        <option key={o.value} value={o.value}>{o.label}</option>
+      {Object.entries(STATUS_NEGOCIACAO_MAP).map(([val, label]) => (
+        <option key={val} value={val}>{label}</option>
       ))}
     </select>
   );
