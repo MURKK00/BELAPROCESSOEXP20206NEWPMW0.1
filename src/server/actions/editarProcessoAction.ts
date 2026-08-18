@@ -35,6 +35,7 @@ export async function atualizarProcessoAction(formData: FormData) {
       volumeKg: Number(formData.get('volumeKg') ?? 0),
       incoterm: String(formData.get('incoterm') ?? ''),
       portoDestino: String(formData.get('portoDestino') ?? ''),
+      freeTimeDestino: String(formData.get('freeTimeDestino') ?? '') || null,
       redex: String(formData.get('redex') ?? '') || null,
       valorDeclaradoUsd: formData.get('valorDeclaradoUsd')
         ? Number(formData.get('valorDeclaradoUsd'))

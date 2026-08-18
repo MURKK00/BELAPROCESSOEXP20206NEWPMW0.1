@@ -12,6 +12,7 @@ export default function NovaNegociacaoPage() {
           <Field label="Trader / Intermédio" name="traderIntermedio" placeholder="Ex: AgriTrading Partners SA" />
           <Field label="Incoterm" name="incoterm" placeholder="Ex: FOB Santos" required />
           <Field label="Porto de destino" name="portoDestino" placeholder="Ex: Rotterdam (NL)" required />
+          <Field label="Free time (Destino)" name="freeTimeDestino" placeholder="Ex: 14 dias corridos" />
           <Field label="REDEX" name="redex" placeholder="Ex: REDEX Santos — Pátio 4" />
           <Field label="Preço unitário declarado (USD/TON)" name="valorDeclaradoUsd" type="number" placeholder="Ex: 880" />
         </Section>

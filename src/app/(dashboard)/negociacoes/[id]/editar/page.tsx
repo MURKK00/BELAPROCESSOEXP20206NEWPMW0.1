@@ -23,6 +23,7 @@ export default async function EditarNegociacaoPage({ params }: { params: Promise
           <Field label="Trader / Intermédio" name="traderIntermedio" defaultValue={processo.traderIntermedio ?? ''} />
           <Field label="Incoterm" name="incoterm" defaultValue={processo.incoterm} required />
           <Field label="Porto de destino" name="portoDestino" defaultValue={processo.portoDestino} required />
+          <Field label="Free time (Destino)" name="freeTimeDestino" defaultValue={processo.freeTimeDestino ?? ''} />
           <Field label="REDEX" name="redex" defaultValue={processo.redex ?? ''} />
           <Field
             label="Preço unitário declarado (USD/TON)"

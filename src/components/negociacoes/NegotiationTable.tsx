@@ -66,6 +66,7 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
               <th className="text-left px-6 py-4 font-semibold">Nº Processo</th>
               <th className="text-left px-6 py-4 font-semibold">Cliente</th>
               <th className="text-left px-6 py-4 font-semibold">Produto</th>
+              <th className="text-left px-6 py-4 font-semibold whitespace-nowrap">Nº Booking</th>
               <th className="text-left px-6 py-4 font-semibold whitespace-nowrap">Status</th>
               <th className="text-left px-6 py-4 font-semibold">Deadline</th>
               <th className="text-center px-6 py-4 font-semibold">Ações</th>
@@ -81,6 +82,7 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                   <Link href={`/negociacoes/${p.id}`}>{p.clienteFinal}</Link>
                 </td>
                 <td className="px-6 py-4 text-sm">{p.produto}</td>
+                <td className="px-6 py-4 text-sm text-gray-600">{p.bookingNumero || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <StatusBadge status={p.status} />
                 </td>

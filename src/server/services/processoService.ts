@@ -14,6 +14,7 @@ export async function criarProcesso(input: {
   volumeKg: number;
   incoterm: string;
   portoDestino: string;
+  freeTimeDestino?: string;
   redex?: string;
   valorDeclaradoUsd?: number;
   localEstufagem?: string;
@@ -62,6 +63,7 @@ export async function criarProcesso(input: {
             volumeKg: input.volumeKg,
             incoterm: input.incoterm,
             portoDestino: input.portoDestino,
+            freeTimeDestino: input.freeTimeDestino,
             redex: input.redex,
             valorDeclaradoUsd: input.valorDeclaradoUsd,
             localEstufagem: input.localEstufagem,

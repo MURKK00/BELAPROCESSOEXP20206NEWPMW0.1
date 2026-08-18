@@ -26,6 +26,7 @@ export async function criarProcessoAction(formData: FormData) {
     volumeKg: Number(formData.get('volumeKg') ?? 0),
     incoterm: String(formData.get('incoterm') ?? ''),
     portoDestino: String(formData.get('portoDestino') ?? ''),
+    freeTimeDestino: String(formData.get('freeTimeDestino') ?? '') || undefined,
     redex: String(formData.get('redex') ?? '') || undefined,
     valorDeclaradoUsd: formData.get('valorDeclaradoUsd')
       ? Number(formData.get('valorDeclaradoUsd'))
@@ -41,7 +42,6 @@ export async function criarProcessoAction(formData: FormData) {
     fumigacaoTempoHoras: formData.get('fumigacaoTempoHoras') ? Number(formData.get('fumigacaoTempoHoras')) : 24,
     armador: String(formData.get('armador') ?? 'ONE'),
 
-    // Salvando a Etiqueta aqui:
     necessitaEtiqueta: parseSimNao(formData.get('necessitaEtiqueta')),
 
     estufagemInicio: parseDate(formData.get('estufagemInicio')),

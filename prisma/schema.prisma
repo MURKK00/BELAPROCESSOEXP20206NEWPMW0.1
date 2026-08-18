@@ -1,5 +1,3 @@
-// LOCAL FINAL DESTE ARQUIVO: prisma/schema.prisma (SUBSTITUI o arquivo atual)
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -185,6 +183,11 @@ model Processo {
   mapaNaSequencia     Boolean?
   necessitaEtiqueta   Boolean?
   ncm                 String?
+
+  // --- Novos campos operacionais ---
+  freeTimeDestino     String?
+  ruc                 String?
+  contratoInterno     String?
 
   criadoPorId       String
   criadoPor         Usuario   @relation("ProcessoCriadoPor", fields: [criadoPorId], references: [id])

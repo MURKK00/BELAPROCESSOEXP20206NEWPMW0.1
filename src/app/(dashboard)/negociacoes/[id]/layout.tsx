@@ -1,11 +1,8 @@
-// LOCAL FINAL DESTE ARQUIVO: src/app/(dashboard)/negociacoes/[id]/layout.tsx (SUBSTITUI o arquivo atual)
-
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { StatusBadge } from '@/components/negociacoes/StatusBadge';
 import { StatusSelect } from '@/components/negociacoes/StatusSelect';
-import { formatDateBR } from '@/lib/formatters';
+import { ResumoTopoCard } from '@/components/negociacoes/ResumoTopoCard';
 
 export default async function DetailLayout({
   children,
@@ -30,16 +27,8 @@ export default async function DetailLayout({
     { href: `${base}/financeiro`, label: 'Financeiro' },
     { href: `${base}/containers`, label: 'Contêineres' },
     { href: `${base}/documentos`, label: 'Documentos' },
-    { href: `${base}/chat`, label: 'Chat interno' },
     { href: `${base}/auditoria`, label: 'Auditoria' },
   ];
-
-  let estufagemStr = '-';
-  if (processo.estufagemInicio && processo.estufagemFim) {
-    estufagemStr = `${formatDateBR(processo.estufagemInicio)} → ${formatDateBR(processo.estufagemFim)}`;
-  } else if (processo.estufagemInicio) {
-    estufagemStr = formatDateBR(processo.estufagemInicio);
-  }
 
   return (
     <div>
@@ -76,12 +65,14 @@ export default async function DetailLayout({
         </div>
       </div>
 
-      <div className="bg-surface border border-border rounded-2xl px-10 py-6 flex flex-wrap justify-between items-center gap-6 mb-6">
-        <SummaryItem label="Booking" value={processo.bookingNumero ?? '-'} />
-        <SummaryItem label="Navio" value={processo.navio ?? '-'} />
-        <SummaryItem label="Estufagem" value={estufagemStr} />
-        <SummaryItem label="Deadline" value={formatDateBR(processo.deadlineEmbarque)} />
-      </div>
+      <ResumoTopoCard
+        processoId={processo.id}
+        bookingNumero={processo.bookingNumero ?? ''}
+        navio={processo.navio ?? ''}
+        estufagemInicio={processo.estufagemInicio ? processo.estufagemInicio.toISOString() : null}
+        estufagemFim={processo.estufagemFim ? processo.estufagemFim.toISOString() : null}
+        deadlineEmbarque={processo.deadlineEmbarque ? processo.deadlineEmbarque.toISOString() : null}
+      />
 
       <div className="flex gap-2 bg-gray-100 p-1.5 rounded-xl mb-6 w-fit flex-wrap">
         {tabs.map((t) => (
@@ -96,15 +87,6 @@ export default async function DetailLayout({
       </div>
 
       {children}
-    </div>
-  );
-}
-
-function SummaryItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <label className="block text-xs uppercase text-gray-400 font-semibold mb-2">{label}</label>
-      <span className="text-base font-semibold text-gray-900">{value}</span>
     </div>
   );
 }

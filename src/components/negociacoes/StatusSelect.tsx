@@ -1,4 +1,3 @@
-// LOCAL FINAL DESTE ARQUIVO: src/components/negociacoes/StatusSelect.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';
