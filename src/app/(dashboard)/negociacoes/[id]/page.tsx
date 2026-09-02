@@ -26,15 +26,21 @@ export default async function VisaoGeralNegociacaoPage({
 
   if (!processo) notFound();
 
-  const pendentesPorFase = FASES_STATUS.map((f) => ({
-    ...f,
-    pendentes: processo.etapas.filter(
-      (e) => e.etapaTemplate.fase === f.fase && e.status !== 'CONCLUIDA'
-    ).length,
-  }));
+  // Calcula tanto os pendentes quanto o total de tarefas por fase para criar as frações (ex: 4/5)
+  const pendentesPorFase = FASES_STATUS.map((f) => {
+    const etapasDaFase = processo.etapas.filter((e) => e.etapaTemplate.fase === f.fase);
+    const pendentes = etapasDaFase.filter((e) => e.status !== 'CONCLUIDA').length;
+    
+    return {
+      ...f,
+      pendentes,
+      total: etapasDaFase.length,
+    };
+  });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    // IMPORTANTE: O "items-start" é o que impede a coluna da esquerda de esticar e gerar o espaço em branco!
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
       <InfoOperacaoCard
         processoId={processo.id}
         clienteFinal={processo.clienteFinal}
@@ -53,22 +59,41 @@ export default async function VisaoGeralNegociacaoPage({
       />
 
       {/* LADO DIREITO: Resumo do Checklist */}
-      <div className="lg:col-span-1 bg-gray-50 border border-gray-200 rounded-xl p-6 shadow-sm h-fit">
+      <div className="lg:col-span-1 bg-gray-50 border border-gray-200 rounded-xl p-6 shadow-sm w-full">
         <h2 className="text-lg font-bold mb-1 text-gray-900">Status da Operação</h2>
         <p className="text-xs text-gray-500 mb-6">Resumo de pendências do checklist.</p>
 
-        <div className="space-y-4 mb-6">
-          {pendentesPorFase.map((f) => (
-            <div
-              key={f.fase}
-              className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200"
-            >
-              <span className="text-sm font-semibold text-gray-700">{f.label}</span>
-              <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
-                {f.pendentes} pendentes
-              </span>
-            </div>
-          ))}
+        <div className="space-y-3 mb-6">
+          {pendentesPorFase.map((f) => {
+            const concluido = f.total > 0 && f.pendentes === 0;
+            
+            return (
+              <div
+                key={f.fase}
+                className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 gap-3"
+              >
+                {/* TRUNCATE evita que textos longos quebrem o layout */}
+                <span className="text-sm font-semibold text-gray-700 truncate" title={f.label}>
+                  {f.label}
+                </span>
+
+                {/* VISUALIZADOR DE STATUS COM CORES DA MARCA */}
+                {f.total === 0 ? (
+                  <span className="text-[10px] font-bold bg-gray-100 text-gray-400 px-2 py-1 rounded-full whitespace-nowrap shrink-0 uppercase tracking-wider">
+                    Sem tarefas
+                  </span>
+                ) : concluido ? (
+                  <span className="text-[10px] font-bold bg-[#1A7A43]/10 text-[#1A7A43] px-2 py-1 rounded-full whitespace-nowrap shrink-0 uppercase tracking-wider">
+                    Concluído
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold bg-[#F58025]/10 text-[#c25e13] border border-[#F58025]/20 px-2 py-1 rounded-full whitespace-nowrap shrink-0">
+                    {f.pendentes}/{f.total} pend.
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <Link

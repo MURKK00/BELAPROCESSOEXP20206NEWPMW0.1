@@ -8,10 +8,8 @@ import { TipoDocumentoSelect } from '@/components/documentos/TipoDocumentoSelect
 export default async function DocumentosPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // 1. Busca os tipos no banco de dados (A escrita/upsert foi movida para o seed)
   const tipos = await prisma.tipoDocumento.findMany({ orderBy: { nome: 'asc' } });
 
-  // 2. Busca os dados da negociação
   const processo = await prisma.processo.findUnique({
     where: { id },
     include: { documentos: { include: { tipoDocumento: true, uploadedBy: true }, orderBy: { uploadedEm: 'desc' } } },
@@ -23,6 +21,29 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
     <div>
       <div className="flex justify-between items-center mb-5">
         <h3 className="text-lg font-semibold">Gerenciador de documentos (GED)</h3>
+      </div>
+
+      {/* NOVO BLOCO: GERADOR DE DOCUMENTOS COM INPUT DE ENDEREÇO */}
+      <div className="bg-surface border border-border rounded-2xl p-5 mb-5 flex flex-col gap-3">
+        <h4 className="text-sm font-semibold text-gray-700">Gerar Documentos Padrão</h4>
+        
+        {/* Usamos um form com target="_blank" para abrir na nova aba enviando o endereço na URL */}
+        <form action={`/instrucao-embarque/${processo.id}`} target="_blank" className="flex items-end gap-3 flex-wrap">
+          <div className="flex flex-col gap-1.5 w-full max-w-md">
+            <label className="text-xs font-semibold text-gray-500">Endereço do Comprador (Buyer)</label>
+            <textarea 
+              name="enderecoBuyer" 
+              required 
+              rows={2}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full resize-none outline-none focus:border-[#F58025]" 
+              placeholder="Ex: 3 KUMMAL AMMAN KOIL STREET...&#10;CHENNAI TAMAILNADU 600081 INDIA"
+            ></textarea>
+          </div>
+          
+          <button type="submit" className="bg-[#F58025] text-white px-4 py-3 rounded-lg font-semibold text-sm hover:bg-[#d66b1a] transition-colors inline-flex items-center gap-2 h-fit mb-0.5">
+            📄 Gerar Instrução de Embarque
+          </button>
+        </form>
       </div>
 
       {/* FORMULÁRIO DE UPLOAD */}
@@ -57,7 +78,8 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
             <thead>
               <tr className="bg-gray-50 text-gray-500 text-xs uppercase">
                 <th className="text-left px-6 py-4 font-semibold">Documento</th>
-                <th className="text-left px-6 py-4 font-semibold">Categoria</th>
+                {/* Alterado de Categoria para Tipo de Documento */}
+                <th className="text-left px-6 py-4 font-semibold">Tipo de Documento</th>
                 <th className="text-left px-6 py-4 font-semibold">Data/Hora</th>
                 <th className="text-left px-6 py-4 font-semibold">Responsável</th>
                 <th className="text-center px-6 py-4 font-semibold">Ações</th>
@@ -72,7 +94,8 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
                       <div className="text-xs text-gray-400 font-normal mt-0.5">{d.descricaoOutro}</div>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-sm">{d.tipoDocumento.categoria}</td>
+                  {/* Aqui nós mudamos de d.tipoDocumento.categoria para d.tipoDocumento.nome */}
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-700">{d.tipoDocumento.nome}</td>
                   <td className="px-6 py-4 text-sm text-gray-500">{formatDateTimeBR(d.uploadedEm)}</td>
                   <td className="px-6 py-4 text-sm">{d.uploadedBy.nome}</td>
                   <td className="px-6 py-4 text-sm text-center">

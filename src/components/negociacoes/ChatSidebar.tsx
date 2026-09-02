@@ -72,19 +72,20 @@ export function ChatSidebar({ processoId }: { processoId: string }) {
 
   return (
     <>
-      {/* Aba fixa no canto esquerdo */}
-      <div className="fixed left-0 top-1/2 -translate-y-1/2 z-40">
+      {/* Aba fixa no CANTO DIREITO */}
+      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-40">
         <button
           onClick={() => setAberto((v) => !v)}
-          className="relative bg-blue-600 text-white px-2 py-4 rounded-r-lg shadow-lg flex flex-col items-center gap-1 hover:bg-blue-700 transition-colors"
+          className="relative bg-[#F58025] text-white px-2 py-4 rounded-l-lg shadow-lg flex flex-col items-center gap-1 hover:bg-[#d66b1a] transition-colors"
           title="Chat interno"
         >
-          <span className="text-lg leading-none">{aberto ? '‹' : '›'}</span>
-          <span className="text-[10px] font-semibold [writing-mode:vertical-rl] rotate-180">
+          {/* Seta invertida pois está na direita */}
+          <span className="text-lg leading-none">{aberto ? '›' : '‹'}</span>
+          <span className="text-[10px] font-semibold [writing-mode:vertical-rl]">
             CHAT
           </span>
           {naoLidas > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+            <span className="absolute -top-2 -left-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
               {naoLidas}
             </span>
           )}
@@ -93,12 +94,12 @@ export function ChatSidebar({ processoId }: { processoId: string }) {
 
       {/* Painel do chat — abre do lado direito */}
       {aberto && (
-        <div className="fixed right-0 top-0 h-full w-96 max-w-full bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col">
-          <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-base font-semibold">Chat interno (Bela Cereais)</h3>
+        <div className="fixed right-0 top-0 h-full w-96 max-w-full bg-white border-l-4 border-[#1A7A43] shadow-2xl z-50 flex flex-col">
+          <div className="px-5 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+            <h3 className="text-base font-bold text-[#1A7A43]">Chat interno (Bela Cereais)</h3>
             <button
               onClick={() => setAberto(false)}
-              className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+              className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
             >
               ×
             </button>
@@ -113,14 +114,14 @@ export function ChatSidebar({ processoId }: { processoId: string }) {
                 <div
                   key={m.id}
                   className={`max-w-[85%] px-3 py-2 rounded-xl text-sm ${
-                    mine ? 'self-end bg-blue-50 text-blue-800' : 'self-start bg-gray-100'
+                    mine ? 'self-end bg-[#1A7A43]/10 text-[#0f4f2a]' : 'self-start bg-gray-100 text-gray-800'
                   }`}
                 >
-                  <div className="flex justify-between gap-3 text-[11px] opacity-70 font-semibold mb-1">
+                  <div className="flex justify-between gap-3 text-[10px] opacity-70 font-semibold mb-1 uppercase tracking-wide">
                     <span>{m.autorNome}</span>
-                    <span>{new Date(m.criadoEm).toLocaleString('pt-BR')}</span>
+                    <span>{new Date(m.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute:'2-digit' })}</span>
                   </div>
-                  <div>{m.texto}</div>
+                  <div className="leading-relaxed">{m.texto}</div>
                 </div>
               );
             })}
@@ -136,11 +137,11 @@ export function ChatSidebar({ processoId }: { processoId: string }) {
                 }
               }}
               placeholder="Digite sua mensagem..."
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500"
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#F58025]"
             />
             <button
               onClick={enviar}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+              className="bg-[#F58025] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#d66b1a] transition-colors"
             >
               Enviar
             </button>

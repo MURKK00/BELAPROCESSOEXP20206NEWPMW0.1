@@ -38,6 +38,7 @@ async function main() {
     { nome: 'Booking', categoria: CategoriaDocumento.BOOKING_TRANSPORTE },
     { nome: 'Borderô Bancário', categoria: CategoriaDocumento.FECHAMENTO_BANCARIO },
     { nome: 'Contrato de Câmbio', categoria: CategoriaDocumento.FECHAMENTO_BANCARIO },
+    { nome: 'Photo Report', categoria: CategoriaDocumento.REDEX_CARREGAMENTO },
   ];
 
   for (const t of [...tiposBase, ...TIPOS_DOCUMENTO_CHECKLIST]) {
