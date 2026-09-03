@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma';
-import { generateNumeroProcesso } from '@/lib/workflow';
 import { CategoriaCusto } from '@prisma/client';
 
 /**
@@ -12,7 +11,7 @@ export async function criarProcesso(input: {
   traderIntermedio?: string;
   produto: string;
   volumeKg: number;
-  incoterm: string;
+  portoOrigem: string;
   portoDestino: string;
   freeTimeDestino?: string;
   redex?: string;
@@ -34,10 +33,14 @@ export async function criarProcesso(input: {
   ncm?: string;
   criadoPorId: string;
 }) {
+  // Pega o ano atual (ex: 2026) e o início do ano para contar os processos anuais
+  const currentYear = new Date().getFullYear();
+  const startOfYear = new Date(currentYear, 0, 1);
+
   const baseCount = await prisma.processo.count({
     where: {
       criadoEm: {
-        gte: new Date(new Date().setHours(0, 0, 0, 0)),
+        gte: startOfYear,
       },
     },
   });
@@ -51,7 +54,10 @@ export async function criarProcesso(input: {
   // LOOP DE SEGURANÇA: Previne erros caso duas pessoas criem processos na mesma fração de segundo
   while (tentativas < maxTentativas) {
     try {
-      const numeroProcesso = generateNumeroProcesso(baseCount + offset);
+      // Gera o ID no formato BC26-001, BC26-002...
+      const yearSuffix = String(currentYear).slice(-2);
+      const sequencia = String(baseCount + offset).padStart(3, '0');
+      const numeroProcesso = `BC${yearSuffix}-${sequencia}`;
 
       return await prisma.$transaction(async (tx) => {
         const processo = await tx.processo.create({
@@ -61,7 +67,7 @@ export async function criarProcesso(input: {
             traderIntermedio: input.traderIntermedio,
             produto: input.produto,
             volumeKg: input.volumeKg,
-            incoterm: input.incoterm,
+            portoOrigem: input.portoOrigem,
             portoDestino: input.portoDestino,
             freeTimeDestino: input.freeTimeDestino,
             redex: input.redex,
@@ -89,7 +95,6 @@ export async function criarProcesso(input: {
                 status: 'PENDENTE' as const,
               })),
             },
-            // Cria uma linha de contêiner vazia para cada unidade informada.
             containers: input.containerQtd
               ? {
                   create: Array.from({ length: input.containerQtd }, (_, i) => ({
@@ -123,16 +128,15 @@ export async function criarProcesso(input: {
           },
         });
 
-        return processo; // Se der certo, retorna o processo e sai do loop
+        return processo;
       });
       
     } catch (error: any) {
-      // P2002 é o código de erro do Prisma para quando tentamos criar um "Unique" que já existe (numeroProcesso colidiu)
       if (error.code === 'P2002' && error.meta?.target?.includes('numeroProcesso')) {
         tentativas++;
-        offset++; // Vai tentar com o próximo número sequencial
+        offset++;
       } else {
-        throw error; // Se for outro erro de banco, joga o erro pra frente
+        throw error;
       }
     }
   }

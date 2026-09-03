@@ -7,23 +7,41 @@ import { formatNum, formatInt, formatDateBR } from '@/lib/formatters';
 export default async function DashboardPage() {
   const processos = await prisma.processo.findMany({
     include: { etapas: true },
-    orderBy: { deadlineEmbarque: 'asc' },
+    orderBy: { deadlineEmbarque: 'asc' }, // Mantém para a lógica do proximo deadline funcionar fácil
   });
 
-  const volumeTotalTon = processos.reduce((sum, p) => sum + Number(p.volumeKg), 0) / 1000;
-  const totalEtapas = processos.reduce((sum, p) => sum + p.etapas.length, 0);
-  const etapasConcluidas = processos.reduce(
+  // Tira os cancelados da contagem geral e dos painéis
+  const processosValidos = processos.filter(
+    (p) => p.status !== 'CANCELADO' && p.status !== 'CANCELADA'
+  );
+
+  const volumeTotalTon = processosValidos.reduce((sum, p) => sum + Number(p.volumeKg), 0) / 1000;
+  const totalEtapas = processosValidos.reduce((sum, p) => sum + p.etapas.length, 0);
+  const etapasConcluidas = processosValidos.reduce(
     (sum, p) => sum + p.etapas.filter((e) => e.status === 'CONCLUIDA').length,
     0
   );
-  const proximo = processos.find((p) => p.deadlineEmbarque) ?? null;
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const proximo = processosValidos.find((p) => {
+    if (!p.deadlineEmbarque) return false;
+    if (p.status === 'EMBARCADO' || p.status === 'CONCLUIDO') return false; 
+    return p.deadlineEmbarque >= hoje;
+  }) ?? null;
+
+  // Filtra apenas para a tabela: pega os válidos e ordena pela data de criação (mais novos primeiro)
+  const processosRecentes = [...processosValidos]
+    .sort((a, b) => b.criadoEm.getTime() - a.criadoEm.getTime())
+    .slice(0, 5);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Painel de exportação</h2>
         <Link
-          href="/negociacoes/nova"
+          href="/negociacoes/novo"
           className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-100"
         >
           + Nova negociação
@@ -31,7 +49,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-5 mb-6">
-        <KpiCard label="Processos ativos" value={processos.length} />
+        <KpiCard label="Processos ativos" value={processosValidos.length} />
         <KpiCard label="Volume (t)" value={formatNum(volumeTotalTon, 3)} />
         <KpiCard
           label="Etapas concluídas"
@@ -39,7 +57,7 @@ export default async function DashboardPage() {
         />
         <KpiCard
           label="Docs pendentes"
-          value={processos.filter((p) => p.etapas.some((e) => e.status === 'BLOQUEADA')).length}
+          value={processosValidos.filter((p) => p.etapas.some((e) => e.status === 'BLOQUEADA')).length}
           warn
         />
       </div>
@@ -72,7 +90,7 @@ export default async function DashboardPage() {
 
       <h3 className="text-lg font-semibold mb-4">Processos recentes</h3>
       <NegotiationTable 
-          processos={processos.slice(0, 5).map(p => ({ 
+          processos={processosRecentes.map(p => ({ 
             ...p, 
             volumeKg: Number(p.volumeKg), 
             valorDeclaradoUsd: p.valorDeclaradoUsd ? Number(p.valorDeclaradoUsd) : null 

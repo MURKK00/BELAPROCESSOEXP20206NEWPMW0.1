@@ -156,7 +156,7 @@ model Processo {
   traderIntermedio  String?
   produto           String
   volumeKg          Decimal   @db.Decimal(14, 3)
-  incoterm          String
+  portoOrigem       String?
   portoDestino      String
   redex             String?
   valorDeclaradoUsd Decimal?  @db.Decimal(14, 2)
@@ -203,6 +203,14 @@ model Processo {
 
   statusCache       String? 
   status            StatusNegociacao @default(PENDENTE)
+
+  enderecoBuyer String?
+  iecBuyer      String?
+  fassaiBuyer   String?
+  panBuyer      String?
+  gstBuyer      String?
+  emailBuyer    String?
+  telefoneBuyer String?
 
   @@index([deadlineEmbarque])
   @@index([statusCache])
@@ -348,6 +356,7 @@ model AuditLog {
   usuario    Usuario  @relation(fields: [usuarioId], references: [id])
   acao       String
   detalhe    String
+  alteracoes Json?
   criadoEm   DateTime @default(now())
 
   @@index([processoId, criadoEm])

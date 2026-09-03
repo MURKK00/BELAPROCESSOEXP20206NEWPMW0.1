@@ -1,7 +1,13 @@
+'use client';
+
+import { useState } from 'react';
 import { criarProcessoAction } from '@/server/actions/criarProcessoAction';
 import { Section, Field, SelectField, PRODUTOS_FEIJAO } from '@/components/negociacoes/FormFields';
 
 export default function NovaNegociacaoPage() {
+  // Estado para controlar se a fumigação é sim ou não
+  const [fumigacao, setFumigacao] = useState('sim');
+
   return (
     <div className="max-w-3xl">
       <h2 className="text-2xl font-bold mb-6">Nova negociação</h2>
@@ -10,7 +16,7 @@ export default function NovaNegociacaoPage() {
         <Section title="Dados do contrato">
           <Field label="Cliente final" name="clienteFinal" placeholder="Ex: Cargill International SA" required />
           <Field label="Trader / Intermédio" name="traderIntermedio" placeholder="Ex: AgriTrading Partners SA" />
-          <Field label="Incoterm" name="incoterm" placeholder="Ex: FOB Santos" required />
+          <Field label="Porto de Origem (Saída)" name="portoOrigem" placeholder="Ex: Santos - SSZDPW" required />
           <Field label="Porto de destino" name="portoDestino" placeholder="Ex: Rotterdam (NL)" required />
           <Field label="Free time (Destino)" name="freeTimeDestino" placeholder="Ex: 14 dias corridos" />
           <Field label="REDEX" name="redex" placeholder="Ex: REDEX Santos — Pátio 4" />
@@ -30,11 +36,17 @@ export default function NovaNegociacaoPage() {
             name="fumigacaoNecessaria"
             required
             options={[{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }]}
+            onChange={(e: any) => setFumigacao(e.target.value)}
           />
-          <Field label="Tipo de fumigação" name="fumigacaoTipo" placeholder="Ex: Brometo (preencher se Fumigação = Sim)" />
-          <Field label="Tempo de fumigação (horas)" name="fumigacaoTempoHoras" defaultValue="24" readOnly required />
           
-          {/* NOVA PERGUNTA: Etiqueta */}
+          {/* Só mostra esses campos se a fumigação for SIM */}
+          {fumigacao === 'sim' && (
+            <>
+              <Field label="Tipo de fumigação" name="fumigacaoTipo" placeholder="Ex: Brometo" required />
+              <Field label="Tempo de fumigação (horas)" name="fumigacaoTempoHoras" defaultValue="24" required />
+            </>
+          )}
+          
           <SelectField
             label="Necessita etiqueta?"
             name="necessitaEtiqueta"
@@ -42,7 +54,8 @@ export default function NovaNegociacaoPage() {
             options={[{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }]}
           />
           
-          <Field label="Armador" name="armador" defaultValue="ONE" readOnly required />
+          {/* Armador agora livre para digitação */}
+          <Field label="Armador" name="armador" placeholder="Ex: ONE, MSC, Maersk..." required />
         </Section>
 
         <Section title="Características">

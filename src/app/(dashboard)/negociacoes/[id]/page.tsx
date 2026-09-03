@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { InfoOperacaoCard } from '@/components/negociacoes/InfoOperacaoCard';
-import { ChatSidebar } from '@/components/negociacoes/ChatSidebar';
 
 const FASES_STATUS: { fase: string; label: string }[] = [
   { fase: 'BOOKING_TRANSPORTE', label: 'Booking / Transporte Internacional' },
@@ -26,7 +25,6 @@ export default async function VisaoGeralNegociacaoPage({
 
   if (!processo) notFound();
 
-  // Calcula tanto os pendentes quanto o total de tarefas por fase para criar as frações (ex: 4/5)
   const pendentesPorFase = FASES_STATUS.map((f) => {
     const etapasDaFase = processo.etapas.filter((e) => e.etapaTemplate.fase === f.fase);
     const pendentes = etapasDaFase.filter((e) => e.status !== 'CONCLUIDA').length;
@@ -39,15 +37,15 @@ export default async function VisaoGeralNegociacaoPage({
   });
 
   return (
-    // IMPORTANTE: O "items-start" é o que impede a coluna da esquerda de esticar e gerar o espaço em branco!
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      {/* Informações da Operação ocupando 2 colunas */}
       <InfoOperacaoCard
         processoId={processo.id}
         clienteFinal={processo.clienteFinal}
         produto={processo.produto}
         volumeKg={Number(processo.volumeKg)}
-        incoterm={processo.incoterm}
-        portoDestino={processo.portoDestino}
+        portoOrigem={processo.portoOrigem ?? ''}
+        portoDestino={processo.portoDestino ?? ''}
         redex={processo.redex ?? ''}
         valorDeclaradoUsd={processo.valorDeclaradoUsd ? Number(processo.valorDeclaradoUsd) : null}
         containerQtd={processo.containerQtd}
@@ -58,7 +56,7 @@ export default async function VisaoGeralNegociacaoPage({
         contratoInterno={processo.contratoInterno ?? ''}
       />
 
-      {/* LADO DIREITO: Resumo do Checklist */}
+      {/* Status da Operação na coluna da direita */}
       <div className="lg:col-span-1 bg-gray-50 border border-gray-200 rounded-xl p-6 shadow-sm w-full">
         <h2 className="text-lg font-bold mb-1 text-gray-900">Status da Operação</h2>
         <p className="text-xs text-gray-500 mb-6">Resumo de pendências do checklist.</p>
@@ -72,12 +70,10 @@ export default async function VisaoGeralNegociacaoPage({
                 key={f.fase}
                 className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 gap-3"
               >
-                {/* TRUNCATE evita que textos longos quebrem o layout */}
                 <span className="text-sm font-semibold text-gray-700 truncate" title={f.label}>
                   {f.label}
                 </span>
 
-                {/* VISUALIZADOR DE STATUS COM CORES DA MARCA */}
                 {f.total === 0 ? (
                   <span className="text-[10px] font-bold bg-gray-100 text-gray-400 px-2 py-1 rounded-full whitespace-nowrap shrink-0 uppercase tracking-wider">
                     Sem tarefas
@@ -103,8 +99,6 @@ export default async function VisaoGeralNegociacaoPage({
           Ver checklist completo →
         </Link>
       </div>
-
-      <ChatSidebar processoId={processo.id} />
     </div>
   );
 }

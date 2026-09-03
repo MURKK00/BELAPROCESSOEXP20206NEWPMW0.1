@@ -24,7 +24,7 @@ export async function criarProcessoAction(formData: FormData) {
     traderIntermedio: String(formData.get('traderIntermedio') ?? '') || undefined,
     produto: String(formData.get('produto') ?? ''),
     volumeKg: Number(formData.get('volumeKg') ?? 0),
-    incoterm: String(formData.get('incoterm') ?? ''),
+    portoOrigem: String(formData.get('portoOrigem') ?? ''),
     portoDestino: String(formData.get('portoDestino') ?? ''),
     freeTimeDestino: String(formData.get('freeTimeDestino') ?? '') || undefined,
     redex: String(formData.get('redex') ?? '') || undefined,

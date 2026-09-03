@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { StatusSelect } from '@/components/negociacoes/StatusSelect';
 import { ResumoTopoCard } from '@/components/negociacoes/ResumoTopoCard';
+import NextLink from 'next/link';
 
 export default async function DetailLayout({
   children,
@@ -21,13 +22,16 @@ export default async function DetailLayout({
   if (!processo) notFound();
 
   const base = `/negociacoes/${processo.id}`;
+  
   const tabs = [
     { href: base, label: 'Visão geral' },
+    { href: `${base}/importador`, label: 'Dados do Importador' },
     { href: `${base}/checklist`, label: 'Checklist' },
     { href: `${base}/financeiro`, label: 'Financeiro' },
     { href: `${base}/containers`, label: 'Contêineres' },
     { href: `${base}/documentos`, label: 'Documentos' },
     { href: `${base}/auditoria`, label: 'Auditoria' },
+    { href: `${base}/chat`, label: 'Chat Interno', isChat: true },
   ];
 
   return (
@@ -46,20 +50,12 @@ export default async function DetailLayout({
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
+          <NextLink
             href="/negociacoes"
-            className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+            className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap"
           >
             ← Voltar
-          </Link>
-
-          <Link
-            href={`/negociacoes/${processo.id}/editar`}
-            className="flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-            Editar dados
-          </Link>
+          </NextLink>
 
           <StatusSelect processoId={processo.id} status={processo.status} />
         </div>
@@ -74,15 +70,21 @@ export default async function DetailLayout({
         deadlineEmbarque={processo.deadlineEmbarque ? processo.deadlineEmbarque.toISOString() : null}
       />
 
-      <div className="flex gap-2 bg-gray-100 p-1.5 rounded-xl mb-6 w-fit flex-wrap">
+      {/* Barra de abas esticada de ponta a ponta (w-full) com itens maiores e justificados */}
+      <div className="flex w-full justify-between items-center bg-gray-100 p-2 rounded-xl mb-6 gap-2">
         {tabs.map((t) => (
-          <Link
+          <NextLink
             key={t.href}
             href={t.href}
-            className="px-5 py-2.5 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 data-[active=true]:bg-white data-[active=true]:text-gray-900 data-[active=true]:shadow-sm"
+            className={`flex-1 text-center px-3 py-3 text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap data-[active=true]:bg-white data-[active=true]:text-gray-900 data-[active=true]:shadow-sm
+              ${t.isChat 
+                ? 'bg-[#f58220] text-white hover:bg-[#e0751b] shadow-sm font-bold' // Laranja Bela Cereais oficial
+                : 'text-gray-600 hover:text-gray-900'
+              }`}
           >
-            {t.label}
-          </Link>
+            {t.isChat && <span>💬</span>}
+            <span>{t.label}</span>
+          </NextLink>
         ))}
       </div>
 

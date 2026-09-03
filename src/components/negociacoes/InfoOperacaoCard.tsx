@@ -9,7 +9,7 @@ type Props = {
   clienteFinal: string;
   produto: string;
   volumeKg: number;
-  incoterm: string;
+  portoOrigem: string; // <-- Ajustado aqui
   portoDestino: string;
   redex: string;
   valorDeclaradoUsd: number | null;
@@ -54,7 +54,7 @@ export function InfoOperacaoCard(props: Props) {
           <Info label="Cliente Final" value={props.clienteFinal} />
           <Info label="Produto" value={props.produto} />
           <Info label="Volume" value={`${props.volumeKg / 1000} Toneladas`} />
-          <Info label="Incoterm / Porto" value={`${props.incoterm} → ${props.portoDestino}`} />
+          <Info label="Porto de Origem → Destino" value={`${props.portoOrigem || '-'} → ${props.portoDestino || '-'}`} />
           <Info label="Redex" value={props.redex || '-'} />
           <Info
             label="Valor Declarado"
@@ -86,7 +86,15 @@ export function InfoOperacaoCard(props: Props) {
         <EditField label="Cliente Final" name="clienteFinal" defaultValue={props.clienteFinal} />
         <EditField label="Produto" name="produto" defaultValue={props.produto} />
         <EditField label="Volume (KG)" name="volumeKg" type="number" defaultValue={props.volumeKg} />
-        <EditField label="Incoterm" name="incoterm" defaultValue={props.incoterm} />
+        
+        {/* O NAME AQUI PRECISA SER EXATAMENTE portoOrigem */}
+        <EditField 
+          label="Porto de Origem (Saída)" 
+          name="portoOrigem" 
+          defaultValue={props.portoOrigem ?? ''} 
+          placeholder="Ex: Santos - SSZDPW" 
+        />
+
         <EditField label="Porto de destino" name="portoDestino" defaultValue={props.portoDestino} />
         <EditField label="Redex" name="redex" defaultValue={props.redex} />
         <EditField
