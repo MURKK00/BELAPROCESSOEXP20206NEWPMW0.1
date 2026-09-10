@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { StatusBadge } from './StatusBadge';
 import { formatDateBR, STATUS_NEGOCIACAO_MAP } from '@/lib/formatters';
 import { atualizarStatusAction } from '@/server/actions/editarProcessoAction';
 import type { Processo, ProcessoEtapa } from '@prisma/client';
@@ -15,23 +14,41 @@ const STATUS_OPTIONS = [
   ...Object.entries(STATUS_NEGOCIACAO_MAP).map(([value, label]) => ({ value, label }))
 ];
 
+// Função que devolve a cor dependendo do status (mesma lógica do seu StatusBadge)
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'EMBARCADO': return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'EM_EXECUCAO': return 'bg-[#f58220]/10 text-[#c25e13] border-[#f58220]/30';
+    case 'CONCLUIDO': return 'bg-green-50 text-green-700 border-green-200';
+    case 'CANCELADO':
+    case 'CANCELADA': return 'bg-red-50 text-red-700 border-red-200';
+    case 'CRIADO':
+    case 'PENDENTE': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+    default: return 'bg-gray-50 text-gray-700 border-gray-200';
+  }
+}
+
 export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[] }) {
   const router = useRouter();
   const [statusFiltro, setStatusFiltro] = useState('TODOS');
-  const [ocultarCanceladas, setOcultarCanceladas] = useState(true); // Checkbox já começa marcado!
+  const [ocultarCanceladas, setOcultarCanceladas] = useState(true);
 
-  // Filtra por Status (Select) e também varre se o checkbox de ocultar estiver marcado
   const processosFiltrados = processos.filter((p) => {
-    // Filtro do Select
-    if (statusFiltro !== 'TODOS' && p.status !== statusFiltro) {
-      return false;
-    }
-    // Filtro do Checkbox
-    if (ocultarCanceladas && (p.status === 'CANCELADO' || p.status === 'CANCELADA')) {
-      return false;
-    }
+    if (statusFiltro !== 'TODOS' && p.status !== statusFiltro) return false;
+    if (ocultarCanceladas && (p.status === 'CANCELADO' || p.status === 'CANCELADA')) return false;
     return true;
   });
+
+  const handleStatusChange = async (id: string, novoStatus: string, numeroProcesso: string) => {
+    const confirmacao = window.confirm(`Tem certeza que deseja alterar o status do processo ${numeroProcesso} para ${STATUS_NEGOCIACAO_MAP[novoStatus] || novoStatus}?`);
+    if (confirmacao) {
+      const formData = new FormData();
+      formData.set('processoId', id);
+      formData.set('status', novoStatus);
+      await atualizarStatusAction(formData);
+      router.refresh();
+    }
+  };
 
   const handleCancelar = async (id: string) => {
     if (window.confirm('Tem certeza que deseja cancelar esta negociação?')) {
@@ -58,8 +75,6 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
   return (
     <div>
       <div className="flex justify-end items-center mb-4 gap-5">
-        
-        {/* Novo Checkbox de Canceladas */}
         <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer hover:text-gray-900 transition-colors">
           <input
             type="checkbox"
@@ -69,7 +84,6 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
           />
           Ocultar canceladas
         </label>
-
         <select
           value={statusFiltro}
           onChange={(e) => setStatusFiltro(e.target.value)}
@@ -86,10 +100,10 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
           <thead>
             <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
               <th className="text-left px-6 py-4 font-semibold">Nº Processo</th>
+              <th className="text-left px-6 py-4 font-semibold whitespace-nowrap">Status</th>
               <th className="text-left px-6 py-4 font-semibold">Cliente</th>
               <th className="text-left px-6 py-4 font-semibold">Produto</th>
               <th className="text-left px-6 py-4 font-semibold whitespace-nowrap">Nº Booking</th>
-              <th className="text-left px-6 py-4 font-semibold whitespace-nowrap">Status</th>
               <th className="text-left px-6 py-4 font-semibold">Deadline</th>
               <th className="text-center px-6 py-4 font-semibold">Ações</th>
             </tr>
@@ -100,14 +114,22 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                 <td className="px-6 py-4 text-sm font-bold text-gray-900">
                   <Link href={`/negociacoes/${p.id}`} className="hover:text-blue-600 transition-colors">{p.numeroProcesso}</Link>
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <select
+                    value={p.status}
+                    onChange={(e) => handleStatusChange(p.id, e.target.value, p.numeroProcesso)}
+                    className={`px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider outline-none cursor-pointer appearance-none ${getStatusColor(p.status)}`}
+                  >
+                    {STATUS_OPTIONS.filter(o => o.value !== 'TODOS').map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </td>
                 <td className="px-6 py-4 text-sm font-medium text-gray-700">
                   <Link href={`/negociacoes/${p.id}`} className="hover:text-blue-600 transition-colors">{p.clienteFinal}</Link>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-600">{p.produto}</td>
                 <td className="px-6 py-4 text-sm text-gray-500 font-medium">{p.bookingNumero || '-'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <StatusBadge status={p.status} />
-                </td>
                 <td className="px-6 py-4 text-sm font-medium text-gray-600">{formatDateBR(p.deadlineEmbarque)}</td>
                 <td className="px-6 py-4 text-sm text-center">
                   <button

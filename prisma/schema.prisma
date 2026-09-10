@@ -164,9 +164,9 @@ model Processo {
   bookingNumero     String?
   navio             String?
   deadlineEmbarque  DateTime?
-  dataEstufagem       DateTime?
+  dataEstufagem     DateTime?
 
-// --- Informações (contêiner / fumigação) ---
+  // --- Informações (contêiner / fumigação) ---
   localEstufagem      String?
   containerQtd        Int?
   containerTipo       String?   @default("20' DRY")
@@ -204,13 +204,17 @@ model Processo {
   statusCache       String? 
   status            StatusNegociacao @default(PENDENTE)
 
-  enderecoBuyer String?
-  iecBuyer      String?
-  fassaiBuyer   String?
-  panBuyer      String?
-  gstBuyer      String?
-  emailBuyer    String?
-  telefoneBuyer String?
+  // --- COMPRADOR / IMPORTADOR ---
+  enderecoBuyer     String?
+  complementoBuyer  String?
+  cidadeBuyer       String?
+  paisBuyer         String?
+  iecBuyer          String?
+  fassaiBuyer       String?
+  panBuyer          String?
+  gstBuyer          String?
+  emailBuyer        String?
+  telefoneBuyer     String?
 
   @@index([deadlineEmbarque])
   @@index([statusCache])
