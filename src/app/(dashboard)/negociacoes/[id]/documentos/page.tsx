@@ -34,7 +34,7 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
           </p>
         )}
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <a
             href={`/instrucao-embarque/${processo.id}`}
             target="_blank"
@@ -42,6 +42,15 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
             className="bg-[#F58025] text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-[#d66b1a] transition-colors inline-flex items-center gap-2"
           >
             📄 Gerar Instrução de Embarque
+          </a>
+          
+          <a
+            href={`/etiquetas/${processo.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-[#1a365d] text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-blue-900 transition-colors inline-flex items-center gap-2 shadow-sm"
+          >
+            🏷️ Gerar Etiqueta
           </a>
         </div>
       </div>

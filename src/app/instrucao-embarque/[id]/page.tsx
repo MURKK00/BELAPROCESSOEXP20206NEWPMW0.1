@@ -124,12 +124,30 @@ export default async function InstrucaoEmbarquePrintPage({
           </div>
           <div className="leading-snug">
             <p className="font-bold">BUYER TO:</p>
-            <p className="font-bold">{processo.clienteFinal}</p>
-            <p className="whitespace-pre-wrap uppercase mb-0.5">{processo.enderecoBuyer || ''}</p>
-            {processo.iecBuyer && <p>IEC {processo.iecBuyer}</p>}
-            {processo.fassaiBuyer && <p>FASSAI-{processo.fassaiBuyer}</p>}
-            {processo.panBuyer && <p>PAN NO. - {processo.panBuyer}</p>}
-            {processo.gstBuyer && <p>GST NO-{processo.gstBuyer}</p>}
+            <p className="font-bold uppercase">{processo.clienteFinal}</p>
+            
+            {/* Endereço e Complemento na mesma linha */}
+            {(processo.enderecoBuyer || processo.complementoBuyer) && (
+              <p className="uppercase">
+                {processo.enderecoBuyer}
+                {processo.complementoBuyer ? `, ${processo.complementoBuyer}` : ''}
+              </p>
+            )}
+            
+            {/* Cidade e País na mesma linha, mantendo a margem (mb-0.5) que você usava */}
+            {(processo.cidadeBuyer || processo.paisBuyer) && (
+              <p className="uppercase mb-0.5">
+                {processo.cidadeBuyer}
+                {processo.cidadeBuyer && processo.paisBuyer ? ', ' : ''}
+                {processo.paisBuyer}
+              </p>
+            )}
+            
+            {/* Documentos e Contatos originais mantidos */}
+            {processo.iecBuyer && <p className="uppercase">IEC {processo.iecBuyer}</p>}
+            {processo.fassaiBuyer && <p className="uppercase">FASSAI-{processo.fassaiBuyer}</p>}
+            {processo.panBuyer && <p className="uppercase">PAN NO. - {processo.panBuyer}</p>}
+            {processo.gstBuyer && <p className="uppercase">GST NO-{processo.gstBuyer}</p>}
             {processo.emailBuyer && <p className="lowercase">{processo.emailBuyer}</p>}
             {processo.telefoneBuyer && <p>{processo.telefoneBuyer}</p>}
           </div>

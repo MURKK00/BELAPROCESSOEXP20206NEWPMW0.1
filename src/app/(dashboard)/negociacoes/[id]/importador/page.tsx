@@ -11,19 +11,16 @@ export default async function ImportadorPage({ params }: { params: Promise<{ id:
 
   if (!processo) notFound();
 
+  // Mágica para o Next.js parar de chorar com os Decimais do Prisma
+  const processoSanitizado = {
+    ...processo,
+    volumeKg: Number(processo.volumeKg),
+    valorDeclaradoUsd: processo.valorDeclaradoUsd ? Number(processo.valorDeclaradoUsd) : null,
+  } as any;
+
   return (
     <div className="max-w-4xl">
-      <ImportadorCard 
-        processoId={processo.id}
-        clienteFinal={processo.clienteFinal}
-        enderecoBuyer={processo.enderecoBuyer}
-        iecBuyer={processo.iecBuyer}
-        fassaiBuyer={processo.fassaiBuyer}
-        panBuyer={processo.panBuyer}
-        gstBuyer={processo.gstBuyer}
-        emailBuyer={processo.emailBuyer}
-        telefoneBuyer={processo.telefoneBuyer}
-      />
+      <ImportadorCard processo={processoSanitizado} />
     </div>
   );
 }

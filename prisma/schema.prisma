@@ -204,7 +204,7 @@ model Processo {
   statusCache       String? 
   status            StatusNegociacao @default(PENDENTE)
 
-  // --- COMPRADOR / IMPORTADOR ---
+  // --- COMPRADOR / IMPORTADOR (Campos Separados) ---
   enderecoBuyer     String?
   complementoBuyer  String?
   cidadeBuyer       String?
@@ -297,28 +297,60 @@ model Documento {
 }
 
 // ---------------------------------------------------------------------------
-// FINANCEIRO
+// FINANCEIRO & TRAVAMENTOS CAMBIAIS (Atualizado)
 // ---------------------------------------------------------------------------
 model Financeiro {
-  id           String      @id @default(cuid())
-  processoId   String      @unique
-  processo     Processo    @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  precoUsd     Decimal     @db.Decimal(12, 2)
-  ptax         Decimal     @db.Decimal(8, 4)
-  atualizadoEm DateTime    @updatedAt
+  id              String          @id @default(cuid())
+  processoId      String          @unique
+  processo        Processo        @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  
+  // Preço base unitário em USD da negociação
+  precoUsd        Decimal         @db.Decimal(12, 2)
+  
+  // Banco de destino principal do contrato (Ex: "BB BRASIL" ou "BB AMERICA")
+  bancoDestino    String?         @default("BB BRASIL")
 
-  custos       CustoItem[]
+  statusRecebimento String        @default("A_RECEBER") // "A_RECEBER" ou "RECEBIDO"
+  
+  // Lista de travamentos de câmbio (Pode ser total ou vários parciais)
+  travamentos     CambioTravado[]
+  
+  // Custos operacionais do processo
+  custos          CustoItem[]
+  
+  atualizadoEm    DateTime        @updatedAt
+}
+
+model CambioTravado {
+  id              String      @id @default(cuid())
+  financeiroId    String
+  financeiro      Financeiro  @relation(fields: [financeiroId], references: [id], onDelete: Cascade)
+  
+  valorUsdParcial Decimal     @db.Decimal(14, 2) // Quantos USD foram travados neste lote
+  ptax            Decimal     @db.Decimal(8, 4)  // Taxa PTAX do travamento
+  dataTravamento  DateTime    @default(now())
+  observacao      String?     // Ex: "Parcial referente a 50% do BL"
+  
+  atualizadoEm    DateTime    @updatedAt
 }
 
 enum CategoriaCusto {
+  // ---- ANTIGOS (Mantidos apenas para não quebrar o banco de dados) ----
   COMPRA_MATERIA_PRIMA
-  BENEFICIAMENTO
-  FRETE_TERRESTRE
-  FRETE_MARITIMO
-  TARIFA_ARMADOR_PORTO
   ESTUFAGEM_REDEX
   COMISSAO_INTERMEDIACAO
   OUTROS
+
+  // ---- NOVOS (Estes são os que a Bela Cereais vai usar na tela) ----
+  COMPRA
+  BENEFICIAMENTO
+  SACARIA
+  FRETE_TERRESTRE
+  FRETE_MARITIMO
+  TARIFA_ARMADOR_PORTO
+  SERVICO_ESTUFF
+  COMISSAO
+  OUTROS_CUSTOS
 }
 
 model CustoItem {

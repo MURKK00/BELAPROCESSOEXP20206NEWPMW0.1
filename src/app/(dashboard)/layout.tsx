@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Sidebar } from '@/components/Sidebar';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,27 +17,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
         
-        {/* MENU COM HOVER NAS CORES DA MARCA */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5">
-          <Link
-            href="/"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-500 hover:bg-primary/10 hover:text-primary font-medium text-sm transition-colors"
-          >
-            Visão geral
-          </Link>
-          <Link
-            href="/negociacoes"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-500 hover:bg-primary/10 hover:text-primary font-medium text-sm transition-colors"
-          >
-            Negociações
-          </Link>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 font-medium text-sm cursor-not-allowed">
-            Logística <span className="text-[10px] uppercase font-bold text-gray-300">em breve</span>
-          </div>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 font-medium text-sm cursor-not-allowed">
-            Documentos <span className="text-[10px] uppercase font-bold text-gray-300">em breve</span>
-          </div>
-        </nav>
+        {/* MENU NOVO COM A LÓGICA DE PÁGINA ATIVA (SOMBRA E BORDA) */}
+        <Sidebar />
+
       </aside>
       
       {/* FUNDO DA TELA COM A COR 'bg' DEFINIDA NO TAILWIND */}

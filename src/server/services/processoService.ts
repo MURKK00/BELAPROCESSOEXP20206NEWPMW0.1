@@ -105,7 +105,6 @@ export async function criarProcesso(input: {
             financeiro: {
               create: {
                 precoUsd: input.valorDeclaradoUsd ?? 0,
-                ptax: 0,
                 custos: {
                   create: Object.values(CategoriaCusto).map((categoria) => ({
                     categoria,

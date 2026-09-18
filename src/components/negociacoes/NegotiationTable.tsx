@@ -14,7 +14,6 @@ const STATUS_OPTIONS = [
   ...Object.entries(STATUS_NEGOCIACAO_MAP).map(([value, label]) => ({ value, label }))
 ];
 
-// Função que devolve a cor dependendo do status (mesma lógica do seu StatusBadge)
 function getStatusColor(status: string) {
   switch (status) {
     case 'EMBARCADO': return 'bg-blue-50 text-blue-700 border-blue-200';
@@ -114,17 +113,28 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                 <td className="px-6 py-4 text-sm font-bold text-gray-900">
                   <Link href={`/negociacoes/${p.id}`} className="hover:text-blue-600 transition-colors">{p.numeroProcesso}</Link>
                 </td>
+                
+                {/* 🚀 O SEGREDO TÁ AQUI: Container relativo para o select de status */}
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <select
-                    value={p.status}
-                    onChange={(e) => handleStatusChange(p.id, e.target.value, p.numeroProcesso)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider outline-none cursor-pointer appearance-none ${getStatusColor(p.status)}`}
-                  >
-                    {STATUS_OPTIONS.filter(o => o.value !== 'TODOS').map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
+                  <div className="relative inline-block">
+                    <select
+                      value={p.status}
+                      onChange={(e) => handleStatusChange(p.id, e.target.value, p.numeroProcesso)}
+                      className={`pl-3 pr-6 py-1 rounded-full text-xs font-bold border uppercase tracking-wider outline-none cursor-pointer appearance-none ${getStatusColor(p.status)}`}
+                    >
+                      {STATUS_OPTIONS.filter(o => o.value !== 'TODOS').map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    {/* A setinha SVG */}
+                    <div className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center opacity-60">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
                 </td>
+                
                 <td className="px-6 py-4 text-sm font-medium text-gray-700">
                   <Link href={`/negociacoes/${p.id}`} className="hover:text-blue-600 transition-colors">{p.clienteFinal}</Link>
                 </td>
