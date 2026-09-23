@@ -30,7 +30,7 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
         {/* Aviso amigável caso não tenha endereço cadastrado */}
         {!processo.enderecoBuyer && (
           <p className="text-xs text-red-500 font-semibold mb-2">
-            ⚠️ O endereço do importador não está preenchido. Preencha na aba "Dados do Importador" antes de gerar o PDF.
+            ⚠️ O endereço do importador não está preenchido. Preencha na aba &quot;Dados do Importador&quot; antes de gerar o PDF.
           </p>
         )}
 
@@ -50,7 +50,7 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
             rel="noopener noreferrer"
             className="bg-[#1a365d] text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-blue-900 transition-colors inline-flex items-center gap-2 shadow-sm"
           >
-            🏷️ Gerar Etiqueta
+            🏷️ Gerar Etiqueta (Universal / Índia)
           </a>
         </div>
       </div>

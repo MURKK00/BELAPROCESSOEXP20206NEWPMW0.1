@@ -25,6 +25,14 @@ export async function atualizarFinanceiroConfigAction(
   revalidatePath(`/negociacoes/${processoId}/financeiro`);
 }
 
+export async function salvarBancoDestinoAction(formData: FormData) {
+  const processoId = formData.get('processoId') as string;
+  const bancoDestino = formData.get('bancoDestino') as string;
+  if (!processoId) return;
+
+  await atualizarFinanceiroConfigAction(processoId, { bancoDestino });
+}
+
 export async function adicionarTravamentoAction(formData: FormData) {
   const processoId = formData.get('processoId') as string;
   const financeiroId = formData.get('financeiroId') as string;

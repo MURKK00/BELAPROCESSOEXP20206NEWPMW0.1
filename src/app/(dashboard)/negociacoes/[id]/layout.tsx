@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { StatusSelect } from '@/components/negociacoes/StatusSelect';
+import { QuickActionsHeader } from '@/components/negociacoes/QuickActionsHeader';
 import { ResumoTopoCard } from '@/components/negociacoes/ResumoTopoCard';
-import NextLink from 'next/link';
 import { NegociacaoTabs } from '@/components/negociacoes/NegociacaoTabs';
 
 export default async function DetailLayout({
@@ -21,43 +20,36 @@ export default async function DetailLayout({
 
   if (!processo) notFound();
 
+  const totalEtapas = processo.etapas.length;
+  const etapasConcluidas = processo.etapas.filter((e) => e.status === 'CONCLUIDA').length;
+
   return (
-    <div>
-      <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
-        Negociações · {processo.numeroProcesso}
-      </div>
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-1">
-            {processo.numeroProcesso} · {processo.clienteFinal}
-          </h1>
-          <div className="text-gray-500">
-            {processo.produto} · {processo.incoterm || ''} → {processo.portoDestino}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <NextLink
-            href="/negociacoes"
-            className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm whitespace-nowrap"
-          >
-            ← Voltar
-          </NextLink>
-
-          <StatusSelect processoId={processo.id} status={processo.status} />
-        </div>
-      </div>
-
-      <ResumoTopoCard
-        processoId={processo.id}
-        bookingNumero={processo.bookingNumero ?? ''}
-        navio={processo.navio ?? ''}
-        estufagemInicio={processo.estufagemInicio ? processo.estufagemInicio.toISOString() : null}
-        estufagemFim={processo.estufagemFim ? processo.estufagemFim.toISOString() : null}
-        deadlineEmbarque={processo.deadlineEmbarque ? processo.deadlineEmbarque.toISOString() : null}
+    <div className="max-w-7xl mx-auto">
+      {/* CABEÇALHO UNIFICADO DE AÇÕES RÁPIDAS E TIMELINE */}
+      <QuickActionsHeader
+        processo={{
+          id: processo.id,
+          numeroProcesso: processo.numeroProcesso,
+          clienteFinal: processo.clienteFinal,
+          produto: processo.produto,
+          incoterm: processo.incoterm,
+          portoOrigem: processo.portoOrigem,
+          portoDestino: processo.portoDestino,
+          status: processo.status,
+          bookingNumero: processo.bookingNumero,
+          navio: processo.navio,
+          deadlineEmbarque: processo.deadlineEmbarque,
+          deadlineDraftBl: processo.deadlineDraftBl,
+          deadlineDraftVgm: processo.deadlineDraftVgm,
+          deadlineCarga: processo.deadlineCarga,
+          estufagemInicio: processo.estufagemInicio,
+          estufagemFim: processo.estufagemFim,
+        }}
+        totalEtapas={totalEtapas}
+        etapasConcluidas={etapasConcluidas}
       />
 
-      {/* A BARRA DE ABAS AGORA VEM DO COMPONENTE CLIENT */}
+      {/* ABAS DO COCKPIT INTEGRADO */}
       <NegociacaoTabs processoId={processo.id} />
 
       {children}

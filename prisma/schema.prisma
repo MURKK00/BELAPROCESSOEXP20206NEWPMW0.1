@@ -156,6 +156,7 @@ model Processo {
   traderIntermedio  String?
   produto           String
   volumeKg          Decimal   @db.Decimal(14, 3)
+  incoterm          String?   @default("FOB")
   portoOrigem       String?
   portoDestino      String
   redex             String?
@@ -163,7 +164,10 @@ model Processo {
 
   bookingNumero     String?
   navio             String?
-  deadlineEmbarque  DateTime?
+  deadlineEmbarque  DateTime? // Mantido para compatibilidade histórica (antigo deadline geral)
+  deadlineDraftBl   DateTime? // Deadline Envio Draft BL ao armador
+  deadlineDraftVgm  DateTime? // Deadline Envio Peso Bruto Verificado (SOLAS VGM)
+  deadlineCarga     DateTime? // Deadline Entrada física da carga / Gate Terminal
   dataEstufagem     DateTime?
 
   // --- Informações (contêiner / fumigação) ---

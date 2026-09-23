@@ -1,0 +1,6 @@
+{
+  "name": "Bela Cereais Export",
+  "description": "Sistema de gestão do processo de exportação, do contrato ao fechamento bancário.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { criarProcessoAction } from '@/server/actions/criarProcessoAction';
 import { Section, Field, SelectField, PRODUTOS_FEIJAO } from '@/components/negociacoes/FormFields';
+import { IncotermSelectField } from '@/components/negociacoes/IncotermSelectField';
 
 export default function NovaNegociacaoPage() {
   // Estado para controlar se a fumigação é sim ou não
@@ -16,6 +17,7 @@ export default function NovaNegociacaoPage() {
         <Section title="Dados do contrato">
           <Field label="Cliente final" name="clienteFinal" placeholder="Ex: Cargill International SA" required />
           <Field label="Trader / Intermédio" name="traderIntermedio" placeholder="Ex: AgriTrading Partners SA" />
+          <IncotermSelectField defaultValue="FOB" required />
           <Field label="Porto de Origem (Saída)" name="portoOrigem" placeholder="Ex: Santos - SSZDPW" required />
           <Field label="Porto de destino" name="portoDestino" placeholder="Ex: Rotterdam (NL)" required />
           <Field label="Free time (Destino)" name="freeTimeDestino" placeholder="Ex: 14 dias corridos" />
@@ -58,15 +60,7 @@ export default function NovaNegociacaoPage() {
           <Field label="Armador" name="armador" placeholder="Ex: ONE, MSC, Maersk..." required />
         </Section>
 
-        <Section title="Características">
-          <Field label="Estufagem — início" name="estufagemInicio" type="date" required />
-          <Field label="Estufagem — fim" name="estufagemFim" type="date" required />
-          <SelectField
-            label="MAPA na sequência?"
-            name="mapaNaSequencia"
-            required
-            options={[{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }]}
-          />
+        <Section title="Características & Planejamento Inicial">
           <SelectField
             label="Produto"
             name="produto"
@@ -74,7 +68,15 @@ export default function NovaNegociacaoPage() {
             options={PRODUTOS_FEIJAO}
             placeholder="Selecione o produto"
           />
-          <Field label="NCM" name="ncm" placeholder="Ex: 0713.31.90" required />
+          <Field label="NCM" name="ncm" placeholder="Ex: 0713.31.90" defaultValue="0713.31.90" required />
+          <Field label="Estufagem — início (se já previsto)" name="estufagemInicio" type="date" />
+          <Field label="Estufagem — fim (se já previsto)" name="estufagemFim" type="date" />
+          <SelectField
+            label="MAPA na sequência?"
+            name="mapaNaSequencia"
+            options={[{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }]}
+            defaultValue="sim"
+          />
         </Section>
 
         <div className="pt-2">

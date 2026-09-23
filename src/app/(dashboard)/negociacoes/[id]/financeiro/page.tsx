@@ -8,6 +8,8 @@ import { formatNum } from '@/lib/formatters';
 import { CategoriaCusto } from '@prisma/client';
 import { CustoItemRow } from '@/components/financeiro/CustoItemRow';
 import { BancoStatusConfig } from '@/components/financeiro/BancoStatusConfig';
+import { DREExportButtons } from '@/components/financeiro/DREExportButtons';
+import { SimuladorCambio } from '@/components/financeiro/SimuladorCambio';
 
 const CATEGORIAS_LABELS: Record<CategoriaCusto, string> = {
   COMPRA: 'Compra',
@@ -82,6 +84,57 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
   return (
     <div className="space-y-6 max-w-5xl pb-10">
       
+      {/* BALÃO DE DESTAQUE NO TOPO COM EXPORTAÇÃO */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Demonstrativo Financeiro (DRE)</h2>
+          <p className="text-xs text-gray-500">Acompanhamento consolidado de câmbio, margem e custos operacionais.</p>
+        </div>
+        <DREExportButtons
+          processo={{
+            id: processo.id,
+            numeroProcesso: processo.numeroProcesso,
+            clienteFinal: processo.clienteFinal,
+            produto: processo.produto,
+            volumeKg: String(processo.volumeKg),
+            incoterm: processo.incoterm,
+            portoOrigem: processo.portoOrigem,
+            portoDestino: processo.portoDestino,
+          }}
+          financeiro={{
+            precoUsd: precoUnitarioUsd,
+            bancoDestino: financeiro.bancoDestino,
+            statusRecebimento: financeiro.statusRecebimento,
+          }}
+          metricas={{
+            pesoFinalTon,
+            pesoFinalKg,
+            precoUnitarioUsd,
+            valorTotalUsd,
+            totalUsdTravado,
+            saldoUsdParaTravar,
+            ptaxMedia,
+            receitaBrutaBRL,
+            totalCustosBRL,
+            resultadoOperacionalBRL,
+            margemLucro,
+          }}
+          travamentos={financeiro.travamentos.map((t) => ({
+            dataTravamento: t.dataTravamento,
+            valorUsdParcial: Number(t.valorUsdParcial.toString()),
+            ptax: Number(t.ptax.toString()),
+            observacao: t.observacao,
+          }))}
+          custos={Array.from(custosMap.entries())
+            .filter(([cat]) => categoriasPrincipais.includes(cat as CategoriaCusto))
+            .map(([cat, val]) => ({
+              categoria: cat,
+              categoriaLabel: CATEGORIAS_LABELS[cat as CategoriaCusto] || cat,
+              valor: val,
+            }))}
+        />
+      </div>
+
       {/* BALÃO DE DESTAQUE NO TOPO */}
       <div className={`p-6 rounded-2xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 ${resultadoOperacionalBRL >= 0 ? 'bg-gradient-to-r from-emerald-900 to-teal-900 text-white border-emerald-700' : 'bg-gradient-to-r from-red-900 to-rose-900 text-white border-red-700'}`}>
         <div>
@@ -206,6 +259,17 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
           </div>
         </form>
       </div>
+
+      {/* SIMULADOR DE CÂMBIO & SENSIBILIDADE DE MARGEM */}
+      <SimuladorCambio
+        saldoUsdParaTravar={saldoUsdParaTravar}
+        totalUsdTravado={totalUsdTravado}
+        ptaxMedia={ptaxMedia}
+        receitaBrutaAtualBRL={receitaBrutaBRL}
+        totalCustosBRL={totalCustosBRL}
+        resultadoAtualBRL={resultadoOperacionalBRL}
+        margemAtual={margemLucro}
+      />
 
       {/* DRE OPERACIONAL */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">

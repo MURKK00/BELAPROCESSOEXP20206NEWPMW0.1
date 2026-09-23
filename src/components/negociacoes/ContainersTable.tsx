@@ -4,7 +4,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ClipboardPaste } from 'lucide-react';
 import { salvarContainersAction } from '@/server/actions/containerActions';
+import { ImportarLoteModal } from './ImportarLoteModal';
 
 type ContainerRow = {
   id: string;
@@ -29,6 +31,7 @@ export function ContainersTable({
 }) {
   const router = useRouter();
   const [editando, setEditando] = useState(false);
+  const [modalLoteAberto, setModalLoteAberto] = useState(false);
   const [linhas, setLinhas] = useState<ContainerRow[]>(containers);
   const [salvando, setSalvando] = useState(false);
 
@@ -41,7 +44,24 @@ export function ContainersTable({
 
   function atualizarNumero(id: string, campo: CampoNumero, valor: string) {
     const numero = valor === '' ? null : Number(valor);
-    setLinhas((atuais) => atuais.map((l) => (l.id === id ? { ...l, [campo]: numero } : l)));
+    setLinhas((atuais) =>
+      atuais.map((l) => {
+        if (l.id !== id) return l;
+        const atualizado = { ...l, [campo]: numero };
+        // Se alterou pesoBruto ou tara e o outro existir, recalcula pesoLiquido automaticamente
+        if (campo === 'pesoBruto' && atualizado.tara !== null && atualizado.tara !== undefined) {
+          atualizado.pesoLiquido = (numero ?? 0) - atualizado.tara;
+        } else if (campo === 'tara' && atualizado.pesoBruto !== null && atualizado.pesoBruto !== undefined) {
+          atualizado.pesoLiquido = atualizado.pesoBruto - (numero ?? 0);
+        }
+        return atualizado;
+      })
+    );
+  }
+
+  function handleAplicarLote(novosContainers: ContainerRow[]) {
+    setLinhas(novosContainers);
+    setEditando(true);
   }
 
   async function salvar() {
@@ -84,29 +104,41 @@ export function ContainersTable({
 
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold">Contêineres</h3>
-        {editando ? (
+        <div className="flex items-center gap-2">
           <button
-            onClick={salvar}
-            disabled={salvando}
-            className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-100 disabled:opacity-50"
+            type="button"
+            onClick={() => setModalLoteAberto(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-secondary bg-amber-50 hover:bg-amber-100 border border-secondary/30 rounded-lg shadow-2xs transition-colors"
+            title="Colar linhas copiadas do Excel diretamente"
           >
-            {salvando ? 'Salvando...' : '💾 Salvar'}
+            <ClipboardPaste className="w-3.5 h-3.5" />
+            <span>Colar do Excel (Lote)</span>
           </button>
-        ) : (
-          <button
-            onClick={() => setEditando(true)}
-            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50"
-          >
-            ✏️ Editar
-          </button>
-        )}
+
+          {editando ? (
+            <button
+              onClick={salvar}
+              disabled={salvando}
+              className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-100 disabled:opacity-50"
+            >
+              {salvando ? 'Salvando...' : '💾 Salvar'}
+            </button>
+          ) : (
+            <button
+              onClick={() => setEditando(true)}
+              className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50"
+            >
+              ✏️ Editar
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-surface border border-border rounded-2xl overflow-x-auto">
         {linhas.length === 0 ? (
           <div className="p-10 text-center text-gray-500 text-sm">
             Nenhum contêiner cadastrado. Defina a quantidade de contêineres na edição da negociação
-            (aba "Editar dados") para gerar as linhas automaticamente.
+            (aba &quot;Editar dados&quot;) para gerar as linhas automaticamente.
           </div>
         ) : (
           <table className="w-full">
@@ -209,6 +241,14 @@ export function ContainersTable({
           </table>
         )}
       </div>
+
+      {/* MODAL DE IMPORTAÇÃO / COLAGEM EM LOTE */}
+      <ImportarLoteModal
+        isOpen={modalLoteAberto}
+        onClose={() => setModalLoteAberto(false)}
+        containersAtuais={linhas}
+        onAplicar={handleAplicarLote}
+      />
     </div>
   );
 }

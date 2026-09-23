@@ -24,6 +24,7 @@ export async function criarProcessoAction(formData: FormData) {
     traderIntermedio: String(formData.get('traderIntermedio') ?? '') || undefined,
     produto: String(formData.get('produto') ?? ''),
     volumeKg: Number(formData.get('volumeKg') ?? 0),
+    incoterm: String(formData.get('incoterm') ?? 'FOB'),
     portoOrigem: String(formData.get('portoOrigem') ?? ''),
     portoDestino: String(formData.get('portoDestino') ?? ''),
     freeTimeDestino: String(formData.get('freeTimeDestino') ?? '') || undefined,
@@ -41,6 +42,11 @@ export async function criarProcessoAction(formData: FormData) {
     fumigacaoTipo: String(formData.get('fumigacaoTipo') ?? '') || undefined,
     fumigacaoTempoHoras: formData.get('fumigacaoTempoHoras') ? Number(formData.get('fumigacaoTempoHoras')) : 24,
     armador: String(formData.get('armador') ?? 'ONE'),
+    bookingNumero: String(formData.get('bookingNumero') ?? '') || undefined,
+    navio: String(formData.get('navio') ?? '') || undefined,
+    deadlineDraftBl: parseDate(formData.get('deadlineDraftBl')),
+    deadlineDraftVgm: parseDate(formData.get('deadlineDraftVgm')),
+    deadlineCarga: parseDate(formData.get('deadlineCarga')),
 
     necessitaEtiqueta: parseSimNao(formData.get('necessitaEtiqueta')),
 

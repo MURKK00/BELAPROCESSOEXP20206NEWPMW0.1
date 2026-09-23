@@ -9,6 +9,7 @@ const labelsCampos: Record<string, string> = {
   clienteFinal: 'Cliente Final',
   produto: 'Produto',
   volumeKg: 'Volume (KG)',
+  incoterm: 'Incoterm',
   portoOrigem: 'Porto de Origem',
   portoDestino: 'Porto de Destino',
   redex: 'REDEX',
@@ -23,6 +24,9 @@ const labelsCampos: Record<string, string> = {
   estufagemInicio: 'Início da Estufagem',
   estufagemFim: 'Fim da Estufagem',
   deadlineEmbarque: 'Deadline de Embarque',
+  deadlineDraftBl: 'Deadline Draft BL',
+  deadlineDraftVgm: 'Deadline Draft VGM',
+  deadlineCarga: 'Deadline Draft Carga (Gate)',
 };
 
 // Função auxiliar para comparar e gerar as alterações
@@ -71,6 +75,7 @@ export async function atualizarInfoOperacaoAction(formData: FormData) {
     clienteFinal: String(formData.get('clienteFinal') ?? ''),
     produto: String(formData.get('produto') ?? ''),
     volumeKg: Number(formData.get('volumeKg') ?? 0),
+    incoterm: String(formData.get('incoterm') ?? '') || null,
     portoOrigem: String(formData.get('portoOrigem') ?? ''),
     portoDestino: String(formData.get('portoDestino') ?? ''),
     redex: String(formData.get('redex') ?? '') || null,
@@ -112,6 +117,9 @@ export async function atualizarResumoTopoAction(formData: FormData) {
 
   const processoId = String(formData.get('processoId'));
   const deadlineStr = String(formData.get('deadlineEmbarque') ?? '');
+  const deadlineDraftBlStr = String(formData.get('deadlineDraftBl') ?? '');
+  const deadlineDraftVgmStr = String(formData.get('deadlineDraftVgm') ?? '');
+  const deadlineCargaStr = String(formData.get('deadlineCarga') ?? '');
   const estufagemInicioStr = String(formData.get('estufagemInicio') ?? '');
   const estufagemFimStr = String(formData.get('estufagemFim') ?? '');
 
@@ -126,6 +134,9 @@ export async function atualizarResumoTopoAction(formData: FormData) {
     estufagemInicio: estufagemInicioStr ? new Date(estufagemInicioStr + 'T12:00:00Z') : null,
     estufagemFim: estufagemFimStr ? new Date(estufagemFimStr + 'T12:00:00Z') : null,
     deadlineEmbarque: deadlineStr ? new Date(deadlineStr + 'T12:00:00Z') : null,
+    deadlineDraftBl: deadlineDraftBlStr ? new Date(deadlineDraftBlStr + 'T12:00:00Z') : null,
+    deadlineDraftVgm: deadlineDraftVgmStr ? new Date(deadlineDraftVgmStr + 'T12:00:00Z') : null,
+    deadlineCarga: deadlineCargaStr ? new Date(deadlineCargaStr + 'T12:00:00Z') : null,
   };
 
   // 3. Compara

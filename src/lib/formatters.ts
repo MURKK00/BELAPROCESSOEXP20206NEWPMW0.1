@@ -19,7 +19,7 @@ export const formatNum = (val: number | Decimal, dec = 2) =>
 export const formatInt = (val: number | Decimal) =>
   new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(toNumber(val));
 
-export const formatDateBR = (date: Date | string | null) => {
+export const formatDateBR = (date: Date | string | null | undefined) => {
   if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
   const day = d.getUTCDate().toString().padStart(2, '0');
@@ -28,7 +28,7 @@ export const formatDateBR = (date: Date | string | null) => {
   return `${day}/${month}/${year}`;
 };
 
-export const formatDateTimeBR = (date: Date | string | null) => {
+export const formatDateTimeBR = (date: Date | string | null | undefined) => {
   if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
   return `${new Intl.DateTimeFormat('pt-BR').format(d)} às ${d.getHours().toString().padStart(2, '0')}:${d

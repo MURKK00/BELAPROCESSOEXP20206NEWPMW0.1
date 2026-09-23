@@ -10,7 +10,7 @@ export function PrintButton() {
         🖨️ Imprimir / Salvar PDF
       </button>
       <p className="text-xs text-gray-500 mt-2">
-        Dica: Nas opções de impressão, desmarque "Cabeçalhos e rodapés" para um PDF mais limpo.
+        Dica: Nas opções de impressão, desmarque &quot;Cabeçalhos e rodapés&quot; para um PDF mais limpo.
       </p>
     </div>
   );

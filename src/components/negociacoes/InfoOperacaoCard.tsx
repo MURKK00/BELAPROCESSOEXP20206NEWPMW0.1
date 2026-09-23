@@ -3,13 +3,15 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { atualizarInfoOperacaoAction } from '@/server/actions/blocoActions';
+import { IncotermHelpBadge, INCOTERMS_OPTIONS } from './IncotermSelectField';
 
 type Props = {
   processoId: string;
   clienteFinal: string;
   produto: string;
   volumeKg: number;
-  portoOrigem: string; // <-- Ajustado aqui
+  incoterm: string;
+  portoOrigem: string;
   portoDestino: string;
   redex: string;
   valorDeclaradoUsd: number | null;
@@ -54,6 +56,20 @@ export function InfoOperacaoCard(props: Props) {
           <Info label="Cliente Final" value={props.clienteFinal} />
           <Info label="Produto" value={props.produto} />
           <Info label="Volume" value={`${props.volumeKg / 1000} Toneladas`} />
+
+          {/* INCOTERM COM TOOLTIP DE AJUDA */}
+          <div>
+            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
+              Incoterm
+            </label>
+            <div className="font-medium text-gray-900 flex items-center">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                {props.incoterm || 'FOB'}
+              </span>
+              <IncotermHelpBadge incoterm={props.incoterm || 'FOB'} />
+            </div>
+          </div>
+
           <Info label="Porto de Origem → Destino" value={`${props.portoOrigem || '-'} → ${props.portoDestino || '-'}`} />
           <Info label="Redex" value={props.redex || '-'} />
           <Info
@@ -86,8 +102,26 @@ export function InfoOperacaoCard(props: Props) {
         <EditField label="Cliente Final" name="clienteFinal" defaultValue={props.clienteFinal} />
         <EditField label="Produto" name="produto" defaultValue={props.produto} />
         <EditField label="Volume (KG)" name="volumeKg" type="number" defaultValue={props.volumeKg} />
+
+        {/* SELECT DE INCOTERM NA EDIÇÃO COM TOOLTIP */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center">
+            <label className="text-xs font-semibold text-gray-500">Incoterm</label>
+            <IncotermHelpBadge incoterm={props.incoterm} />
+          </div>
+          <select
+            name="incoterm"
+            defaultValue={props.incoterm || 'FOB'}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white"
+          >
+            {INCOTERMS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
         
-        {/* O NAME AQUI PRECISA SER EXATAMENTE portoOrigem */}
         <EditField 
           label="Porto de Origem (Saída)" 
           name="portoOrigem" 
@@ -128,14 +162,14 @@ export function InfoOperacaoCard(props: Props) {
         <button
           type="submit"
           disabled={salvando}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 cursor-pointer"
         >
           {salvando ? 'Salvando...' : 'Salvar'}
         </button>
         <button
           type="button"
           onClick={() => setEditando(false)}
-          className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold"
+          className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
         >
           Cancelar
         </button>

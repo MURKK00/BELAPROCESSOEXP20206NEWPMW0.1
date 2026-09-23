@@ -11,6 +11,7 @@ export async function criarProcesso(input: {
   traderIntermedio?: string;
   produto: string;
   volumeKg: number;
+  incoterm?: string;
   portoOrigem: string;
   portoDestino: string;
   freeTimeDestino?: string;
@@ -29,6 +30,11 @@ export async function criarProcesso(input: {
 
   estufagemInicio?: Date;
   estufagemFim?: Date;
+  bookingNumero?: string;
+  navio?: string;
+  deadlineDraftBl?: Date;
+  deadlineDraftVgm?: Date;
+  deadlineCarga?: Date;
   mapaNaSequencia?: boolean;
   ncm?: string;
   criadoPorId: string;
@@ -67,6 +73,7 @@ export async function criarProcesso(input: {
             traderIntermedio: input.traderIntermedio,
             produto: input.produto,
             volumeKg: input.volumeKg,
+            incoterm: input.incoterm ?? 'FOB',
             portoOrigem: input.portoOrigem,
             portoDestino: input.portoDestino,
             freeTimeDestino: input.freeTimeDestino,
@@ -81,6 +88,12 @@ export async function criarProcesso(input: {
             fumigacaoTipo: input.fumigacaoTipo,
             fumigacaoTempoHoras: input.fumigacaoTempoHoras,
             armador: input.armador,
+            bookingNumero: input.bookingNumero,
+            navio: input.navio,
+            deadlineDraftBl: input.deadlineDraftBl,
+            deadlineDraftVgm: input.deadlineDraftVgm,
+            deadlineCarga: input.deadlineCarga,
+            deadlineEmbarque: input.deadlineCarga,
             necessitaEtiqueta: input.necessitaEtiqueta,
 
             estufagemInicio: input.estufagemInicio,

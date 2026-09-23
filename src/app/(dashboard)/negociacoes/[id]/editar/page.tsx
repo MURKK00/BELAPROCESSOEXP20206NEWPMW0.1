@@ -21,7 +21,7 @@ export default async function EditarNegociacaoPage({ params }: { params: Promise
         <Section title="Dados do contrato">
           <Field label="Cliente final" name="clienteFinal" defaultValue={processo.clienteFinal} required />
           <Field label="Trader / Intermédio" name="traderIntermedio" defaultValue={processo.traderIntermedio ?? ''} />
-          <Field label="Incoterm" name="incoterm" defaultValue={processo.incoterm} required />
+          <Field label="Incoterm" name="incoterm" defaultValue={processo.incoterm ?? ''} required />
           <Field label="Porto de destino" name="portoDestino" defaultValue={processo.portoDestino} required />
           <Field label="Free time (Destino)" name="freeTimeDestino" defaultValue={processo.freeTimeDestino ?? ''} />
           <Field label="REDEX" name="redex" defaultValue={processo.redex ?? ''} />

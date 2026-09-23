@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb', // ajuste esse valor conforme o tamanho médio dos seus documentos
