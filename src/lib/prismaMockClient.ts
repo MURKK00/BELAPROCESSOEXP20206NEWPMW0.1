@@ -293,6 +293,16 @@ export function createMockPrismaClient() {
         Object.assign(item, data, { atualizadoEm: new Date() });
         return item;
       },
+      updateMany: async ({ where, data }: any) => {
+        let count = 0;
+        store.processoEtapas.forEach((e) => {
+          if (matchesWhere(e, where)) {
+            Object.assign(e, data, { atualizadoEm: new Date() });
+            count++;
+          }
+        });
+        return { count };
+      },
     },
 
     container: {

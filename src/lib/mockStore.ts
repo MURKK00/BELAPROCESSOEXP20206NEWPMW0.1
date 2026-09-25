@@ -334,6 +334,136 @@ function initMockStore(): MockStore {
     atualizadoEm: new Date(),
   });
 
+  store.cambiosTravados.push({
+    id: `trav_${fin2Id}_1`,
+    financeiroId: fin2Id,
+    valorUsdParcial: 115000,
+    ptax: 5.62,
+    dataFechamento: new Date(Date.now() - 5 * 86400000),
+    observacao: 'Hedge cambial 100% fixado com mesa BB Miami',
+    criadoEm: new Date(),
+    atualizadoEm: new Date(),
+  });
+
+  const custosValores2: Partial<Record<CategoriaCusto, number>> = {
+    COMPRA: 460000,
+    BENEFICIAMENTO: 25000,
+    SACARIA: 18000,
+    FRETE_TERRESTRE: 22000,
+    FRETE_MARITIMO: 48000,
+    TARIFA_ARMADOR_PORTO: 9500,
+    SERVICO_ESTUFF: 6000,
+    COMISSAO: 7500,
+    OUTROS_CUSTOS: 2500,
+    COMPRA_MATERIA_PRIMA: 0,
+    ESTUFAGEM_REDEX: 0,
+    COMISSAO_INTERMEDIACAO: 0,
+    OUTROS: 0,
+  };
+
+  for (const cat of Object.values(CategoriaCusto)) {
+    store.custosItem.push({
+      id: `custo_${fin2Id}_${cat}`,
+      financeiroId: fin2Id,
+      categoria: cat,
+      valor: custosValores2[cat] ?? 0,
+      atualizadoPorId: 'usr_dev_admin',
+      atualizadoEm: new Date(),
+    });
+  }
+
+  // 5. Processo 3: Gergelim Japão (Em Negociação / Alta Rentabilidade)
+  const proc3Id = 'proc_bc26_003';
+  const proc3Date = new Date();
+  proc3Date.setDate(proc3Date.getDate() - 3);
+
+  store.processos.push({
+    id: proc3Id,
+    numeroProcesso: 'BC26-003',
+    clienteFinal: 'Nishimoto Trading Co. Ltd',
+    traderIntermedio: 'Nishimoto Global Corp',
+    produto: 'Gergelim Branco Natural 99.9%',
+    volumeKg: 100000,
+    incoterm: 'FOB',
+    portoOrigem: 'Santos - SP',
+    portoDestino: 'Yokohama (JP)',
+    freeTimeDestino: '28 dias',
+    redex: 'BTP Santos',
+    valorDeclaradoUsd: 1450,
+    bookingNumero: 'ONE-88120-TYO',
+    navio: 'ONE HARBOUR',
+    deadlineEmbarque: new Date(Date.now() + 18 * 86400000),
+    dataEstufagem: new Date(Date.now() + 7 * 86400000),
+    localEstufagem: 'BTP Santos',
+    containerQtd: 4,
+    containerTipo: "20' DRY",
+    embalagemTipo: 'Sacas 25kg Kraft',
+    sacasPorContainer: 1000,
+    fumigacaoNecessaria: true,
+    fumigacaoTipo: 'Fosfina',
+    fumigacaoTempoHoras: 72,
+    armador: 'Ocean Network Express (ONE)',
+    necessitaEtiqueta: true,
+    mapaNaSequencia: true,
+    ncm: '1207.40.90',
+    cnpjBuyer: 'JP-771920-TYO',
+    enderecoBuyer: 'Chuo-ku, Nihonbashi 3-chome, Tóquio, Japão',
+    status: StatusNegociacao.EM_NEGOCIACAO,
+    statusCache: 'Em Negociação',
+    criadoPorId: 'usr_dev_admin',
+    criadoEm: proc3Date,
+    atualizadoEm: new Date(),
+  });
+
+  const fin3Id = `fin_${proc3Id}`;
+  store.financeiros.push({
+    id: fin3Id,
+    processoId: proc3Id,
+    precoUsd: 1450,
+    bancoDestino: 'BB BRASIL',
+    statusRecebimento: 'A_RECEBER',
+    criadoEm: new Date(),
+    atualizadoEm: new Date(),
+  });
+
+  store.cambiosTravados.push({
+    id: `trav_${fin3Id}_1`,
+    financeiroId: fin3Id,
+    valorUsdParcial: 80000,
+    ptax: 5.68,
+    dataFechamento: new Date(Date.now() - 2 * 86400000),
+    observacao: 'Trava parcial 55% fixada na abertura de mercado',
+    criadoEm: new Date(),
+    atualizadoEm: new Date(),
+  });
+
+  const custosValores3: Partial<Record<CategoriaCusto, number>> = {
+    COMPRA: 310000,
+    BENEFICIAMENTO: 20000,
+    SACARIA: 15000,
+    FRETE_TERRESTRE: 16000,
+    FRETE_MARITIMO: 0, // FOB
+    TARIFA_ARMADOR_PORTO: 7000,
+    SERVICO_ESTUFF: 5000,
+    COMISSAO: 6000,
+    OUTROS_CUSTOS: 2000,
+    COMPRA_MATERIA_PRIMA: 0,
+    ESTUFAGEM_REDEX: 0,
+    COMISSAO_INTERMEDIACAO: 0,
+    OUTROS: 0,
+  };
+
+  for (const cat of Object.values(CategoriaCusto)) {
+    store.custosItem.push({
+      id: `custo_${fin3Id}_${cat}`,
+      financeiroId: fin3Id,
+      categoria: cat,
+      valor: custosValores3[cat] ?? 0,
+      atualizadoPorId: 'usr_dev_admin',
+      atualizadoEm: new Date(),
+    });
+  }
+
   return store;
 }
 

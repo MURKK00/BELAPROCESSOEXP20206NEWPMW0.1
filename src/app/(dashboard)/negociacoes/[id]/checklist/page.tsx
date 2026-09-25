@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
-import { ChecklistTabs } from '@/components/negociacoes/ChecklistTabs';
+import { TimelineEtapasManager, type EtapaItem, type ProcessoResumo } from '@/components/negociacoes/TimelineEtapasManager';
+
+export const dynamic = 'force-dynamic';
 
 export default async function ChecklistPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -8,8 +10,14 @@ export default async function ChecklistPage({ params }: { params: Promise<{ id: 
   const processo = await prisma.processo.findUnique({
     where: { id },
     include: {
+      containers: true,
+      financeiro: {
+        include: {
+          travamentos: true,
+        },
+      },
       etapas: {
-        include: { etapaTemplate: { include: { parceiro: true } } },
+        include: { etapaTemplate: true },
         orderBy: { etapaTemplate: { ordem: 'asc' } },
       },
     },
@@ -17,43 +25,61 @@ export default async function ChecklistPage({ params }: { params: Promise<{ id: 
 
   if (!processo) notFound();
 
-  if (processo.etapas.length === 0) {
-    return (
-      <div className="p-2">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Checklist da Operação</h2>
-          <p className="text-sm text-orange-600 font-semibold mt-1">
-            ⚠️ Esta negociação ainda não tem etapas de checklist geradas. Rode o script de reset do
-            checklist (scripts/reset-checklist.ts) ou recrie a negociação.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Descobre quais abas existem
-  const fases = Array.from(new Set(processo.etapas.map((e) => e.etapaTemplate.fase)));
-
-  // Simplificamos os dados para enviar ao componente de abas de forma segura e rápida
-  const etapasSimplificadas = processo.etapas.map(e => ({
+  // Mapeia as etapas para o formato leve do componente
+  const etapasSimplificadas: EtapaItem[] = processo.etapas.map((e) => ({
     id: e.id,
     status: e.status,
     fase: e.etapaTemplate.fase,
-    etapa: e.etapaTemplate.etapa
+    etapa: e.etapaTemplate.etapa,
   }));
 
-  return (
-    <div className="p-2">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Checklist da Operação</h2>
-        <p className="text-sm text-gray-500 mt-1">Acompanhe e valide o andamento clicando nas abas abaixo.</p>
-      </div>
+  // Métricas do processo para alimentar o painel dos marcos
+  const containers = processo.containers || [];
+  const containersPreenchidosCount = containers.filter((c) => Boolean(c.numeroContainer?.trim())).length;
+  const precoUsd = processo.financeiro?.precoUsd ? Number(processo.financeiro.precoUsd) : (processo.valorDeclaradoUsd ? Number(processo.valorDeclaradoUsd) : null);
+  
+  const volumeKg = Number(processo.volumeKg) || 0;
+  const volumeTon = volumeKg / 1000;
+  const valorTotalUsd = precoUsd ? volumeTon * precoUsd : 0;
 
-      {/* Chama o seu novo componente lindão aqui */}
-      <ChecklistTabs 
-        processoId={processo.id} 
-        fases={fases} 
-        etapas={etapasSimplificadas} 
+  const travamentos = processo.financeiro?.travamentos || [];
+  const totalUsdTravado = travamentos.reduce((acc, t) => acc + Number(t.valorUsdParcial), 0);
+
+  const processoResumo: ProcessoResumo = {
+    id: processo.id,
+    numeroProcesso: processo.numeroProcesso,
+    clienteFinal: processo.clienteFinal,
+    produto: processo.produto,
+    incoterm: processo.incoterm,
+    portoOrigem: processo.portoOrigem,
+    portoDestino: processo.portoDestino,
+    status: processo.status,
+    volumeKg: volumeKg,
+    bookingNumero: processo.bookingNumero,
+    navio: processo.navio,
+    armador: processo.armador,
+    localEstufagem: processo.localEstufagem,
+    containerQtd: processo.containerQtd,
+    fumigacaoNecessaria: processo.fumigacaoNecessaria,
+    fumigacaoTipo: processo.fumigacaoTipo,
+    fumigacaoTempoHoras: processo.fumigacaoTempoHoras,
+    deadlineEmbarque: processo.deadlineEmbarque,
+    deadlineDraftBl: processo.deadlineDraftBl,
+    deadlineDraftVgm: processo.deadlineDraftVgm,
+    deadlineCarga: processo.deadlineCarga,
+    precoUsd,
+    bancoDestino: processo.financeiro?.bancoDestino || 'BB BRASIL',
+    containersCount: containers.length,
+    containersPreenchidosCount,
+    totalUsdTravado,
+    valorTotalUsd,
+  };
+
+  return (
+    <div className="py-2">
+      <TimelineEtapasManager
+        processo={processoResumo}
+        etapas={etapasSimplificadas}
       />
     </div>
   );

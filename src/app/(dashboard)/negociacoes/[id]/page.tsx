@@ -6,7 +6,7 @@ import { ResumoTopoCard } from '@/components/negociacoes/ResumoTopoCard';
 import { Ship, DollarSign, Container, FileText, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 const FASES_STATUS: { fase: string; label: string }[] = [
-  { fase: 'BOOKING_TRANSPORTE', label: 'Booking / Transporte Internacional' },
+  { fase: 'BOOKING_TRANSPORTE', label: 'Booking & Industrialização' },
   { fase: 'ADMINISTRATIVO', label: 'Administrativo' },
   { fase: 'CARREGAMENTO_REDEX', label: 'Carregamento e REDEX' },
   { fase: 'DOCUMENTACAO_EXPORTACAO', label: 'Documentos' },
@@ -97,20 +97,20 @@ export default async function VisaoGeralNegociacaoPage({
         {/* CARD FINANCEIRO */}
         <Link
           href={`/negociacoes/${id}/financeiro`}
-          className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs hover:border-secondary/50 hover:shadow-xs transition-all group"
+          className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4.5 shadow-2xs hover:border-orange-500/50 hover:shadow-xs transition-all group"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-emerald-600" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+              <DollarSign className="w-4 h-4 text-emerald-500" />
               <span>DRE & Câmbio</span>
             </span>
-            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-secondary group-hover:translate-x-0.5 transition-all" />
+            <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
           </div>
-          <div className="text-xl font-extrabold text-gray-900 mb-1">
+          <div className="text-xl font-black text-slate-900 dark:text-white mb-1">
             {formatBRL(resultadoBRL)}
           </div>
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Margem: <strong className={margem >= 0 ? 'text-emerald-700' : 'text-rose-700'}>{margem.toFixed(1)}%</strong></span>
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Margem: <strong className={margem >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{margem.toFixed(1)}%</strong></span>
             <span>{saldoUsdParaTravar <= 0.01 ? '🔒 Câmbio 100%' : `⚠️ US$ ${Math.round(saldoUsdParaTravar).toLocaleString()} aberto`}</span>
           </div>
         </Link>
@@ -118,42 +118,42 @@ export default async function VisaoGeralNegociacaoPage({
         {/* CARD CONTÊINERES */}
         <Link
           href={`/negociacoes/${id}/containers`}
-          className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs hover:border-secondary/50 hover:shadow-xs transition-all group"
+          className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4.5 shadow-2xs hover:border-orange-500/50 hover:shadow-xs transition-all group"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-              <Container className="w-4 h-4 text-blue-600" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+              <Container className="w-4 h-4 text-blue-500" />
               <span>Contêineres & Lacre</span>
             </span>
-            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-secondary group-hover:translate-x-0.5 transition-all" />
+            <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
           </div>
-          <div className="text-xl font-extrabold text-gray-900 mb-1">
+          <div className="text-xl font-black text-slate-900 dark:text-white mb-1">
             {containersPreenchidos} de {processo.containerQtd || processo.containers.length || 0}
           </div>
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Tipo: <strong>{processo.containerTipo || "20' DRY"}</strong></span>
-            <span>Peso: <strong>{(pesoFinalTon).toFixed(2)} t</strong></span>
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Tipo: <strong className="text-slate-700 dark:text-slate-300">{processo.containerTipo || "20' DRY"}</strong></span>
+            <span>Peso: <strong className="text-slate-700 dark:text-slate-300">{(pesoFinalTon).toFixed(2)} t</strong></span>
           </div>
         </Link>
 
         {/* CARD DOCUMENTAÇÃO & INSTRUÇÃO */}
         <Link
           href={`/negociacoes/${id}/documentos`}
-          className="bg-white border border-gray-200 rounded-xl p-4 shadow-2xs hover:border-secondary/50 hover:shadow-xs transition-all group"
+          className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4.5 shadow-2xs hover:border-orange-500/50 hover:shadow-xs transition-all group"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-secondary" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+              <FileText className="w-4 h-4 text-orange-500" />
               <span>Documentos & Packing</span>
             </span>
-            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-secondary group-hover:translate-x-0.5 transition-all" />
+            <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
           </div>
-          <div className="text-xl font-extrabold text-gray-900 mb-1">
+          <div className="text-xl font-black text-slate-900 dark:text-white mb-1">
             {processo.ruc ? 'RUC Gerada' : 'Pendente RUC'}
           </div>
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Free Time: <strong>{processo.freeTimeDestino || '14 dias'}</strong></span>
-            <span className="text-secondary font-semibold">Emitir Docs →</span>
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Free Time: <strong className="text-slate-700 dark:text-slate-300">{processo.freeTimeDestino || '14 dias'}</strong></span>
+            <span className="text-orange-500 dark:text-orange-400 font-bold">Emitir Docs →</span>
           </div>
         </Link>
 
@@ -181,17 +181,17 @@ export default async function VisaoGeralNegociacaoPage({
         />
 
         {/* Status da Operação na coluna da direita */}
-        <div className="lg:col-span-1 bg-gray-50 border border-gray-200 rounded-xl p-6 shadow-2xs w-full">
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-6 shadow-2xs w-full transition-colors">
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-base font-bold text-gray-900">Etapas do Checklist</h2>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Etapas do Checklist</h2>
             <Link 
               href={`/negociacoes/${id}/checklist`}
-              className="text-xs font-semibold text-secondary hover:underline"
+              className="text-xs font-bold text-orange-500 hover:text-orange-600 dark:hover:text-orange-400 hover:underline"
             >
               Abrir
             </Link>
           </div>
-          <p className="text-xs text-gray-500 mb-5">Acompanhamento das 5 fases operacionais.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">Acompanhamento das 5 fases operacionais.</p>
 
           <div className="space-y-2.5 mb-5">
             {pendentesPorFase.map((f) => {
@@ -200,22 +200,22 @@ export default async function VisaoGeralNegociacaoPage({
               return (
                 <div
                   key={f.fase}
-                  className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 gap-3"
+                  className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/60 gap-3"
                 >
-                  <span className="text-xs font-semibold text-gray-700 truncate" title={f.label}>
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate" title={f.label}>
                     {f.label}
                   </span>
 
                   {f.total === 0 ? (
-                    <span className="text-[10px] font-bold bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 uppercase">
+                    <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 uppercase">
                       Sem tarefas
                     </span>
                   ) : concluido ? (
-                    <span className="text-[10px] font-bold bg-[#1A7A43]/10 text-[#1A7A43] px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 uppercase">
+                    <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 uppercase">
                       Concluído
                     </span>
                   ) : (
-                    <span className="text-xs font-bold bg-[#F58025]/10 text-[#c25e13] border border-[#F58025]/20 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
+                    <span className="text-xs font-bold bg-orange-500/15 text-orange-700 dark:text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                       {f.pendentes}/{f.total} pend.
                     </span>
                   )}
@@ -226,7 +226,7 @@ export default async function VisaoGeralNegociacaoPage({
 
           <Link
             href={`/negociacoes/${id}/checklist`}
-            className="block w-full text-center bg-gray-900 hover:bg-black text-white font-semibold text-xs py-2.5 rounded-lg transition-colors shadow-2xs"
+            className="block w-full text-center bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold text-xs py-2.5 rounded-xl transition-colors shadow-2xs"
           >
             Gerenciar Checklist Completo →
           </Link>

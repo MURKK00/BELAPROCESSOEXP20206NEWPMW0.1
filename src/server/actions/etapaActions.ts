@@ -44,3 +44,84 @@ export async function marcarEtapaAction(formData: FormData) {
   revalidatePath('/');
   revalidatePath('/negociacoes');
 }
+
+/**
+ * Conclui ou reabre todas as etapas pertencentes a um macro-marco de uma só vez
+ */
+export async function marcarLoteEtapasAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user) throw new Error('Não autenticado');
+
+  const processoId = String(formData.get('processoId'));
+  const etapaIdsJson = String(formData.get('etapaIds'));
+  const novoStatus = String(formData.get('novoStatus')) as 'CONCLUIDA' | 'PENDENTE';
+  const nomeMarco = String(formData.get('nomeMarco') || 'Marco Operacional');
+
+  let etapaIds: string[] = [];
+  try {
+    etapaIds = JSON.parse(etapaIdsJson);
+  } catch {
+    return;
+  }
+
+  if (etapaIds.length === 0) return;
+
+  await prisma.processoEtapa.updateMany({
+    where: {
+      id: { in: etapaIds },
+      processoId: processoId,
+    },
+    data: {
+      status: novoStatus,
+      concluidoEm: novoStatus === 'CONCLUIDA' ? new Date() : null,
+      responsavelId: user.id,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      processoId,
+      usuarioId: user.id,
+      acao: novoStatus === 'CONCLUIDA' ? 'MARCO_CONCLUIDO' : 'MARCO_REABERTO',
+      detalhe: `${nomeMarco}: ${etapaIds.length} tarefas marcadas como ${novoStatus === 'CONCLUIDA' ? 'concluídas' : 'pendentes'}.`,
+    },
+  });
+
+  revalidatePath(`/negociacoes/${processoId}`);
+  revalidatePath(`/negociacoes/${processoId}/checklist`);
+  revalidatePath(`/negociacoes/${processoId}/auditoria`);
+  revalidatePath('/');
+  revalidatePath('/negociacoes');
+}
+
+/**
+ * Permite avançar ou definir diretamente o Marco do Processo
+ */
+export async function avancarMarcoStatusAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user) throw new Error('Não autenticado');
+
+  const processoId = String(formData.get('processoId'));
+  const novoStatus = String(formData.get('novoStatus'));
+  const nomeMarco = String(formData.get('nomeMarco'));
+
+  await prisma.processo.update({
+    where: { id: processoId },
+    data: { status: novoStatus as any },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      processoId,
+      usuarioId: user.id,
+      acao: 'STATUS_ALTERADO',
+      detalhe: `Marco operacional alterado para "${nomeMarco}" (Status: ${novoStatus}).`,
+    },
+  });
+
+  revalidatePath(`/negociacoes/${processoId}`);
+  revalidatePath(`/negociacoes/${processoId}/checklist`);
+  revalidatePath('/negociacoes');
+  revalidatePath('/');
+}
+

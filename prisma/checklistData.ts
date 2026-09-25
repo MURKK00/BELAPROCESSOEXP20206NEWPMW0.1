@@ -33,18 +33,18 @@ export const TIPOS_DOCUMENTO_CHECKLIST: Array<{ nome: string; categoria: string;
 ];
 
 export const CHECKLIST_ETAPAS: ChecklistEtapaSeed[] = [
-  // Booking / Transporte Internacional
+  // Booking & Industrialização
   { numero: '1', ordem: 1, fase: Fase.BOOKING_TRANSPORTE, etapa: 'Emissão do Booking', raiaResponsavel: 'Administrativo' },
+  { numero: '2', ordem: 2, fase: Fase.BOOKING_TRANSPORTE, etapa: 'Contratar Transporte/Transportadora', raiaResponsavel: 'Logística / Operacional' },
 
   // Administrativo
-  { numero: '2', ordem: 2, fase: Fase.ADMINISTRATIVO, etapa: 'E-mail nomeação', raiaResponsavel: 'Administrativo' },
-  { numero: '3', ordem: 3, fase: Fase.ADMINISTRATIVO, etapa: 'Emissão Notas Fiscais #1 — Formação lote p/ exportação', raiaResponsavel: 'Administrativo' },
-  { numero: '4', ordem: 4, fase: Fase.ADMINISTRATIVO, etapa: 'Emissão Notas Fiscais #2 — Retorno lote p/ exportação', raiaResponsavel: 'Administrativo' },
-  { numero: '5', ordem: 5, fase: Fase.ADMINISTRATIVO, etapa: 'Emissão Notas Fiscais #3 — Exportação (DU-E)', raiaResponsavel: 'Administrativo' },
-  { numero: '6', ordem: 6, fase: Fase.ADMINISTRATIVO, etapa: 'Aprovação Draft [CLIENTE]', raiaResponsavel: 'Administrativo' },
+  { numero: '3', ordem: 3, fase: Fase.ADMINISTRATIVO, etapa: 'E-mail nomeação', raiaResponsavel: 'Administrativo' },
+  { numero: '4', ordem: 4, fase: Fase.ADMINISTRATIVO, etapa: 'Emissão Notas Fiscais #1 — Formação lote p/ exportação', raiaResponsavel: 'Administrativo' },
+  { numero: '5', ordem: 5, fase: Fase.ADMINISTRATIVO, etapa: 'Emissão Notas Fiscais #2 — Retorno lote p/ exportação', raiaResponsavel: 'Administrativo' },
+  { numero: '6', ordem: 6, fase: Fase.ADMINISTRATIVO, etapa: 'Emissão Notas Fiscais #3 — Exportação (DU-E)', raiaResponsavel: 'Administrativo' },
+  { numero: '7', ordem: 7, fase: Fase.ADMINISTRATIVO, etapa: 'Aprovação Draft [CLIENTE]', raiaResponsavel: 'Administrativo' },
 
   // Carregamento e REDEX
-  { numero: '7', ordem: 7, fase: Fase.CARREGAMENTO_REDEX, etapa: 'Contratar Transportadora', raiaResponsavel: 'REDEX' },
   { numero: '8', ordem: 8, fase: Fase.CARREGAMENTO_REDEX, etapa: 'Estufagem + Etiquetagem', raiaResponsavel: 'REDEX' },
   { numero: '9', ordem: 9, fase: Fase.CARREGAMENTO_REDEX, etapa: 'Vistoria MAPA (Fitossanitário)', raiaResponsavel: 'REDEX' },
 

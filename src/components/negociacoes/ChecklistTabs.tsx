@@ -8,7 +8,7 @@ const FASE_LABEL: Record<string, string> = {
   PRODUTOR_VENDEDOR: 'Produtor/Vendedor',
   ADMINISTRATIVO: 'Administrativo',
   INDUSTRIA_BENEFICIAMENTO: 'Indústria de Beneficiamento',
-  BOOKING_TRANSPORTE: 'Booking / Transporte Internacional',
+  BOOKING_TRANSPORTE: 'Booking & Industrialização',
   CARREGAMENTO: 'Carregamento',
   CARREGAMENTO_REDEX: 'Carregamento e REDEX',
   DOCUMENTACAO_EXPORTACAO: 'Documentos Emitidos',

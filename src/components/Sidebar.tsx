@@ -2,67 +2,61 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { GlobalSpotlight } from './GlobalSpotlight';
+import { LayoutDashboard, Handshake, DollarSign } from 'lucide-react';
 
 export function Sidebar() {
   const pathname = usePathname();
 
-  // Variáveis para garantir que ele entenda exatamente qual página está ativa
   const isVisaoGeral = pathname === '/';
   const isNegociacoes = pathname.startsWith('/negociacoes');
-  const isLogistica = pathname.startsWith('/logistica');
+  const isFinanceiro = pathname.startsWith('/financeiro');
+
+  const links = [
+    {
+      href: '/',
+      label: 'Visão Geral',
+      active: isVisaoGeral,
+      icon: LayoutDashboard,
+    },
+    {
+      href: '/negociacoes',
+      label: 'Negociações',
+      active: isNegociacoes,
+      icon: Handshake,
+    },
+    {
+      href: '/financeiro',
+      label: 'Financeiro',
+      active: isFinanceiro,
+      icon: DollarSign,
+    },
+  ];
 
   return (
-    <nav className="flex flex-col gap-2 mt-4 px-4">
-      {/* BUSCA RÁPIDA GLOBAL (SPOTLIGHT) */}
-      <div className="mb-2">
-        <GlobalSpotlight />
-      </div>
-      
-      {/* LINK: VISÃO GERAL */}
-      <Link 
-        href="/" 
-        className={`px-4 py-3 rounded-lg transition-all block ${
-          isVisaoGeral 
-            ? 'bg-gray-100 shadow-sm font-bold text-gray-900 border-l-4 border-[#f58220]' 
-            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-        }`}
-      >
-        Visão geral
-      </Link>
-
-      {/* LINK: NEGOCIAÇÕES */}
-      <Link 
-        href="/negociacoes" 
-        className={`px-4 py-3 rounded-lg transition-all block ${
-          isNegociacoes 
-            ? 'bg-gray-100 shadow-sm font-bold text-gray-900 border-l-4 border-[#f58220]' 
-            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-        }`}
-      >
-        Negociações
-      </Link>
-
-      {/* LINK: LOGÍSTICA & DEADLINES */}
-      <Link 
-        href="/logistica" 
-        className={`px-4 py-3 rounded-lg transition-all block ${
-          isLogistica 
-            ? 'bg-gray-100 shadow-sm font-bold text-gray-900 border-l-4 border-[#f58220]' 
-            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-        }`}
-      >
-        Logística & Deadlines
-      </Link>
-
-      {/* LINKS INATIVOS (EM BREVE) */}
-      <div className="px-4 py-3 text-gray-300 text-sm font-medium cursor-not-allowed mt-2">
-        Dashboard <span className="text-[10px] uppercase ml-1 opacity-50">Em breve</span>
-      </div>
-      <div className="px-4 py-3 text-gray-300 text-sm font-medium cursor-not-allowed">
-        Documentos <span className="text-[10px] uppercase ml-1 opacity-50">Em breve</span>
-      </div>
-
+    <nav className="flex flex-col gap-1.5 mt-5 px-3">
+      {links.map((link) => {
+        const Icon = link.icon;
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-xs transition-all ${
+              link.active
+                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/25 shadow-2xs font-bold'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <Icon
+              className={`w-4 h-4 shrink-0 transition-colors ${
+                link.active
+                  ? 'text-orange-600 dark:text-orange-400'
+                  : 'text-slate-400 dark:text-slate-500'
+              }`}
+            />
+            <span>{link.label}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

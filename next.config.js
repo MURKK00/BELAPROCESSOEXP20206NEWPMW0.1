@@ -3,8 +3,14 @@ const nextConfig = {
   output: 'standalone',
   experimental: {
     serverActions: {
-      bodySizeLimit: '10mb', // ajuste esse valor conforme o tamanho médio dos seus documentos
+      bodySizeLimit: '10mb',
     },
+  },
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.cache = false;
+    }
+    return config;
   },
 };
 

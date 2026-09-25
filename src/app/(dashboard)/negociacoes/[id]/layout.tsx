@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { getSessionUser } from '@/lib/auth';
 import { QuickActionsHeader } from '@/components/negociacoes/QuickActionsHeader';
-import { ResumoTopoCard } from '@/components/negociacoes/ResumoTopoCard';
 import { NegociacaoTabs } from '@/components/negociacoes/NegociacaoTabs';
+import { FloatingChatDrawer } from '@/components/negociacoes/FloatingChatDrawer';
 
 export default async function DetailLayout({
   children,
@@ -15,16 +16,45 @@ export default async function DetailLayout({
 
   const processo = await prisma.processo.findUnique({
     where: { id: id },
-    include: { etapas: true },
+    include: { 
+      etapas: true,
+      mensagens: {
+        include: {
+          autor: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+              papel: true,
+            },
+          },
+        },
+        orderBy: { criadoEm: 'asc' },
+      },
+    },
   });
 
   if (!processo) notFound();
 
+  const user = await getSessionUser();
   const totalEtapas = processo.etapas.length;
   const etapasConcluidas = processo.etapas.filter((e) => e.status === 'CONCLUIDA').length;
 
+  const mensagensFormatadas = processo.mensagens.map((m) => ({
+    id: m.id,
+    texto: m.texto,
+    criadoEm: m.criadoEm.toISOString(),
+    autorId: m.autorId,
+    autor: {
+      id: m.autor.id,
+      nome: m.autor.nome,
+      email: m.autor.email,
+      papel: m.autor.papel,
+    },
+  }));
+
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto relative pb-16">
       {/* CABEÇALHO UNIFICADO DE AÇÕES RÁPIDAS E TIMELINE */}
       <QuickActionsHeader
         processo={{
@@ -52,7 +82,17 @@ export default async function DetailLayout({
       {/* ABAS DO COCKPIT INTEGRADO */}
       <NegociacaoTabs processoId={processo.id} />
 
+      {/* CONTEÚDO DA ABA ATUAL */}
       {children}
+
+      {/* GAVETA FLUTUANTE DE CHAT (DISPONÍVEL EM TODAS AS ABAS) */}
+      <FloatingChatDrawer
+        processoId={processo.id}
+        numeroProcesso={processo.numeroProcesso}
+        clienteFinal={processo.clienteFinal}
+        mensagensIniciais={mensagensFormatadas}
+        currentUserId={user?.id}
+      />
     </div>
   );
 }

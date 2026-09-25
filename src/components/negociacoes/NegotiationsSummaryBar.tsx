@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Scale, DollarSign, Activity, Ship, Layers } from 'lucide-react';
+import { Scale, DollarSign, Activity } from 'lucide-react';
 import { formatUSD } from '@/lib/formatters';
 
 interface ProcessoSummaryItem {
@@ -26,158 +26,111 @@ export function NegotiationsSummaryBar({
   processosFiltrados,
   isFiltered = false,
 }: NegotiationsSummaryBarProps) {
-  // Negociações abertas / ativas em andamento (excluindo CANCELADO e FINALIZADO)
-  const statsGerais = useMemo(() => {
-    const abertos = processos.filter(
-      (p) => p.status !== 'CANCELADO' && p.status !== 'FINALIZADO'
-    );
+  const listaAlvo = isFiltered && processosFiltrados ? processosFiltrados : processos;
 
-    const totalVolumeTon = abertos.reduce((acc, p) => acc + (Number(p.volumeKg) || 0) / 1000, 0);
-    const totalUsd = abertos.reduce((acc, p) => acc + (p.metricasFinanceiras?.valorTotalUsd || 0), 0);
-    const totalTravadoUsd = abertos.reduce((acc, p) => acc + (p.metricasFinanceiras?.totalUsdTravado || 0), 0);
-    const totalEmbarcadoTon = abertos
-      .filter((p) => p.status === 'EMBARCADO')
-      .reduce((acc, p) => acc + (Number(p.volumeKg) || 0) / 1000, 0);
+  const stats = useMemo(() => {
+    const validos = listaAlvo.filter((p) => p.status !== 'CANCELADO');
+
+    const totalVolumeKg = validos.reduce((acc, p) => acc + (Number(p.volumeKg) || 0), 0);
+    const totalVolumeTon = totalVolumeKg / 1000;
+    const totalUsd = validos.reduce((acc, p) => acc + (p.metricasFinanceiras?.valorTotalUsd || 0), 0);
+    const totalTravadoUsd = validos.reduce((acc, p) => acc + (p.metricasFinanceiras?.totalUsdTravado || 0), 0);
+    const totalNegociacoes = validos.length;
 
     return {
-      qtdAbertas: abertos.length,
+      totalNegociacoes,
       totalVolumeTon,
+      totalVolumeKg,
       totalUsd,
       totalTravadoUsd,
-      totalEmbarcadoTon,
     };
-  }, [processos]);
-
-  // Se houver filtros aplicados na tela, calcular também para os itens visíveis
-  const statsFiltrados = useMemo(() => {
-    if (!isFiltered || !processosFiltrados) return null;
-
-    const abertos = processosFiltrados.filter(
-      (p) => p.status !== 'CANCELADO' && p.status !== 'FINALIZADO'
-    );
-
-    const totalVolumeTon = abertos.reduce((acc, p) => acc + (Number(p.volumeKg) || 0) / 1000, 0);
-    const totalUsd = abertos.reduce((acc, p) => acc + (p.metricasFinanceiras?.valorTotalUsd || 0), 0);
-
-    return {
-      qtdAbertas: abertos.length,
-      totalVolumeTon,
-      totalUsd,
-    };
-  }, [isFiltered, processosFiltrados]);
+  }, [listaAlvo]);
 
   return (
     <div
       id="negotiations-summary-bar"
-      className="bg-white border border-gray-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs mb-5"
+      className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-2xs mb-5 transition-colors"
     >
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* LADO ESQUERDO: OS 2 INDICADORES PRINCIPAIS PEDIDOS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 flex-1">
-          {/* 1. VOLUME TOTAL ATIVO EM TONELADAS */}
-          <div
-            id="summary-active-volume-card"
-            className="flex items-center gap-3.5 bg-gradient-to-br from-amber-50/70 to-orange-50/40 border border-amber-200/70 rounded-xl p-3.5"
-          >
-            <div className="w-10 h-10 rounded-xl bg-secondary/15 flex items-center justify-center text-secondary shrink-0">
-              <Scale className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
-                Volume Ativo Aberto
-              </span>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-                  {statsGerais.totalVolumeTon.toLocaleString('pt-BR', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 1,
-                  })}
-                </span>
-                <span className="text-xs font-extrabold text-secondary">Toneladas</span>
-              </div>
-              <span className="text-[10px] text-gray-400 block mt-0.5">
-                {(statsGerais.totalVolumeTon * 1000).toLocaleString('pt-BR')} kg em andamento
-              </span>
-            </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+        {/* 1. VOLUME NEGOCIADO */}
+        <div
+          id="summary-active-volume-card"
+          className="flex items-center gap-3.5 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 dark:border-amber-500/30 rounded-xl p-3.5 transition-all hover:shadow-xs"
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <Scale className="w-5 h-5" />
           </div>
-
-          {/* 2. VALOR TOTAL EM USD NAS NEGOCIAÇÕES ABERTAS */}
-          <div
-            id="summary-active-usd-card"
-            className="flex items-center gap-3.5 bg-gradient-to-br from-emerald-50/70 to-teal-50/40 border border-emerald-200/70 rounded-xl p-3.5"
-          >
-            <div className="w-10 h-10 rounded-xl bg-emerald-600/15 flex items-center justify-center text-emerald-700 shrink-0">
-              <DollarSign className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
-                Valor Total Aberto
+          <div className="min-w-0">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              Volume Negociado
+            </span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                {stats.totalVolumeTon.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 3,
+                })}
               </span>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl sm:text-2xl font-black text-emerald-950 tracking-tight">
-                  {formatUSD(statsGerais.totalUsd)}
-                </span>
-              </div>
-              <span className="text-[10px] text-emerald-700/80 block mt-0.5">
-                {statsGerais.totalUsd - statsGerais.totalTravadoUsd <= 0.01 && statsGerais.totalUsd > 0
-                  ? '🔒 Câmbio 100% travado'
-                  : statsGerais.totalTravadoUsd > 0
-                  ? `${formatUSD(statsGerais.totalTravadoUsd)} travados • ${formatUSD(Math.max(0, statsGerais.totalUsd - statsGerais.totalTravadoUsd))} a travar`
-                  : 'Aguardando travamento cambial'}
-              </span>
+              <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400">Toneladas</span>
             </div>
-          </div>
-
-          {/* 3. OPERAÇÕES EM ANDAMENTO */}
-          <div
-            id="summary-active-count-card"
-            className="flex items-center gap-3.5 bg-gradient-to-br from-blue-50/70 to-slate-50/40 border border-blue-200/70 rounded-xl p-3.5 sm:col-span-2 md:col-span-1"
-          >
-            <div className="w-10 h-10 rounded-xl bg-blue-600/15 flex items-center justify-center text-blue-700 shrink-0">
-              <Activity className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
-                Negociações Abertas
-              </span>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-                  {statsGerais.qtdAbertas}
-                </span>
-                <span className="text-xs font-semibold text-gray-500">processos ativos</span>
-              </div>
-              <span className="text-[10px] text-gray-400 block mt-0.5">
-                Exclui processos cancelados ou já finalizados
-              </span>
-            </div>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
+              {stats.totalVolumeKg.toLocaleString('pt-BR')} kg {isFiltered ? 'nos filtros' : 'negociados'}
+            </span>
           </div>
         </div>
 
-        {/* LADO DIREITO: INFORMAÇÕES DE CONTEXTO / FILTRO ATIVO */}
-        {isFiltered && statsFiltrados && (
-          <div
-            id="summary-filtered-indicator"
-            className="lg:w-64 bg-gray-50 border border-dashed border-gray-300 rounded-xl p-3 flex flex-col justify-center text-xs shrink-0"
-          >
-            <div className="flex items-center gap-1.5 text-gray-700 font-bold mb-1">
-              <Layers className="w-3.5 h-3.5 text-secondary" />
-              <span>Visível com Filtros Atuais</span>
-            </div>
-            <div className="text-gray-600 space-y-0.5 text-[11px]">
-              <div>
-                Volume:{' '}
-                <strong className="text-gray-900">
-                  {statsFiltrados.totalVolumeTon.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} t
-                </strong>{' '}
-                ({statsFiltrados.qtdAbertas} ativas)
-              </div>
-              <div>
-                Valor:{' '}
-                <strong className="text-emerald-700">{formatUSD(statsFiltrados.totalUsd)}</strong>
-              </div>
-            </div>
+        {/* 2. VALOR TOTAL NEGOCIADO */}
+        <div
+          id="summary-active-usd-card"
+          className="flex items-center gap-3.5 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 dark:border-emerald-500/30 rounded-xl p-3.5 transition-all hover:shadow-xs"
+        >
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+            <DollarSign className="w-5 h-5" />
           </div>
-        )}
+          <div className="min-w-0">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              Valor Total Negociado
+            </span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                {formatUSD(stats.totalUsd)}
+              </span>
+            </div>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5 font-medium truncate">
+              {stats.totalUsd - stats.totalTravadoUsd <= 0.01 && stats.totalUsd > 0
+                ? '🔒 Câmbio 100% travado'
+                : stats.totalTravadoUsd > 0
+                ? `${formatUSD(stats.totalTravadoUsd)} travados • ${formatUSD(Math.max(0, stats.totalUsd - stats.totalTravadoUsd))} a travar`
+                : 'Aguardando travamento cambial'}
+            </span>
+          </div>
+        </div>
+
+        {/* 3. TOTAL DE NEGOCIAÇÕES */}
+        <div
+          id="summary-active-count-card"
+          className="flex items-center gap-3.5 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 dark:border-blue-500/30 rounded-xl p-3.5 sm:col-span-2 md:col-span-1 transition-all hover:shadow-xs"
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+            <Activity className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              Total de Negociações
+            </span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                {stats.totalNegociacoes}
+              </span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {stats.totalNegociacoes === 1 ? 'negociação' : 'negociações'}
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
+              {isFiltered ? 'Ativas com filtros aplicados' : 'Desconsiderando canceladas'}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

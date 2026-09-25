@@ -52,7 +52,10 @@ export default async function NegociacoesPage() {
 
     return {
       ...p,
-      volumeKg,
+      volumeKg: pesoFinalKg,
+      volumeTon: pesoFinalTon,
+      volumeInicialContratadoKg: volumeKg,
+      temContainersPreenchidos: pesoLiquidoTotalKg > 0,
       valorDeclaradoUsd,
       metricasFinanceiras: {
         valorTotalUsd,
@@ -73,18 +76,18 @@ export default async function NegociacoesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Todas as negociações</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Todas as Negociações</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Acompanhe status, logística marítima e mini-DRE financeiro em tempo real.
           </p>
         </div>
         <Link
           href="/negociacoes/nova"
-          className="bg-secondary text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-[#e0751b] shadow-2xs transition-colors"
+          className="inline-flex items-center gap-2 bg-[#f58220] hover:bg-orange-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 transition-all self-start sm:self-auto"
         >
-          + Nova negociação
+          <span>+ Nova Negociação</span>
         </Link>
       </div>
       <NegotiationTable processos={processosFormatados as any} />

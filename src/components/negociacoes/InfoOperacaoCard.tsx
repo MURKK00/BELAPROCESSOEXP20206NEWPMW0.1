@@ -42,15 +42,15 @@ export function InfoOperacaoCard(props: Props) {
 
   if (!editando) {
     return (
-      <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-6 shadow-sm relative">
+      <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-6 shadow-2xs relative transition-colors">
         <button
           onClick={() => setEditando(true)}
           title="Editar informações"
-          className="absolute top-5 right-5 text-gray-400 hover:text-blue-600 transition-colors"
+          className="absolute top-5 right-5 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors"
         >
           ✏️
         </button>
-        <h2 className="text-lg font-bold mb-4 text-gray-900">Informações da Operação</h2>
+        <h2 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">Informações da Operação</h2>
 
         <div className="grid grid-cols-2 gap-4 text-sm">
           <Info label="Cliente Final" value={props.clienteFinal} />
@@ -59,11 +59,11 @@ export function InfoOperacaoCard(props: Props) {
 
           {/* INCOTERM COM TOOLTIP DE AJUDA */}
           <div>
-            <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">
+            <label className="block text-xs uppercase text-slate-400 dark:text-slate-500 font-bold mb-1">
               Incoterm
             </label>
-            <div className="font-medium text-gray-900 flex items-center">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200">
+            <div className="font-bold text-slate-900 dark:text-white flex items-center">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                 {props.incoterm || 'FOB'}
               </span>
               <IncotermHelpBadge incoterm={props.incoterm || 'FOB'} />
@@ -95,9 +95,9 @@ export function InfoOperacaoCard(props: Props) {
   return (
     <form
       action={handleSubmit}
-      className="lg:col-span-2 bg-white border border-blue-200 rounded-xl p-6 shadow-sm"
+      className="lg:col-span-2 bg-white dark:bg-slate-900 border border-orange-500/40 dark:border-orange-500/30 rounded-2xl p-6 shadow-sm transition-colors"
     >
-      <h2 className="text-lg font-bold mb-4 text-gray-900">Editar Informações da Operação</h2>
+      <h2 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">Editar Informações da Operação</h2>
       <div className="grid grid-cols-2 gap-4 text-sm">
         <EditField label="Cliente Final" name="clienteFinal" defaultValue={props.clienteFinal} />
         <EditField label="Produto" name="produto" defaultValue={props.produto} />
@@ -106,13 +106,13 @@ export function InfoOperacaoCard(props: Props) {
         {/* SELECT DE INCOTERM NA EDIÇÃO COM TOOLTIP */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center">
-            <label className="text-xs font-semibold text-gray-500">Incoterm</label>
+            <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Incoterm</label>
             <IncotermHelpBadge incoterm={props.incoterm} />
           </div>
           <select
             name="incoterm"
             defaultValue={props.incoterm || 'FOB'}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white"
+            className="border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
           >
             {INCOTERMS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -162,14 +162,14 @@ export function InfoOperacaoCard(props: Props) {
         <button
           type="submit"
           disabled={salvando}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 cursor-pointer"
+          className="bg-[#f58220] hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer shadow-2xs"
         >
           {salvando ? 'Salvando...' : 'Salvar'}
         </button>
         <button
           type="button"
           onClick={() => setEditando(false)}
-          className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
+          className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
         >
           Cancelar
         </button>
@@ -181,8 +181,8 @@ export function InfoOperacaoCard(props: Props) {
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <label className="block text-xs uppercase text-gray-500 font-semibold mb-1">{label}</label>
-      <div className="font-medium text-gray-900">{value}</div>
+      <label className="block text-xs uppercase text-slate-400 dark:text-slate-500 font-bold mb-1">{label}</label>
+      <div className="font-bold text-slate-900 dark:text-white">{value}</div>
     </div>
   );
 }
@@ -202,13 +202,13 @@ function EditField({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-gray-500">{label}</label>
+      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">{label}</label>
       <input
         name={name}
         type={type}
         defaultValue={defaultValue}
         placeholder={placeholder}
-        className="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500"
+        className="border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
       />
     </div>
   );

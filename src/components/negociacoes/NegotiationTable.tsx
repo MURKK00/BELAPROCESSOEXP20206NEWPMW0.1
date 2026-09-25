@@ -421,23 +421,23 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
       />
 
       {/* BARRA DE FILTROS SUPERIOR */}
-      <div className="bg-white border border-border rounded-xl p-4 shadow-2xs space-y-3">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4 shadow-2xs space-y-3 transition-colors">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Campo de Busca Rápida */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Filtrar por Nº processo, cliente, produto, booking, navio..."
               value={buscaTexto}
               onChange={(e) => setBuscaTexto(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/20"
+              className="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 placeholder:text-slate-400"
             />
             {buscaTexto && (
               <button
                 type="button"
                 onClick={() => setBuscaTexto('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -449,45 +449,45 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
             <button
               type="button"
               onClick={() => setPainelAberto((prev) => !prev)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition-colors ${
                 painelAberto || temFiltroAtivo
-                  ? 'bg-amber-50 text-secondary border-secondary/30'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-800'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750'
               }`}
             >
               <Filter className="w-3.5 h-3.5" />
               <span>Filtros Avançados</span>
               {temFiltroAtivo && (
-                <span className="w-2 h-2 rounded-full bg-secondary ml-0.5" />
+                <span className="w-2 h-2 rounded-full bg-orange-500 ml-0.5" />
               )}
             </button>
 
             <button
               type="button"
               onClick={exportarListagemCSV}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-2xs"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800 rounded-xl transition-colors shadow-2xs"
               title="Exportar dados da tabela filtrada para Excel"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Exportar Excel</span>
             </button>
 
             <button
               type="button"
               onClick={exportarRelatorioPDF}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors shadow-2xs"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors shadow-2xs"
               title="Exportar relatório consolidado de negociações em formato PDF oficial"
             >
-              <Printer className="w-3.5 h-3.5 text-gray-600" />
+              <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               <span>Exportar PDF</span>
             </button>
 
-            <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer ml-1">
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer ml-1">
               <input
                 type="checkbox"
                 checked={ocultarCanceladas}
                 onChange={(e) => setOcultarCanceladas(e.target.checked)}
-                className="w-4 h-4 text-secondary rounded border-gray-300 focus:ring-secondary cursor-pointer"
+                className="w-4 h-4 text-orange-500 rounded border-slate-300 dark:border-slate-600 focus:ring-orange-500 cursor-pointer accent-orange-500"
               />
               Ocultar canceladas
             </label>
@@ -496,16 +496,16 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
 
         {/* PAINEL EXPANSÍVEL DE FILTROS AVANÇADOS */}
         {painelAberto && (
-          <div className="pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 animate-in fade-in duration-150">
             {/* Status */}
             <div>
-              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                 Status
               </label>
               <select
                 value={statusFiltro}
                 onChange={(e) => setStatusFiltro(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-secondary"
+                className="w-full border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500 font-medium"
               >
                 {STATUS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -517,13 +517,13 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
 
             {/* Cliente */}
             <div>
-              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                 Cliente Final
               </label>
               <select
                 value={clienteFiltro}
                 onChange={(e) => setClienteFiltro(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-secondary"
+                className="w-full border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500 font-medium"
               >
                 <option value="TODOS">Todos os clientes ({clientesDisponiveis.length})</option>
                 {clientesDisponiveis.map((cli) => (
@@ -536,13 +536,13 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
 
             {/* Produto */}
             <div>
-              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                 Produto
               </label>
               <select
                 value={produtoFiltro}
                 onChange={(e) => setProdutoFiltro(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-secondary"
+                className="w-full border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500 font-medium"
               >
                 <option value="TODOS">Todos os produtos ({produtosDisponiveis.length})</option>
                 {produtosDisponiveis.map((prod) => (
@@ -555,13 +555,13 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
 
             {/* Armador */}
             <div>
-              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                 Armador
               </label>
               <select
                 value={armadorFiltro}
                 onChange={(e) => setArmadorFiltro(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-secondary"
+                className="w-full border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500 font-medium"
               >
                 <option value="TODOS">Todos os armadores</option>
                 {armadoresDisponiveis.map((arm) => (
@@ -574,13 +574,13 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
 
             {/* Prazo / Deadline Crítico */}
             <div>
-              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                 Deadlines Críticos
               </label>
               <select
                 value={prazoFiltro}
                 onChange={(e) => setPrazoFiltro(e.target.value as any)}
-                className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-secondary"
+                className="w-full border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500 font-medium"
               >
                 <option value="TODOS">Qualquer prazo</option>
                 <option value="URGENTES">🚨 Vencidos ou Próximos 48h</option>
@@ -594,7 +594,7 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                 <button
                   type="button"
                   onClick={limparFiltros}
-                  className="text-xs text-red-600 hover:text-red-800 font-semibold flex items-center gap-1"
+                  className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 font-bold flex items-center gap-1"
                 >
                   <X className="w-3.5 h-3.5" />
                   <span>Limpar todos os filtros</span>
@@ -606,27 +606,27 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
       </div>
 
       {/* CONTADOR DE RESULTADOS */}
-      <div className="flex items-center justify-between text-xs text-gray-500 px-1">
+      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
         <span>
           Mostrando <strong>{processosFiltrados.length}</strong> de {processos.length} processo(s)
         </span>
       </div>
 
       {/* TABELA DE RESULTADOS */}
-      <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs transition-colors">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-              <th className="text-left px-6 py-4 font-semibold">Nº Processo</th>
-              <th className="text-left px-6 py-4 font-semibold whitespace-nowrap">Status</th>
-              <th className="text-left px-6 py-4 font-semibold">Cliente</th>
-              <th className="text-left px-6 py-4 font-semibold">Produto</th>
-              <th className="text-left px-6 py-4 font-semibold whitespace-nowrap">Nº Booking</th>
-              <th className="text-left px-6 py-4 font-semibold">Deadline</th>
-              <th className="text-center px-6 py-4 font-semibold">Ações</th>
+            <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider border-b border-slate-200/90 dark:border-slate-800 font-bold">
+              <th className="text-left px-6 py-4">Nº Processo</th>
+              <th className="text-left px-6 py-4 whitespace-nowrap">Status</th>
+              <th className="text-left px-6 py-4">Cliente</th>
+              <th className="text-left px-6 py-4">Produto</th>
+              <th className="text-left px-6 py-4 whitespace-nowrap">Nº Booking</th>
+              <th className="text-left px-6 py-4">Deadline</th>
+              <th className="text-center px-6 py-4">Ações</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {processosFiltrados.map((p) => {
               // Calcular se o deadline está próximo (< 48h)
               let deadlineProximo = false;
@@ -679,28 +679,28 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
               return (
                 <tr
                   key={p.id}
-                  className={`border-t border-border hover:bg-gray-50/80 transition-colors ${
-                    p.status === 'CANCELADO' ? 'bg-red-50/50' : 'bg-white'
+                  className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${
+                    p.status === 'CANCELADO' ? 'bg-rose-500/5 dark:bg-rose-950/20' : 'bg-white dark:bg-slate-900'
                   }`}
                 >
-                  <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                  <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={handleAbrirDrawer}
                         title="Abrir Prévia Rápida (Slide-over)"
-                        className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-secondary transition-colors"
+                        className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-orange-500 transition-colors"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <Link
                         href={`/negociacoes/${p.id}`}
-                        className="hover:text-blue-600 transition-colors flex items-center gap-1.5"
+                        className="hover:text-orange-500 dark:hover:text-orange-400 transition-colors flex items-center gap-1.5"
                       >
                         <span>{p.numeroProcesso}</span>
                         {deadlineProximo && (
                           <span
-                            className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded"
+                            className="px-1.5 py-0.5 text-[10px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded"
                             title="Deadline de embarque nas próximas 48 horas!"
                           >
                             ⚠️ 48h
@@ -739,44 +739,36 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                     </div>
                   </td>
 
-                  <td className="px-6 py-4 text-sm font-medium text-gray-700">
+                  <td className="px-6 py-4 text-sm font-semibold text-slate-800 dark:text-slate-200">
                     <button
                       type="button"
                       onClick={handleAbrirDrawer}
-                      className="text-left hover:text-blue-600 transition-colors"
+                      className="text-left hover:text-orange-500 dark:hover:text-orange-400 transition-colors"
                     >
                       {p.clienteFinal}
                     </button>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
                     <div>{p.produto}</div>
                     {p.armador && (
-                      <span className="text-[11px] text-gray-400 font-medium">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                         Armador: {p.armador}
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 font-medium">
+                  <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 font-medium">
                     {p.bookingNumero || '-'}
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-600">
+                  <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-300">
                     {formatDateBR(p.deadlineEmbarque)}
                   </td>
 
                   <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
                     <div className="flex items-center justify-center gap-2">
                       <button
-                        type="button"
-                        onClick={handleAbrirDrawer}
-                        title="Visualizar Resumo Rápido"
-                        className="p-1 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
                         onClick={() => handleCancelar(p.id)}
                         title="Cancelar Negociação"
-                        className="hover:scale-110 transition-transform opacity-50 hover:opacity-100"
+                        className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-500 transition-colors"
                       >
                         🗑️
                       </button>
@@ -788,7 +780,7 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
           </tbody>
         </table>
         {processosFiltrados.length === 0 && (
-          <div className="p-8 text-center text-sm text-gray-500 bg-white">
+          <div className="p-8 text-center text-sm text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900">
             Nenhuma negociação encontrada com os filtros selecionados.
           </div>
         )}
