@@ -8,9 +8,15 @@
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
+    "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:reset": "prisma migrate reset",
     "db:seed": "tsx prisma/seed.ts",
+    "db:clean": "tsx scripts/limpar-banco.ts",
     "db:studio": "prisma studio"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.0",

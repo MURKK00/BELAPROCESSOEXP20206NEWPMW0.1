@@ -8,6 +8,7 @@ import { DeadlinesTripleCard } from '@/components/negociacoes/DeadlinesTripleCar
 
 type Props = {
   processoId: string;
+  status?: string;
   bookingNumero: string;
   navio: string;
   estufagemInicio: string | null; // ISO
@@ -74,6 +75,7 @@ export function ResumoTopoCard(props: Props) {
           draftCarga={props.deadlineCarga}
           deadlineEmbarqueFallback={props.deadlineEmbarque}
           onEditClick={() => setEditando(true)}
+          status={props.status}
         />
       </div>
     );

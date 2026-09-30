@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import { prisma } from '@/lib/prisma';
 import { FinanceiroDashboardClient, type FinanceiroProcessoItem, type FinanceiroCustoItem } from '@/components/financeiro/FinanceiroDashboardClient';
+import { serializeDecimals } from '@/lib/serialize';
+import { parseTravamentoInfo } from '@/lib/travamentoHelper';
 
 const CATEGORIAS_CUSTO_LABELS: Record<string, string> = {
   COMPRA: 'Compra Grãos/Matéria-Prima',
@@ -64,11 +66,19 @@ export default async function FinanceiroPage() {
     const saldoUsdParaTravar = Math.max(0, valorTotalUsd - totalUsdTravado);
 
     let somatorioReaisTravados = 0;
+    let somatorioTaxas = 0;
     for (const t of travamentos) {
-      somatorioReaisTravados += Number(t.valorUsdParcial.toString()) * Number(t.ptax.toString());
+      const usd = Number(t.valorUsdParcial.toString());
+      const ptax = Number(t.ptax.toString());
+      const parsed = parseTravamentoInfo(t);
+      const taxaEmBrl = parsed.moedaTaxa === 'USD' ? parsed.taxa * ptax : parsed.taxa;
+      somatorioReaisTravados += usd * ptax;
+      somatorioTaxas += taxaEmBrl;
     }
     const ptaxMedia = totalUsdTravado > 0 ? somatorioReaisTravados / totalUsdTravado : 0;
-    const receitaBrutaBRL = totalUsdTravado * ptaxMedia;
+    const receitaBrutaBRL = somatorioReaisTravados;
+    const totalTaxasBRL = somatorioTaxas;
+    const receitaLiquidaBRL = totalTaxasBRL > 0 ? (receitaBrutaBRL - totalTaxasBRL) : receitaBrutaBRL;
 
     // Custos Operacionais
     const custos = fin?.custos || [];
@@ -80,8 +90,21 @@ export default async function FinanceiroPage() {
       valor: Number(c.valor.toString()) || 0,
     }));
 
-    const resultadoOperacionalBRL = receitaBrutaBRL - totalCustosBRL;
-    const margemLucro = receitaBrutaBRL > 0 ? (resultadoOperacionalBRL / receitaBrutaBRL) * 100 : 0;
+    const resultadoOperacionalBRL = receitaLiquidaBRL - totalCustosBRL;
+    const margemLucro = receitaLiquidaBRL > 0 ? (resultadoOperacionalBRL / receitaLiquidaBRL) * 100 : 0;
+
+    // Cálculo Proporcional (Margem Real da Parcela Já Travada)
+    const proporcaoTravada = valorTotalUsd > 0 ? Math.min(1, totalUsdTravado / valorTotalUsd) : 0;
+    const custoProporcionalTravado = totalCustosBRL * proporcaoTravada;
+    const resultadoTravadoBRL = receitaLiquidaBRL - custoProporcionalTravado;
+    const margemTravada = receitaLiquidaBRL > 0 ? (resultadoTravadoBRL / receitaLiquidaBRL) * 100 : 0;
+
+    // Projeção Total (100% da Carga com o restante na PTAX média ou base de mercado 5.45)
+    const ptaxRef = ptaxMedia > 0 ? ptaxMedia : 5.45;
+    const receitaSaldoAbertoBRL = saldoUsdParaTravar * ptaxRef;
+    const receitaProjetadaTotalBRL = receitaLiquidaBRL + receitaSaldoAbertoBRL;
+    const resultadoProjetadoTotalBRL = receitaProjetadaTotalBRL - totalCustosBRL;
+    const margemProjetadaTotal = receitaProjetadaTotalBRL > 0 ? (resultadoProjetadoTotalBRL / receitaProjetadaTotalBRL) * 100 : 0;
 
     return {
       id: p.id,
@@ -98,11 +121,21 @@ export default async function FinanceiroPage() {
       saldoUsdParaTravar,
       ptaxMedia,
       receitaBrutaBRL,
+      totalTaxasBRL,
+      receitaLiquidaBRL,
       totalCustosBRL,
       resultadoOperacionalBRL,
       margemLucro,
+      proporcaoTravada,
+      custoProporcionalTravado,
+      resultadoTravadoBRL,
+      margemTravada,
+      receitaProjetadaTotalBRL,
+      resultadoProjetadoTotalBRL,
+      margemProjetadaTotal,
       bancoDestino: fin?.bancoDestino || 'BB BRASIL',
       statusRecebimento: fin?.statusRecebimento || 'A_RECEBER',
+      dataRecebimento: fin?.dataRecebimento ? new Date(fin.dataRecebimento).toLocaleDateString('pt-BR') : null,
       financeiroId: fin?.id,
       travamentosCount: travamentos.length,
       custosCount: custos.length,
@@ -110,5 +143,5 @@ export default async function FinanceiroPage() {
     };
   });
 
-  return <FinanceiroDashboardClient processos={processosFormatados} />;
+  return <FinanceiroDashboardClient processos={serializeDecimals(processosFormatados)} />;
 }

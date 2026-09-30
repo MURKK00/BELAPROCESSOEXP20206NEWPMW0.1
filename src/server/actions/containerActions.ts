@@ -24,21 +24,26 @@ export async function salvarContainersAction(formData: FormData) {
   const dadosJson = String(formData.get('containersJson') ?? '[]');
   const linhas: LinhaContainer[] = JSON.parse(dadosJson);
 
-  await prisma.$transaction(
-    linhas.map((linha) =>
-      prisma.container.update({
+  await prisma.$transaction(async (tx) => {
+    for (const linha of linhas) {
+      const pBruto = linha.pesoBruto !== null && linha.pesoBruto !== undefined && !isNaN(Number(linha.pesoBruto)) ? Number(linha.pesoBruto) : null;
+      const pLiquido = linha.pesoLiquido !== null && linha.pesoLiquido !== undefined && !isNaN(Number(linha.pesoLiquido)) ? Number(linha.pesoLiquido) : null;
+      const pTara = linha.tara !== null && linha.tara !== undefined && !isNaN(Number(linha.tara)) ? Number(linha.tara) : null;
+      const totSacos = linha.totalSacos !== null && linha.totalSacos !== undefined && !isNaN(Number(linha.totalSacos)) ? Math.round(Number(linha.totalSacos)) : null;
+
+      await tx.container.update({
         where: { id: linha.id },
         data: {
-          numeroContainer: linha.numeroContainer || null,
-          lacre: linha.lacre || null,
-          pesoBruto: linha.pesoBruto ?? null,
-          pesoLiquido: linha.pesoLiquido ?? null,
-          totalSacos: linha.totalSacos ?? null,
-          tara: linha.tara ?? null,
+          numeroContainer: linha.numeroContainer?.trim() || null,
+          lacre: linha.lacre?.trim() || null,
+          pesoBruto: pBruto,
+          pesoLiquido: pLiquido,
+          totalSacos: totSacos,
+          tara: pTara,
         },
-      })
-    )
-  );
+      });
+    }
+  });
 
   await prisma.auditLog.create({
     data: {
@@ -50,5 +55,6 @@ export async function salvarContainersAction(formData: FormData) {
   });
 
   revalidatePath(`/negociacoes/${processoId}/containers`);
+  revalidatePath(`/negociacoes/${processoId}`);
   revalidatePath(`/negociacoes/${processoId}/auditoria`);
 }

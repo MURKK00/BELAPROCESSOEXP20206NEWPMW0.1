@@ -145,6 +145,7 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
     processos,
     ocultarCanceladas,
     statusFiltro,
+    clienteFiltro,
     produtoFiltro,
     armadorFiltro,
     prazoFiltro,

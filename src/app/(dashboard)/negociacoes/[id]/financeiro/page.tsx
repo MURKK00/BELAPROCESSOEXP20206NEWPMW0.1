@@ -1,15 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
-import { 
-  adicionarTravamentoAction, 
-  deletarTravamentoAction 
-} from '@/server/actions/financeiroActions';
+import { deletarTravamentoAction } from '@/server/actions/financeiroActions';
 import { formatNum } from '@/lib/formatters';
 import { CategoriaCusto } from '@prisma/client';
 import { CustoItemRow } from '@/components/financeiro/CustoItemRow';
 import { BancoStatusConfig } from '@/components/financeiro/BancoStatusConfig';
 import { DREExportButtons } from '@/components/financeiro/DREExportButtons';
 import { SimuladorCambio } from '@/components/financeiro/SimuladorCambio';
+import { FormLancarTrava } from '@/components/financeiro/FormLancarTrava';
+import { TabelaTravamentos } from '@/components/financeiro/TabelaTravamentos';
+import { parseTravamentoInfo } from '@/lib/travamentoHelper';
 
 const CATEGORIAS_LABELS: Record<CategoriaCusto, string> = {
   COMPRA: 'Compra',
@@ -59,24 +59,42 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
   const precoUnitarioUsd = Number(financeiro.precoUsd.toString());
   const valorTotalUsd = pesoFinalTon * precoUnitarioUsd;
 
-  // Travamentos
+  // Travamentos Cambiais
   const totalUsdTravado = financeiro.travamentos.reduce((acc, t) => acc + Number(t.valorUsdParcial.toString()), 0);
-  const saldoUsdParaTravar = valorTotalUsd - totalUsdTravado;
+  const saldoUsdParaTravar = Math.max(0, valorTotalUsd - totalUsdTravado);
 
-  let somatorioReaisTravados = 0;
+  let somatorioReaisBruto = 0;
+  let somatorioTaxas = 0;
+  let somatorioReaisLiquido = 0;
+
   for (const t of financeiro.travamentos) {
-    somatorioReaisTravados += Number(t.valorUsdParcial.toString()) * Number(t.ptax.toString());
+    const usd = Number(t.valorUsdParcial.toString());
+    const ptax = Number(t.ptax.toString());
+    const parsed = parseTravamentoInfo(t);
+    const bruto = usd * ptax;
+    const taxaEmBrl = parsed.moedaTaxa === 'USD' ? parsed.taxa * ptax : parsed.taxa;
+    const liquido = parsed.valorLiquido;
+
+    somatorioReaisBruto += bruto;
+    somatorioTaxas += taxaEmBrl;
+    somatorioReaisLiquido += liquido;
   }
-  const ptaxMedia = totalUsdTravado > 0 ? somatorioReaisTravados / totalUsdTravado : 0;
-  const receitaBrutaBRL = totalUsdTravado * ptaxMedia;
+
+  const ptaxMedia = totalUsdTravado > 0 ? somatorioReaisBruto / totalUsdTravado : 0;
+  const receitaBrutaBRL = somatorioReaisBruto;
+  const totalTaxasBRL = somatorioTaxas;
+
+  // CÂMBIO LÍQUIDO TOTAL: subtrai a taxa cobrada do total do câmbio e aplica o valor líquido
+  const receitaLiquidaBRL = totalTaxasBRL > 0 ? somatorioReaisLiquido : receitaBrutaBRL;
 
   // Custos e DRE
   const custosMap = new Map(financeiro.custos.map(c => [c.categoria, Number(c.valor.toString())]));
   const categoriasPrincipais: CategoriaCusto[] = ['COMPRA', 'BENEFICIAMENTO', 'SACARIA', 'FRETE_TERRESTRE', 'FRETE_MARITIMO', 'TARIFA_ARMADOR_PORTO', 'SERVICO_ESTUFF', 'COMISSAO', 'OUTROS_CUSTOS'];
   const totalCustosBRL = Array.from(custosMap.entries()).filter(([cat]) => categoriasPrincipais.includes(cat as CategoriaCusto)).reduce((acc, [, val]) => acc + val, 0);
 
-  const resultadoOperacionalBRL = receitaBrutaBRL - totalCustosBRL;
-  const margemLucro = receitaBrutaBRL > 0 ? (resultadoOperacionalBRL / receitaBrutaBRL) * 100 : 0;
+  // O resultado operacional líquido é a receita líquida de câmbio menos os custos operacionais:
+  const resultadoOperacionalBRL = receitaLiquidaBRL - totalCustosBRL;
+  const margemLucro = receitaLiquidaBRL > 0 ? (resultadoOperacionalBRL / receitaLiquidaBRL) * 100 : 0;
 
   const formatCurrencyUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
   const formatCurrencyBRL = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -88,7 +106,7 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
         <div>
           <h2 className="text-base font-bold text-gray-900">Demonstrativo Financeiro (DRE)</h2>
-          <p className="text-xs text-gray-500">Acompanhamento consolidado de câmbio, margem e custos operacionais.</p>
+          <p className="text-xs text-gray-500">Acompanhamento consolidado de câmbio líquido, margem e custos operacionais.</p>
         </div>
         <DREExportButtons
           processo={{
@@ -105,6 +123,7 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
             precoUsd: precoUnitarioUsd,
             bancoDestino: financeiro.bancoDestino,
             statusRecebimento: financeiro.statusRecebimento,
+            dataRecebimento: financeiro.dataRecebimento,
           }}
           metricas={{
             pesoFinalTon,
@@ -115,16 +134,25 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
             saldoUsdParaTravar,
             ptaxMedia,
             receitaBrutaBRL,
+            totalTaxasBRL,
+            receitaLiquidaBRL,
             totalCustosBRL,
             resultadoOperacionalBRL,
             margemLucro,
           }}
-          travamentos={financeiro.travamentos.map((t) => ({
-            dataTravamento: t.dataTravamento,
-            valorUsdParcial: Number(t.valorUsdParcial.toString()),
-            ptax: Number(t.ptax.toString()),
-            observacao: t.observacao,
-          }))}
+          travamentos={financeiro.travamentos.map((t) => {
+            const valUsd = Number(t.valorUsdParcial.toString());
+            const valPtax = Number(t.ptax.toString());
+            const parsed = parseTravamentoInfo(t);
+            return {
+              dataTravamento: t.dataTravamento,
+              valorUsdParcial: valUsd,
+              ptax: valPtax,
+              taxa: parsed.taxa,
+              valorLiquido: parsed.valorLiquido,
+              observacao: parsed.observacaoLimpa,
+            };
+          })}
           custos={Array.from(custosMap.entries())
             .filter(([cat]) => categoriasPrincipais.includes(cat as CategoriaCusto))
             .map(([cat, val]) => ({
@@ -135,7 +163,7 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
         />
       </div>
 
-      {/* BALÃO DE DESTAQUE NO TOPO */}
+      {/* BALÃO DE DESTAQUE NO TOPO (RESULTADO LÍQUIDO) */}
       <div className={`p-6 rounded-2xl border shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 ${resultadoOperacionalBRL >= 0 ? 'bg-gradient-to-r from-emerald-900 to-teal-900 text-white border-emerald-700' : 'bg-gradient-to-r from-red-900 to-rose-900 text-white border-red-700'}`}>
         <div>
           <span className="text-xs uppercase tracking-wider font-semibold opacity-80 block mb-1">Resultado Líquido da Operação (DRE)</span>
@@ -148,6 +176,16 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
           <div>
             <span className="block text-xs opacity-70 uppercase">Receita Bruta (BRL)</span>
             <strong className="text-base">{formatCurrencyBRL(receitaBrutaBRL)}</strong>
+          </div>
+          {totalTaxasBRL > 0 && (
+            <div className="border-l border-white/20 pl-4">
+              <span className="block text-xs opacity-70 uppercase">(-) Taxas Câmbio</span>
+              <strong className="text-base text-rose-300">-{formatCurrencyBRL(totalTaxasBRL)}</strong>
+            </div>
+          )}
+          <div className="border-l border-white/20 pl-4">
+            <span className="block text-xs opacity-70 uppercase">(=) Câmbio Líquido</span>
+            <strong className="text-base text-emerald-200">{formatCurrencyBRL(receitaLiquidaBRL)}</strong>
           </div>
           <div className="border-l border-white/20 pl-4">
             <span className="block text-xs opacity-70 uppercase">Total Custos (BRL)</span>
@@ -175,22 +213,34 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
           </div>
         </div>
 
-        {/* COMPONENTE QUE SALVA BANCO E STATUS AUTOMATICAMENTE */}
+        {/* COMPONENTE QUE SALVA BANCO, STATUS E DATA DO RECEBIMENTO */}
         <BancoStatusConfig 
           processoId={processo.id} 
           bancoInicial={financeiro.bancoDestino || 'BB BRASIL'} 
-          statusInicial={financeiro.statusRecebimento || 'A_RECEBER'} 
+          statusInicial={financeiro.statusRecebimento || 'A_RECEBER'}
+          dataRecebimentoInicial={financeiro.dataRecebimento}
         />
       </div>
 
-      {/* FECHAMENTOS DE CÂMBIO (LIMPO, SEM STATUS DE PAGAMENTO) */}
-      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-        <div className="flex justify-between items-center mb-6">
+      {/* SIMULADOR DE CÂMBIO & SENSIBILIDADE (RECOLHÍVEL NO TOPO PARA NÃO CONFUNDIR DADOS REAIS) */}
+      <SimuladorCambio
+        saldoUsdParaTravar={saldoUsdParaTravar}
+        totalUsdTravado={totalUsdTravado}
+        ptaxMedia={ptaxMedia}
+        receitaBrutaAtualBRL={receitaLiquidaBRL}
+        totalCustosBRL={totalCustosBRL}
+        resultadoAtualBRL={resultadoOperacionalBRL}
+        margemAtual={margemLucro}
+      />
+
+      {/* FECHAMENTOS DE CÂMBIO COM TAXAS E VALOR LÍQUIDO */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
             <h3 className="text-lg font-bold text-gray-900">Fechamentos de Câmbio (Parcial ou Total)</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Gerencie as travas PTAX vinculadas a este contrato de exportação.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Gerencie as travas PTAX, taxas bancárias aplicadas e o valor líquido em reais.</p>
           </div>
-          <div className="text-right">
+          <div className="text-right sm:text-right">
             <span className="text-xs text-gray-500 block">Saldo Restante a Travar:</span>
             <span className={`text-base font-bold ${saldoUsdParaTravar > 0 ? 'text-amber-600' : 'text-green-600'}`}>
               {formatCurrencyUSD(saldoUsdParaTravar)}
@@ -198,78 +248,37 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
           </div>
         </div>
 
-        <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500 text-xs uppercase border-b border-gray-200">
-                <th className="p-3">Data</th>
-                <th className="p-3">Valor USD</th>
-                <th className="p-3">PTAX</th>
-                <th className="p-3">Valor BRL</th>
-                <th className="p-3">Obs</th>
-                <th className="p-center p-3 text-center">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {financeiro.travamentos.map((t) => {
-                const usd = Number(t.valorUsdParcial.toString());
-                const ptax = Number(t.ptax.toString());
+        {/* TABELA DE TRAVAMENTOS COM EDIÇÃO E EXCLUSÃO */}
+        <TabelaTravamentos
+          processoId={processo.id}
+          travamentos={financeiro.travamentos.map((t) => {
+            const parsed = parseTravamentoInfo(t);
+            return {
+              id: t.id,
+              dataTravamento: t.dataTravamento,
+              valorUsdParcial: Number(t.valorUsdParcial.toString()),
+              ptax: Number(t.ptax.toString()),
+              taxa: parsed.taxa,
+              moedaTaxa: parsed.moedaTaxa,
+              valorLiquido: parsed.valorLiquido,
+              observacaoLimpa: parsed.observacaoLimpa,
+              observacaoBruta: t.observacao || '',
+            };
+          })}
+          totalUsdTravado={totalUsdTravado}
+          ptaxMedia={ptaxMedia}
+          receitaBrutaBRL={receitaBrutaBRL}
+          totalTaxasBRL={totalTaxasBRL}
+          receitaLiquidaBRL={receitaLiquidaBRL}
+        />
 
-                return (
-                  <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="p-3 text-gray-600">{new Date(t.dataTravamento).toLocaleDateString('pt-BR')}</td>
-                    <td className="p-3 font-bold text-gray-900">{formatCurrencyUSD(usd)}</td>
-                    <td className="p-3 font-semibold text-blue-600">{ptax.toFixed(4)}</td>
-                    <td className="p-3 font-semibold text-green-700">{formatCurrencyBRL(usd * ptax)}</td>
-                    <td className="p-3 text-gray-500 text-xs">{t.observacao || '-'}</td>
-                    <td className="p-3 text-center">
-                      <form action={deletarTravamentoAction}>
-                        <input type="hidden" name="travamentoId" value={t.id} />
-                        <input type="hidden" name="processoId" value={processo.id} />
-                        <button type="submit" className="text-red-500 hover:text-red-700 font-bold text-xs">🗑️</button>
-                      </form>
-                    </td>
-                  </tr>
-                );
-              })}
-              {financeiro.travamentos.length === 0 && (
-                <tr><td colSpan={6} className="p-6 text-center text-gray-400 text-sm">Nenhum travamento registrado.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <form action={adicionarTravamentoAction} className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <input type="hidden" name="processoId" value={processo.id} />
-          <input type="hidden" name="financeiroId" value={financeiro.id} />
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Valor USD</label>
-            <input type="number" step="0.01" name="valorUsdParcial" defaultValue={saldoUsdParaTravar > 0 ? saldoUsdParaTravar : ''} required placeholder="0.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-[#f58220]" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Taxa PTAX</label>
-            <input type="number" step="0.0001" name="ptax" required placeholder="Ex: 5.4500" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-[#f58220]" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Observação</label>
-            <input type="text" name="observacao" placeholder="Ex: Parcial 50%" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-[#f58220]" />
-          </div>
-          <div>
-            <button type="submit" className="w-full bg-[#f58220] text-white py-2 rounded-lg font-bold text-sm hover:bg-orange-600 shadow-sm">+ Adicionar Trava</button>
-          </div>
-        </form>
+        {/* NOVO FORMULÁRIO COM DATA DA TRAVA, TAXA E VALOR LÍQUIDO */}
+        <FormLancarTrava 
+          processoId={processo.id} 
+          financeiroId={financeiro.id} 
+          saldoUsdParaTravar={saldoUsdParaTravar} 
+        />
       </div>
-
-      {/* SIMULADOR DE CÂMBIO & SENSIBILIDADE DE MARGEM */}
-      <SimuladorCambio
-        saldoUsdParaTravar={saldoUsdParaTravar}
-        totalUsdTravado={totalUsdTravado}
-        ptaxMedia={ptaxMedia}
-        receitaBrutaAtualBRL={receitaBrutaBRL}
-        totalCustosBRL={totalCustosBRL}
-        resultadoAtualBRL={resultadoOperacionalBRL}
-        margemAtual={margemLucro}
-      />
 
       {/* DRE OPERACIONAL */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
@@ -279,7 +288,7 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {categoriasPrincipais.map((cat) => {
             const valorAtual = custosMap.get(cat) || 0;
-            const percentual = receitaBrutaBRL > 0 ? (valorAtual / receitaBrutaBRL) * 100 : 0;
+            const percentual = receitaLiquidaBRL > 0 ? (valorAtual / receitaLiquidaBRL) * 100 : 0;
 
             return (
               <CustoItemRow 
@@ -299,6 +308,16 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
           <div className="flex justify-between py-2 border-b border-gray-100">
             <span className="text-gray-600 font-medium">(+) Receita Bruta de Câmbio (BRL)</span>
             <span className="font-bold text-gray-900">{formatCurrencyBRL(receitaBrutaBRL)}</span>
+          </div>
+          {totalTaxasBRL > 0 && (
+            <div className="flex justify-between py-2 border-b border-gray-100 text-red-600">
+              <span className="font-medium">(-) Taxas Cobradas na Operação de Câmbio (BRL)</span>
+              <span className="font-bold">({formatCurrencyBRL(totalTaxasBRL)})</span>
+            </div>
+          )}
+          <div className="flex justify-between py-2 border-b border-gray-100">
+            <span className="text-gray-700 font-bold">(=) Receita Líquida de Câmbio (BRL)</span>
+            <span className="font-bold text-emerald-700">{formatCurrencyBRL(receitaLiquidaBRL)}</span>
           </div>
           <div className="flex justify-between py-2 border-b border-gray-100">
             <span className="text-gray-600 font-medium">(-) Total de Custos Operacionais (BRL)</span>

@@ -1,4 +1,4 @@
-import { getMockStore } from './mockStore';
+import { getMockStore, saveMockStoreToFile } from './mockStore';
 
 function matchesWhere(item: any, where?: Record<string, any>): boolean {
   if (!where) return true;
@@ -143,6 +143,12 @@ export function createMockPrismaClient() {
         let list = store.tiposDocumento.filter((t) => matchesWhere(t, where));
         if (orderBy?.nome === 'asc') list.sort((a, b) => a.nome.localeCompare(b.nome));
         return list;
+      },
+      findUnique: async ({ where }: any = {}) => store.tiposDocumento.find((t) => matchesWhere(t, where)) || null,
+      findUniqueOrThrow: async ({ where }: any = {}) => {
+        const item = store.tiposDocumento.find((t) => matchesWhere(t, where));
+        if (!item) throw new Error('Tipo de documento não encontrado');
+        return item;
       },
       upsert: async ({ where, create, update }: any) => {
         let item = store.tiposDocumento.find((t) => matchesWhere(t, where));
@@ -387,14 +393,33 @@ export function createMockPrismaClient() {
     },
 
     cambioTravado: {
+      findUnique: async ({ where }: any) => {
+        return store.cambiosTravados.find((t) => matchesWhere(t, where)) || null;
+      },
       create: async ({ data }: any) => {
         const item = {
           id: `trav_${Date.now()}`,
           ...data,
-          dataTravamento: new Date(),
+          dataTravamento: data.dataTravamento ? new Date(data.dataTravamento) : new Date(),
+          taxa: data.taxa !== undefined ? data.taxa : 0,
+          moedaTaxa: data.moedaTaxa || 'USD',
+          valorLiquido: data.valorLiquido !== undefined ? data.valorLiquido : (
+            data.moedaTaxa === 'BRL'
+              ? (Number(data.valorUsdParcial) * Number(data.ptax) - (Number(data.taxa) || 0))
+              : ((Number(data.valorUsdParcial) - (Number(data.taxa) || 0)) * Number(data.ptax))
+          ),
         };
         store.cambiosTravados.push(item);
         return item;
+      },
+      update: async ({ where, data }: any) => {
+        const item = store.cambiosTravados.find((t) => matchesWhere(t, where));
+        if (item) {
+          if (data.dataTravamento) data.dataTravamento = new Date(data.dataTravamento);
+          Object.assign(item, data);
+          return item;
+        }
+        throw new Error('Travamento não encontrado');
       },
       delete: async ({ where }: any) => {
         const idx = store.cambiosTravados.findIndex((t) => matchesWhere(t, where));
@@ -422,6 +447,18 @@ export function createMockPrismaClient() {
 
     documento: {
       findMany: async ({ where }: any = {}) => store.documentos.filter((d) => matchesWhere(d, where)),
+      findUnique: async ({ where }: any = {}) => store.documentos.find((d) => matchesWhere(d, where)) || null,
+      findUniqueOrThrow: async ({ where }: any = {}) => {
+        const item = store.documentos.find((d) => matchesWhere(d, where));
+        if (!item) throw new Error('Documento não encontrado');
+        return item;
+      },
+      update: async ({ where, data }: any) => {
+        const item = store.documentos.find((d) => matchesWhere(d, where));
+        if (!item) throw new Error('Documento não encontrado');
+        Object.assign(item, data);
+        return item;
+      },
       create: async ({ data }: any) => {
         const item = {
           id: `doc_${Date.now()}`,
@@ -476,5 +513,29 @@ export function createMockPrismaClient() {
     $disconnect: async () => {},
   };
 
-  return mockClient;
+  const mutationMethods = new Set(['create', 'update', 'updateMany', 'delete', 'deleteMany', 'upsert']);
+
+  return new Proxy(mockClient, {
+    get(target, prop, receiver) {
+      const orig = Reflect.get(target, prop, receiver);
+      if (typeof orig === 'object' && orig !== null) {
+        return new Proxy(orig, {
+          get(subTarget, subProp, subReceiver) {
+            const method = Reflect.get(subTarget, subProp, subReceiver);
+            if (typeof method === 'function') {
+              return async (...args: any[]) => {
+                const res = await method.apply(subTarget, args);
+                if (mutationMethods.has(String(subProp))) {
+                  saveMockStoreToFile();
+                }
+                return res;
+              };
+            }
+            return method;
+          }
+        });
+      }
+      return orig;
+    }
+  });
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { NegotiationTable } from '@/components/negociacoes/NegotiationTable';
+import { serializeDecimals } from '@/lib/serialize';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,8 +51,11 @@ export default async function NegociacoesPage() {
 
     const containersPreenchidos = p.containers.filter((c) => Boolean(c.numeroContainer?.trim())).length;
 
+    // Omitimos financeiro e containers brutos (que contêm objetos Decimal do Prisma)
+    const { financeiro: _fin, containers: _con, ...restoDoProcesso } = p;
+
     return {
-      ...p,
+      ...restoDoProcesso,
       volumeKg: pesoFinalKg,
       volumeTon: pesoFinalTon,
       volumeInicialContratadoKg: volumeKg,
@@ -90,7 +94,7 @@ export default async function NegociacoesPage() {
           <span>+ Nova Negociação</span>
         </Link>
       </div>
-      <NegotiationTable processos={processosFormatados as any} />
+      <NegotiationTable processos={serializeDecimals(processosFormatados) as any} />
     </div>
   );
 }

@@ -25,6 +25,7 @@ export default async function VisaoGeralNegociacaoPage({
     include: { 
       etapas: { include: { etapaTemplate: true } },
       containers: true,
+      documentos: { include: { tipoDocumento: true } },
       financeiro: {
         include: {
           travamentos: true,
@@ -72,6 +73,14 @@ export default async function VisaoGeralNegociacaoPage({
 
   const containersPreenchidos = processo.containers.filter((c) => Boolean(c.numeroContainer?.trim())).length;
 
+  const docsList = processo.documentos || [];
+  const docsOriginaisCount = docsList.filter((d) => {
+    const desc = d.descricaoOutro || '';
+    if (desc.includes('[GRUPO:ORIGINAIS]')) return true;
+    if (desc.includes('[GRUPO:DRAFTS]') || desc.includes('[GRUPO:DIVERSOS]')) return false;
+    return d.tipoDocumento?.obrigatorioNoPacoteFinal || d.tipoDocumento?.categoria === 'DOCUMENTACAO_EXPORTACAO';
+  }).length;
+
   const formatBRL = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
@@ -81,6 +90,7 @@ export default async function VisaoGeralNegociacaoPage({
       {/* CARD COMPACTO EDITÁVEL DE LOGÍSTICA (BOOKING, NAVIO, ESTUFAGEM, 3 DEADLINES) */}
       <ResumoTopoCard
         processoId={processo.id}
+        status={processo.status}
         bookingNumero={processo.bookingNumero ?? ''}
         navio={processo.navio ?? ''}
         estufagemInicio={processo.estufagemInicio ? processo.estufagemInicio.toISOString() : null}
@@ -92,68 +102,83 @@ export default async function VisaoGeralNegociacaoPage({
       />
 
       {/* 3 CARDS DE ATALHO RÁPIDO PARA O COCKPIT 360 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         
         {/* CARD FINANCEIRO */}
         <Link
           href={`/negociacoes/${id}/financeiro`}
-          className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4.5 shadow-2xs hover:border-orange-500/50 hover:shadow-xs transition-all group"
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm hover:border-orange-500/50 hover:shadow-md transition-all group flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-emerald-500" />
-              <span>DRE & Câmbio</span>
-            </span>
-            <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <DollarSign className="w-4 h-4" />
+                </span>
+                <span>DRE & Câmbio</span>
+              </span>
+              <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+            </div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white my-1 tracking-tight">
+              {formatBRL(resultadoBRL)}
+            </div>
           </div>
-          <div className="text-xl font-black text-slate-900 dark:text-white mb-1">
-            {formatBRL(resultadoBRL)}
-          </div>
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>Margem: <strong className={margem >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>{margem.toFixed(1)}%</strong></span>
-            <span>{saldoUsdParaTravar <= 0.01 ? '🔒 Câmbio 100%' : `⚠️ US$ ${Math.round(saldoUsdParaTravar).toLocaleString()} aberto`}</span>
+
+          <div className="pt-3.5 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Margem: <strong className={margem >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-600 dark:text-rose-400 font-bold'}>{margem.toFixed(1)}%</strong></span>
+            <span className="font-semibold">{saldoUsdParaTravar <= 0.01 ? '🔒 Câmbio 100%' : `⚠️ US$ ${Math.round(saldoUsdParaTravar).toLocaleString()} aberto`}</span>
           </div>
         </Link>
 
         {/* CARD CONTÊINERES */}
         <Link
           href={`/negociacoes/${id}/containers`}
-          className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4.5 shadow-2xs hover:border-orange-500/50 hover:shadow-xs transition-all group"
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm hover:border-orange-500/50 hover:shadow-md transition-all group flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-              <Container className="w-4 h-4 text-blue-500" />
-              <span>Contêineres & Lacre</span>
-            </span>
-            <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                  <Container className="w-4 h-4" />
+                </span>
+                <span>Contêineres & Lacre</span>
+              </span>
+              <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+            </div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white my-1 tracking-tight">
+              {containersPreenchidos} de {processo.containerQtd || processo.containers.length || 0}
+            </div>
           </div>
-          <div className="text-xl font-black text-slate-900 dark:text-white mb-1">
-            {containersPreenchidos} de {processo.containerQtd || processo.containers.length || 0}
-          </div>
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>Tipo: <strong className="text-slate-700 dark:text-slate-300">{processo.containerTipo || "20' DRY"}</strong></span>
-            <span>Peso: <strong className="text-slate-700 dark:text-slate-300">{(pesoFinalTon).toFixed(2)} t</strong></span>
+
+          <div className="pt-3.5 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Tipo: <strong className="text-slate-700 dark:text-slate-300 font-bold">{processo.containerTipo || "20' DRY"}</strong></span>
+            <span>Peso: <strong className="text-slate-700 dark:text-slate-300 font-bold">{(pesoFinalTon).toFixed(2)} t</strong></span>
           </div>
         </Link>
 
-        {/* CARD DOCUMENTAÇÃO & INSTRUÇÃO */}
+        {/* CARD DOCUMENTOS & PACKING */}
         <Link
           href={`/negociacoes/${id}/documentos`}
-          className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-4.5 shadow-2xs hover:border-orange-500/50 hover:shadow-xs transition-all group"
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-sm hover:border-orange-500/50 hover:shadow-md transition-all group flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-orange-500" />
-              <span>Documentos & Packing</span>
-            </span>
-            <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                  <FileText className="w-4 h-4" />
+                </span>
+                <span>Documentos & Packing</span>
+              </span>
+              <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+            </div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white my-1 tracking-tight">
+              {docsOriginaisCount} Originais ({docsList.length} total)
+            </div>
           </div>
-          <div className="text-xl font-black text-slate-900 dark:text-white mb-1">
-            {processo.ruc ? 'RUC Gerada' : 'Pendente RUC'}
-          </div>
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>Free Time: <strong className="text-slate-700 dark:text-slate-300">{processo.freeTimeDestino || '14 dias'}</strong></span>
-            <span className="text-orange-500 dark:text-orange-400 font-bold">Emitir Docs →</span>
+
+          <div className="pt-3.5 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Dossiê: <strong className="text-slate-700 dark:text-slate-300 font-bold">{docsOriginaisCount > 0 ? `${docsOriginaisCount} no pacote` : 'Em aberto'}</strong></span>
+            <span className="text-orange-500 dark:text-orange-400 font-bold group-hover:translate-x-0.5 transition-transform">Ver GED →</span>
           </div>
         </Link>
 

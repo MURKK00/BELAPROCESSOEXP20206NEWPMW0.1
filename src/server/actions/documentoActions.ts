@@ -5,6 +5,11 @@ import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { uploadDocumentToStorage, deleteDocumentFromStorage } from '@/lib/storage';
 import { buildManualUploadPath } from '@/lib/uploadPath';
+import { 
+  DocumentoGrupo, 
+  formatDescricaoWithGrupo, 
+  parseDocumentoGrupo 
+} from '@/lib/documentosHelper';
 
 export async function uploadDocumentoAction(formData: FormData) {
   const user = await getSessionUser();
@@ -12,16 +17,33 @@ export async function uploadDocumentoAction(formData: FormData) {
 
   const processoId = String(formData.get('processoId'));
   const tipoDocumentoId = String(formData.get('tipoDocumentoId'));
-  const descricaoOutro = String(formData.get('descricaoOutro') ?? '') || null;
+  const nomeDocumentoOutro = String(formData.get('nomeDocumentoOutro') || '').trim();
+  const rawGrupo = String(formData.get('grupo') || 'ORIGINAIS');
+  const grupo: DocumentoGrupo = (['ORIGINAIS', 'DRAFTS', 'DIVERSOS'].includes(rawGrupo) ? rawGrupo : 'ORIGINAIS') as DocumentoGrupo;
+  
+  const observacao = String(formData.get('observacao') ?? formData.get('descricaoOutro') ?? '').trim();
   const file = formData.get('file') as File;
   if (!file || file.size === 0) throw new Error('Selecione um arquivo.');
 
-  const [processo, tipoDocumento] = await Promise.all([
-    prisma.processo.findUniqueOrThrow({ where: { id: processoId } }),
-    prisma.tipoDocumento.findUniqueOrThrow({ where: { id: tipoDocumentoId } }),
-  ]);
+  const processo = await prisma.processo.findUniqueOrThrow({ where: { id: processoId } });
 
-  const storagePath = buildManualUploadPath({
+  let tipoDocumento;
+  if (tipoDocumentoId === 'OUTRO' || !tipoDocumentoId) {
+    const nomeFinal = nomeDocumentoOutro || 'Outro / Não especificado';
+    tipoDocumento = await prisma.tipoDocumento.upsert({
+      where: { nome: nomeFinal },
+      update: {},
+      create: {
+        nome: nomeFinal,
+        categoria: 'OUTRO',
+        obrigatorioNoPacoteFinal: false,
+      },
+    });
+  } else {
+    tipoDocumento = await prisma.tipoDocumento.findUniqueOrThrow({ where: { id: tipoDocumentoId } });
+  }
+
+  const rawStoragePath = buildManualUploadPath({
     numeroProcesso: processo.numeroProcesso,
     categoria: tipoDocumento.categoria,
     tipoDocumentoNome: tipoDocumento.nome,
@@ -29,7 +51,10 @@ export async function uploadDocumentoAction(formData: FormData) {
     nomeArquivoOriginal: file.name,
   });
 
-  await uploadDocumentToStorage(storagePath, file);
+  const storagePath = await uploadDocumentToStorage(rawStoragePath, file);
+
+  const descricaoOutro = formatDescricaoWithGrupo(grupo, observacao);
+  const statusInicial = grupo === 'DRAFTS' ? 'RASCUNHO' : 'APROVADO';
 
   await prisma.documento.create({
     data: {
@@ -37,7 +62,7 @@ export async function uploadDocumentoAction(formData: FormData) {
       tipoDocumentoId,
       nomeArquivo: file.name,
       storagePath,
-      status: 'APROVADO',
+      status: statusInicial as any,
       uploadedById: user.id,
       descricaoOutro,
     },
@@ -48,7 +73,79 @@ export async function uploadDocumentoAction(formData: FormData) {
       processoId,
       usuarioId: user.id,
       acao: 'DOCUMENTO_ANEXADO',
-      detalhe: `Documento "${file.name}" (${tipoDocumento.nome}${descricaoOutro ? `: ${descricaoOutro}` : ''}) anexado.`,
+      detalhe: `Documento "${file.name}" (${tipoDocumento.nome}) anexado no grupo [${grupo}].`,
+    },
+  });
+
+  revalidatePath(`/negociacoes/${processoId}/documentos`);
+  revalidatePath(`/negociacoes/${processoId}/auditoria`);
+}
+
+export async function moverGrupoDocumentoAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user) throw new Error('Não autenticado');
+
+  const documentoId = String(formData.get('documentoId'));
+  const processoId = String(formData.get('processoId'));
+  const novoGrupo = String(formData.get('novoGrupo')) as DocumentoGrupo;
+
+  const documento = await prisma.documento.findUniqueOrThrow({
+    where: { id: documentoId },
+    include: { tipoDocumento: true },
+  });
+
+  const { observacaoLimpa } = parseDocumentoGrupo(documento);
+  const novaDescricao = formatDescricaoWithGrupo(novoGrupo, observacaoLimpa);
+  
+  // Se virou draft, fica como RASCUNHO; se virou original/diverso, fica como APROVADO
+  const novoStatus = novoGrupo === 'DRAFTS' ? 'RASCUNHO' : 'APROVADO';
+
+  await prisma.documento.update({
+    where: { id: documentoId },
+    data: {
+      descricaoOutro: novaDescricao,
+      status: novoStatus as any,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      processoId,
+      usuarioId: user.id,
+      acao: 'DOCUMENTO_RECLASSIFICADO',
+      detalhe: `Documento "${documento.nomeArquivo}" movido para o grupo [${novoGrupo}].`,
+    },
+  });
+
+  revalidatePath(`/negociacoes/${processoId}/documentos`);
+  revalidatePath(`/negociacoes/${processoId}/auditoria`);
+}
+
+export async function atualizarStatusDocumentoAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user) throw new Error('Não autenticado');
+
+  const documentoId = String(formData.get('documentoId'));
+  const processoId = String(formData.get('processoId'));
+  const novoStatus = String(formData.get('novoStatus'));
+
+  const documento = await prisma.documento.findUniqueOrThrow({
+    where: { id: documentoId },
+  });
+
+  await prisma.documento.update({
+    where: { id: documentoId },
+    data: {
+      status: novoStatus as any,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      processoId,
+      usuarioId: user.id,
+      acao: 'DOCUMENTO_STATUS_ALTERADO',
+      detalhe: `Status do documento "${documento.nomeArquivo}" alterado para ${novoStatus}.`,
     },
   });
 

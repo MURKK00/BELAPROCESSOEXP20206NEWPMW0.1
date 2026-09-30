@@ -73,7 +73,7 @@ export async function criarProcesso(input: {
             traderIntermedio: input.traderIntermedio,
             produto: input.produto,
             volumeKg: input.volumeKg,
-            incoterm: input.incoterm ?? 'FOB',
+            incoterm: input.incoterm ?? 'CFR',
             portoOrigem: input.portoOrigem,
             portoDestino: input.portoDestino,
             freeTimeDestino: input.freeTimeDestino,

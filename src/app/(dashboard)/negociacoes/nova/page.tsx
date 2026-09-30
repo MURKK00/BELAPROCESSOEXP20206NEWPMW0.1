@@ -15,18 +15,18 @@ export default function NovaNegociacaoPage() {
       <form action={criarProcessoAction} className="space-y-6">
 
         <Section title="Dados do contrato">
-          <Field label="Cliente final" name="clienteFinal" placeholder="Ex: Cargill International SA" required />
+          <Field label="Cliente final" name="clienteFinal" placeholder="Ex: AKSHAR AGRI INDIA PRIVATE LIMITED" required />
           <Field label="Trader / Intermédio" name="traderIntermedio" placeholder="Ex: AgriTrading Partners SA" />
-          <IncotermSelectField defaultValue="FOB" required />
+          <IncotermSelectField defaultValue="CFR" required />
           <Field label="Porto de Origem (Saída)" name="portoOrigem" placeholder="Ex: Santos - SSZDPW" required />
           <Field label="Porto de destino" name="portoDestino" placeholder="Ex: Rotterdam (NL)" required />
           <Field label="Free time (Destino)" name="freeTimeDestino" placeholder="Ex: 14 dias corridos" />
-          <Field label="REDEX" name="redex" placeholder="Ex: REDEX Santos — Pátio 4" />
+          <Field label="REDEX" name="redex" placeholder="Ex: CRAGEA" />
           <Field label="Preço unitário declarado (USD/TON)" name="valorDeclaradoUsd" type="number" placeholder="Ex: 880" />
         </Section>
 
         <Section title="Informações">
-          <Field label="Local de estufagem" name="localEstufagem" placeholder="Ex: REDEX Santos — Pátio 4" required />
+          <Field label="Local de estufagem" name="localEstufagem" placeholder="Ex: CRAGEA" required />
           <Field label="Volume (KG)" name="volumeKg" type="number" placeholder="Ex: 250687" required />
           <Field label="Contêineres (quantidade)" name="containerQtd" type="number" placeholder="Ex: 10" required />
           <Field label="Tipo de contêiner" name="containerTipo" defaultValue="20' DRY" readOnly required />

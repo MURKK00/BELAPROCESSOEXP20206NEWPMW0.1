@@ -1,0 +1,496 @@
+{
+  "usuarios": [
+    {
+      "id": "usr_dev_admin",
+      "nome": "Admin (Dev)",
+      "email": "dev@belacereais.local",
+      "papel": "ADMIN",
+      "criadoEm": "2026-09-29T19:41:17.782Z",
+      "atualizadoEm": "2026-09-29T19:41:17.782Z"
+    }
+  ],
+  "parceiros": [
+    {
+      "id": "parc_1",
+      "nome": "Buonny",
+      "tipo": "GERENCIADORA_RISCO",
+      "ativo": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "parc_2",
+      "nome": "CROMO",
+      "tipo": "AGENTE_DESPACHANTE",
+      "ativo": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "parc_3",
+      "nome": "SCAN",
+      "tipo": "AGENTE_BOOKING",
+      "ativo": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "parc_4",
+      "nome": "Port Inspect",
+      "tipo": "INSPETORIA",
+      "ativo": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "parc_5",
+      "nome": "SURVEY / UNICCA",
+      "tipo": "SURVEY_FUMIGACAO",
+      "ativo": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "parc_6",
+      "nome": "AT&M",
+      "tipo": "SEGURADORA",
+      "ativo": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "parc_7",
+      "nome": "Banco do Brasil",
+      "tipo": "BANCO",
+      "ativo": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "parc_8",
+      "nome": "DHL",
+      "tipo": "TRANSPORTADORA_INTL",
+      "ativo": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "parc_9",
+      "nome": "Fretebras",
+      "tipo": "TRANSPORTADORA",
+      "ativo": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    }
+  ],
+  "tiposDocumento": [
+    {
+      "id": "td_1",
+      "nome": "Minuta de Contrato de Compra",
+      "categoria": "ADMINISTRATIVO",
+      "obrigatorioNoPacoteFinal": false,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_2",
+      "nome": "Contrato de Compra Assinado",
+      "categoria": "ADMINISTRATIVO",
+      "obrigatorioNoPacoteFinal": false,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_3",
+      "nome": "Parecer de Risco (Buonny)",
+      "categoria": "ADMINISTRATIVO",
+      "obrigatorioNoPacoteFinal": false,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_4",
+      "nome": "Ordem de Carregamento",
+      "categoria": "ADMINISTRATIVO",
+      "obrigatorioNoPacoteFinal": false,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_5",
+      "nome": "Booking",
+      "categoria": "BOOKING_TRANSPORTE",
+      "obrigatorioNoPacoteFinal": false,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_6",
+      "nome": "Borderô Bancário",
+      "categoria": "FECHAMENTO_BANCARIO",
+      "obrigatorioNoPacoteFinal": false,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_7",
+      "nome": "Contrato de Câmbio",
+      "categoria": "FECHAMENTO_BANCARIO",
+      "obrigatorioNoPacoteFinal": false,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_8",
+      "nome": "Photo Report",
+      "categoria": "REDEX_CARREGAMENTO",
+      "obrigatorioNoPacoteFinal": false,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_9",
+      "nome": "DU-E",
+      "categoria": "DOCUMENTACAO_EXPORTACAO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_10",
+      "nome": "BL Original",
+      "categoria": "DOCUMENTACAO_EXPORTACAO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_11",
+      "nome": "Comercial Invoice",
+      "categoria": "DOCUMENTACAO_EXPORTACAO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_12",
+      "nome": "Packing List",
+      "categoria": "DOCUMENTACAO_EXPORTACAO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_13",
+      "nome": "Certificate of Origin",
+      "categoria": "DOCUMENTACAO_EXPORTACAO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_14",
+      "nome": "Weight Certificate",
+      "categoria": "DOCUMENTACAO_EXPORTACAO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_15",
+      "nome": "Quality Certificate",
+      "categoria": "DOCUMENTACAO_EXPORTACAO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_16",
+      "nome": "Stuffing Report",
+      "categoria": "DOCUMENTACAO_EXPORTACAO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_17",
+      "nome": "Fumigation Certificate",
+      "categoria": "REDEX_CARREGAMENTO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_18",
+      "nome": "Phytosanitary Certificate (MAPA)",
+      "categoria": "REDEX_CARREGAMENTO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "td_19",
+      "nome": "Certificate Non-GMO",
+      "categoria": "DOCUMENTACAO_EXPORTACAO",
+      "obrigatorioNoPacoteFinal": true,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    }
+  ],
+  "etapasTemplate": [
+    {
+      "id": "tmpl_1",
+      "numero": "1",
+      "ordem": 1,
+      "fase": "BOOKING_TRANSPORTE",
+      "etapa": "Emissão do Booking",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": false,
+      "tipoDocNome": null,
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_2",
+      "numero": "2",
+      "ordem": 2,
+      "fase": "BOOKING_TRANSPORTE",
+      "etapa": "Contratar Transporte/Transportadora",
+      "raiaResponsavel": "Logística / Operacional",
+      "geraDocumento": false,
+      "tipoDocNome": null,
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_3",
+      "numero": "3",
+      "ordem": 3,
+      "fase": "ADMINISTRATIVO",
+      "etapa": "E-mail nomeação",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": false,
+      "tipoDocNome": null,
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_4",
+      "numero": "4",
+      "ordem": 4,
+      "fase": "ADMINISTRATIVO",
+      "etapa": "Emissão Notas Fiscais #1 — Formação lote p/ exportação",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": false,
+      "tipoDocNome": null,
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_5",
+      "numero": "5",
+      "ordem": 5,
+      "fase": "ADMINISTRATIVO",
+      "etapa": "Emissão Notas Fiscais #2 — Retorno lote p/ exportação",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": false,
+      "tipoDocNome": null,
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_6",
+      "numero": "6",
+      "ordem": 6,
+      "fase": "ADMINISTRATIVO",
+      "etapa": "Emissão Notas Fiscais #3 — Exportação (DU-E)",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": false,
+      "tipoDocNome": null,
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_7",
+      "numero": "7",
+      "ordem": 7,
+      "fase": "ADMINISTRATIVO",
+      "etapa": "Aprovação Draft [CLIENTE]",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": false,
+      "tipoDocNome": null,
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_8",
+      "numero": "8",
+      "ordem": 8,
+      "fase": "CARREGAMENTO_REDEX",
+      "etapa": "Estufagem + Etiquetagem",
+      "raiaResponsavel": "REDEX",
+      "geraDocumento": false,
+      "tipoDocNome": null,
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_9",
+      "numero": "9",
+      "ordem": 9,
+      "fase": "CARREGAMENTO_REDEX",
+      "etapa": "Vistoria MAPA (Fitossanitário)",
+      "raiaResponsavel": "REDEX",
+      "geraDocumento": false,
+      "tipoDocNome": null,
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_10",
+      "numero": "10",
+      "ordem": 10,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "DU-E",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "DU-E",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_11",
+      "numero": "11",
+      "ordem": 11,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "BL Original",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "BL Original",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_12",
+      "numero": "12",
+      "ordem": 12,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "Comercial Invoice",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "Comercial Invoice",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_13",
+      "numero": "13",
+      "ordem": 13,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "Packing List",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "Packing List",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_14",
+      "numero": "14",
+      "ordem": 14,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "CO (Certificate of Origin)",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "Certificate of Origin",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_15",
+      "numero": "15",
+      "ordem": 15,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "Weight Certificate",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "Weight Certificate",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_16",
+      "numero": "16",
+      "ordem": 16,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "Quality Certificate",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "Quality Certificate",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_17",
+      "numero": "17",
+      "ordem": 17,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "Stuffing Report",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "Stuffing Report",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_18",
+      "numero": "18",
+      "ordem": 18,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "Fumigation Certificate",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "Fumigation Certificate",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_19",
+      "numero": "19",
+      "ordem": 19,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "Phytosanitary Certificate (MAPA)",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "Phytosanitary Certificate (MAPA)",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_20",
+      "numero": "20",
+      "ordem": 20,
+      "fase": "DOCUMENTACAO_EXPORTACAO",
+      "etapa": "Certificate Non-GMO",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": true,
+      "tipoDocNome": "Certificate Non-GMO",
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    },
+    {
+      "id": "tmpl_21",
+      "numero": "21",
+      "ordem": 21,
+      "fase": "FECHAMENTO_BANCARIO",
+      "etapa": "Fechamento de Câmbio",
+      "raiaResponsavel": "Administrativo",
+      "geraDocumento": false,
+      "tipoDocNome": null,
+      "parceiroId": null,
+      "parceiro": null,
+      "criadoEm": "2026-09-29T19:41:17.782Z"
+    }
+  ],
+  "processos": [],
+  "processoEtapas": [],
+  "containers": [],
+  "financeiros": [],
+  "custosItem": [],
+  "cambiosTravados": [],
+  "documentos": [],
+  "chatMessages": [],
+  "auditLogs": []
+}

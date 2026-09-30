@@ -22,9 +22,11 @@ import {
   Building2,
   Package,
   RotateCcw,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
-import { formatBRL, formatUSD, formatNum } from '@/lib/formatters';
+import { formatBRL, formatUSD, formatNum, formatPTAX } from '@/lib/formatters';
 import { adicionarTravamentoAction, atualizarFinanceiroConfigAction } from '@/server/actions/financeiroActions';
 import { FinanceiroGraficos } from './FinanceiroGraficos';
 
@@ -49,11 +51,21 @@ export interface FinanceiroProcessoItem {
   saldoUsdParaTravar: number;
   ptaxMedia: number;
   receitaBrutaBRL: number;
+  totalTaxasBRL?: number;
+  receitaLiquidaBRL?: number;
   totalCustosBRL: number;
   resultadoOperacionalBRL: number;
   margemLucro: number;
+  proporcaoTravada?: number;
+  custoProporcionalTravado?: number;
+  resultadoTravadoBRL?: number;
+  margemTravada?: number;
+  receitaProjetadaTotalBRL?: number;
+  resultadoProjetadoTotalBRL?: number;
+  margemProjetadaTotal?: number;
   bancoDestino: string;
   statusRecebimento: string;
+  dataRecebimento?: string | null;
   financeiroId?: string;
   travamentosCount: number;
   custosCount: number;
@@ -74,6 +86,7 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
   const [filtroStatusCambial, setFiltroStatusCambial] = useState('TODOS'); // 'TODOS' | 'ABERTO' | 'PARCIAL' | 'FECHADO'
   const [abaAtiva, setAbaAtiva] = useState<'cambio' | 'dre' | 'graficos'>('cambio');
   const [mostrarGraficosTopo, setMostrarGraficosTopo] = useState(true);
+  const [detalhesReceitaAberto, setDetalhesReceitaAberto] = useState(false);
 
   // Modal para registro rápido de trava PTAX
   const [modalTravaOpen, setModalTravaOpen] = useState(false);
@@ -167,7 +180,11 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
     let totalUsdTravado = 0;
     let saldoUsdParaTravar = 0;
     let receitaBrutaBRL = 0;
+    let totalTaxasBRL = 0;
+    let receitaLiquidaBRL = 0;
     let totalCustosBRL = 0;
+    let custoProporcionalTravado = 0;
+    let receitaProjetadaTotalBRL = 0;
     let somaUsdComPtax = 0;
     let somaPtaxPonderada = 0;
 
@@ -181,7 +198,21 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
       totalUsdTravado += p.totalUsdTravado;
       saldoUsdParaTravar += p.saldoUsdParaTravar;
       receitaBrutaBRL += p.receitaBrutaBRL;
+
+      const recLiq = p.receitaLiquidaBRL ?? (p.totalTaxasBRL ? p.receitaBrutaBRL - p.totalTaxasBRL : p.receitaBrutaBRL);
+      const taxa = p.totalTaxasBRL ?? 0;
+      receitaLiquidaBRL += recLiq;
+      totalTaxasBRL += taxa;
+
       totalCustosBRL += p.totalCustosBRL;
+
+      const prop = p.valorTotalUsd > 0 ? Math.min(1, p.totalUsdTravado / p.valorTotalUsd) : 0;
+      const custoProp = p.custoProporcionalTravado ?? (p.totalCustosBRL * prop);
+      custoProporcionalTravado += custoProp;
+
+      const ptaxRef = p.ptaxMedia > 0 ? p.ptaxMedia : 5.45;
+      const recProj = p.receitaProjetadaTotalBRL ?? (recLiq + (p.saldoUsdParaTravar * ptaxRef));
+      receitaProjetadaTotalBRL += recProj;
 
       if (p.totalUsdTravado > 0 && p.ptaxMedia > 0) {
         somaUsdComPtax += p.totalUsdTravado;
@@ -198,16 +229,34 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
     }
 
     const ptaxMediaPonderadaGeral = somaUsdComPtax > 0 ? somaPtaxPonderada / somaUsdComPtax : 0;
-    const resultadoOperacionalBRL = receitaBrutaBRL - totalCustosBRL;
-    const margemMediaPercentual = receitaBrutaBRL > 0 ? (resultadoOperacionalBRL / receitaBrutaBRL) * 100 : 0;
     const percentualTravadoGeral = valorTotalUsd > 0 ? (totalUsdTravado / valorTotalUsd) * 100 : 0;
+
+    // 1. Margem e Lucro REALIZADOS da Parcela Travada (justo e exato, sem distorção por custos de saldo aberto)
+    const resultadoTravadoBRL = receitaLiquidaBRL - custoProporcionalTravado;
+    const margemTravadaPercentual = receitaLiquidaBRL > 0 ? (resultadoTravadoBRL / receitaLiquidaBRL) * 100 : 0;
+
+    // 2. Margem e Lucro PROJETADOS para a operação 100% concluída (fechando o saldo em aberto)
+    const resultadoProjetadoTotalBRL = receitaProjetadaTotalBRL - totalCustosBRL;
+    const margemProjetadaTotalPercentual = receitaProjetadaTotalBRL > 0 ? (resultadoProjetadoTotalBRL / receitaProjetadaTotalBRL) * 100 : 0;
+
+    // 3. Resultado Imediato Contábil
+    const resultadoOperacionalBRL = receitaLiquidaBRL - totalCustosBRL;
+    const margemMediaPercentual = receitaLiquidaBRL > 0 ? (resultadoOperacionalBRL / receitaLiquidaBRL) * 100 : 0;
 
     return {
       valorTotalUsd,
       totalUsdTravado,
       saldoUsdParaTravar,
       receitaBrutaBRL,
+      totalTaxasBRL,
+      receitaLiquidaBRL,
       totalCustosBRL,
+      custoProporcionalTravado,
+      resultadoTravadoBRL,
+      margemTravadaPercentual,
+      receitaProjetadaTotalBRL,
+      resultadoProjetadoTotalBRL,
+      margemProjetadaTotalPercentual,
       resultadoOperacionalBRL,
       margemMediaPercentual,
       ptaxMediaPonderadaGeral,
@@ -254,7 +303,7 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
           p.totalUsdTravado.toFixed(2),
           p.saldoUsdParaTravar.toFixed(2),
           pct.toFixed(1) + '%',
-          p.ptaxMedia > 0 ? p.ptaxMedia.toFixed(4) : '-',
+          p.ptaxMedia > 0 ? formatPTAX(p.ptaxMedia) : '-',
           p.receitaBrutaBRL.toFixed(2),
           p.totalCustosBRL.toFixed(2),
           p.resultadoOperacionalBRL.toFixed(2),
@@ -324,92 +373,160 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
       </div>
 
       {/* 4 CARDS PRINCIPAIS DE METRICAS EXECUTIVAS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* CARD 1: PENDING FX (CÂMBIO ABERTO) */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 dark:border-amber-500/30 rounded-2xl p-4 shadow-2xs transition-all hover:shadow-md hover:border-amber-500/40">
-          <div className="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-            <Unlock className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-              Pending FX (Aberto)
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                {formatUSD(metricas.saldoUsdParaTravar)}
+        <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 dark:border-amber-500/30 rounded-2xl p-5 shadow-xs hover:shadow-md hover:border-amber-500/40 transition-all flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                  <Unlock className="w-4 h-4" />
+                </span>
+                <span>Pending FX</span>
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                Aberto
               </span>
             </div>
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium block mt-0.5">
-              Exposição cambial em aberto a fixar
-            </span>
+
+            <div className="text-2xl sm:text-[25px] font-black text-slate-900 dark:text-white tracking-tight my-2">
+              {formatUSD(metricas.saldoUsdParaTravar)}
+            </div>
+          </div>
+
+          <div className="pt-3 mt-2 border-t border-amber-500/15 dark:border-amber-500/20 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Exposição Cambial:</span>
+            <strong className="text-amber-700 dark:text-amber-400">A fixar hedge</strong>
           </div>
         </div>
 
         {/* CARD 2: CÂMBIO TRAVADO (HEDGE FECHADO COM PTAX MÉDIA) */}
-        <div className="flex items-center gap-3 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 dark:border-emerald-500/30 rounded-2xl p-4 shadow-2xs transition-all hover:shadow-md hover:border-emerald-500/40 overflow-hidden">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-            <Lock className="w-5 h-5" />
+        <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 dark:border-emerald-500/30 rounded-2xl p-5 shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-all flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                  <Lock className="w-4 h-4" />
+                </span>
+                <span>Câmbio Travado</span>
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+                {metricas.percentualTravadoGeral.toFixed(1)}% coberto
+              </span>
+            </div>
+
+            <div className="text-2xl sm:text-[25px] font-black text-slate-900 dark:text-white tracking-tight my-2">
+              {formatUSD(metricas.totalUsdTravado)}
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
-                Câmbio Travado
-              </span>
-              <span className="text-[10px] font-black px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 shrink-0">
-                {metricas.percentualTravadoGeral.toFixed(1)}%
-              </span>
-            </div>
-            <div className="mt-0.5">
-              <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight block truncate">
-                {formatUSD(metricas.totalUsdTravado)}
-              </span>
-            </div>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5 truncate font-medium">
-              PTAX Média Ponderada:{' '}
-              <strong>{metricas.ptaxMediaPonderadaGeral > 0 ? metricas.ptaxMediaPonderadaGeral.toFixed(4) : '-'}</strong>
-            </span>
+
+          <div className="pt-3 mt-2 border-t border-emerald-500/15 dark:border-emerald-500/20 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>PTAX Ponderada:</span>
+            <strong className="text-emerald-700 dark:text-emerald-400 font-bold">
+              {metricas.ptaxMediaPonderadaGeral > 0 ? formatPTAX(metricas.ptaxMediaPonderadaGeral) : '-'}
+            </strong>
           </div>
         </div>
 
         {/* CARD 3: PREVISÃO DE RECEITA EM REAIS (BRL) */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 dark:border-blue-500/30 rounded-2xl p-4 shadow-2xs transition-all hover:shadow-md hover:border-blue-500/40">
-          <div className="w-11 h-11 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-            <TrendingUp className="w-5 h-5" />
+        <div className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 dark:border-blue-500/30 rounded-2xl p-5 shadow-xs hover:shadow-md hover:border-blue-500/40 transition-all flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400">
+                  <TrendingUp className="w-4 h-4" />
+                </span>
+                <span>Receita Fixada (BRL)</span>
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 ${
+                  metricas.margemTravadaPercentual >= 0
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                    : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30'
+                }`}
+                title={metricas.percentualTravadoGeral < 99.9 ? "Margem real calculada proporcionalmente ao volume já travado" : "Margem com 100% do câmbio fixado"}
+              >
+                {metricas.margemTravadaPercentual >= 0 ? '+' : ''}{metricas.margemTravadaPercentual.toFixed(1)}% margem
+              </span>
+            </div>
+
+            <div className="text-2xl sm:text-[25px] font-black text-slate-900 dark:text-white tracking-tight my-2">
+              {formatBRL(metricas.receitaLiquidaBRL)}
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                Receita Fixada (BRL)
-              </span>
+
+          {/* RODAPÉ PADRONIZADO COM FLECHA DE EXPANSÃO */}
+          <div className="pt-3 mt-2 border-t border-blue-500/15 dark:border-blue-500/20 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 dark:text-slate-400">Lucro Realizado:</span>
+              <div className="flex items-center gap-1.5">
+                <strong className={metricas.resultadoTravadoBRL >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-600 dark:text-rose-400 font-bold'}>
+                  {metricas.resultadoTravadoBRL >= 0 ? '+' : ''}{formatBRL(metricas.resultadoTravadoBRL)}
+                </strong>
+                <button
+                  type="button"
+                  onClick={() => setDetalhesReceitaAberto(!detalhesReceitaAberto)}
+                  className="p-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 hover:bg-blue-500/10 rounded transition-colors cursor-pointer"
+                  title={detalhesReceitaAberto ? "Minimizar detalhes" : "Expandir projeção e taxas"}
+                >
+                  {detalhesReceitaAberto ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                {formatBRL(metricas.receitaBrutaBRL)}
-              </span>
-            </div>
-            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium block mt-0.5">
-              Lucro Estimado: <strong>{formatBRL(metricas.resultadoOperacionalBRL)}</strong> ({metricas.margemMediaPercentual.toFixed(1)}%)
-            </span>
+
+            {/* CAMPOS EXPANSÍVEIS (SÓ APARECEM SE O USUÁRIO CLICAR NA FLECHA) */}
+            {detalhesReceitaAberto && (
+              <div className="mt-2.5 pt-2 border-t border-blue-500/10 space-y-1.5 text-[11px] text-slate-500 dark:text-slate-400 animate-fadeIn">
+                {metricas.totalTaxasBRL > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span>Taxas Deduzidas:</span>
+                    <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                      -{formatBRL(metricas.totalTaxasBRL)} (Bruto: {formatBRL(metricas.receitaBrutaBRL)})
+                    </span>
+                  </div>
+                )}
+                {metricas.percentualTravadoGeral < 99.9 && metricas.saldoUsdParaTravar > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span>Lucro Proj. (100%):</span>
+                    <strong className={metricas.resultadoProjetadoTotalBRL >= 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-600 dark:text-rose-400 font-bold'}>
+                      {metricas.resultadoProjetadoTotalBRL >= 0 ? '+' : ''}{formatBRL(metricas.resultadoProjetadoTotalBRL)} ({metricas.margemProjetadaTotalPercentual.toFixed(1)}%)
+                    </strong>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* CARD 4: LIQUIDAÇÃO BANCÁRIA */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent border border-purple-500/20 dark:border-purple-500/30 rounded-2xl p-4 shadow-2xs transition-all hover:shadow-md hover:border-purple-500/40">
-          <div className="w-11 h-11 rounded-xl bg-purple-500/15 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
-            <Landmark className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-              Recebimento em Aberto
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                {formatUSD(metricas.totalAReceberUsd)}
+        <div className="bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent border border-purple-500/20 dark:border-purple-500/30 rounded-2xl p-5 shadow-xs hover:shadow-md hover:border-purple-500/40 transition-all flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                  <Landmark className="w-4 h-4" />
+                </span>
+                <span>Recebimento</span>
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30 shrink-0">
+                {metricas.countAReceber} a receber
               </span>
             </div>
-            <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium block mt-0.5">
-              {metricas.countAReceber} a receber · {formatUSD(metricas.totalRecebidoUsd)} baixados
-            </span>
+
+            <div className="text-2xl sm:text-[25px] font-black text-slate-900 dark:text-white tracking-tight my-2">
+              {formatUSD(metricas.totalAReceberUsd)}
+            </div>
+          </div>
+
+          <div className="pt-3 mt-2 border-t border-purple-500/15 dark:border-purple-500/20 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>Total Liquidado:</span>
+            <strong className="text-purple-700 dark:text-purple-400 font-bold">
+              {formatUSD(metricas.totalRecebidoUsd)}
+            </strong>
           </div>
         </div>
       </div>
@@ -719,13 +836,18 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
                         </td>
 
                         {/* PTAX Média */}
-                        <td className="px-5 py-3.5 text-right font-bold text-slate-900 dark:text-white">
-                          {p.ptaxMedia > 0 ? `R$ ${p.ptaxMedia.toFixed(4)}` : '-'}
+                        <td className="px-5 py-3.5 text-right font-bold text-slate-900 dark:text-white font-mono">
+                          {p.ptaxMedia > 0 ? `R$ ${formatPTAX(p.ptaxMedia)}` : '-'}
                         </td>
 
                         {/* Receita Fixada BRL */}
                         <td className="px-5 py-3.5 text-right font-extrabold text-slate-900 dark:text-white">
-                          {formatBRL(p.receitaBrutaBRL)}
+                          <div>{formatBRL(p.receitaLiquidaBRL ?? p.receitaBrutaBRL)}</div>
+                          {p.totalTaxasBRL && p.totalTaxasBRL > 0 ? (
+                            <span className="text-[10px] text-slate-400 font-normal block" title={`Receita Bruta: ${formatBRL(p.receitaBrutaBRL)} - Taxas: ${formatBRL(p.totalTaxasBRL)}`}>
+                              Bruto: {formatBRL(p.receitaBrutaBRL)}
+                            </span>
+                          ) : null}
                         </td>
 
                         {/* Banco */}
@@ -839,7 +961,12 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
                         </td>
 
                         <td className="px-5 py-3.5 text-right font-bold text-slate-900 dark:text-white">
-                          {formatBRL(p.receitaBrutaBRL)}
+                          <div>{formatBRL(p.receitaLiquidaBRL ?? p.receitaBrutaBRL)}</div>
+                          {p.totalTaxasBRL && p.totalTaxasBRL > 0 ? (
+                            <span className="text-[10px] text-slate-400 font-normal block">
+                              Bruto: {formatBRL(p.receitaBrutaBRL)}
+                            </span>
+                          ) : null}
                         </td>
 
                         <td className="px-5 py-3.5 text-right font-bold text-rose-600 dark:text-rose-400">
@@ -851,24 +978,49 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
 
                         <td
                           className={`px-5 py-3.5 text-right font-extrabold ${
-                            isLucro ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                            (p.saldoUsdParaTravar > 0 ? (p.resultadoTravadoBRL ?? p.resultadoOperacionalBRL) : p.resultadoOperacionalBRL) >= 0
+                              ? 'text-emerald-600 dark:text-emerald-400' 
+                              : 'text-rose-600 dark:text-rose-400'
                           }`}
                         >
-                          {formatBRL(p.resultadoOperacionalBRL)}
+                          <div>
+                            {formatBRL(p.saldoUsdParaTravar > 0 ? (p.resultadoTravadoBRL ?? p.resultadoOperacionalBRL) : p.resultadoOperacionalBRL)}
+                          </div>
+                          {p.saldoUsdParaTravar > 0 && p.resultadoProjetadoTotalBRL !== undefined && (
+                            <span className="block text-[10px] text-slate-400 font-normal" title="Projeção para quando 100% do contrato for travado em câmbio">
+                              Proj: {formatBRL(p.resultadoProjetadoTotalBRL)}
+                            </span>
+                          )}
                         </td>
 
                         <td className="px-5 py-3.5 text-center">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
-                              p.margemLucro >= 10
-                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
-                                : p.margemLucro > 0
-                                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20'
-                                : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20'
-                            }`}
-                          >
-                            {p.margemLucro.toFixed(1)}%
-                          </span>
+                          {(() => {
+                            const margemExibida = p.saldoUsdParaTravar > 0 
+                              ? (p.margemTravada ?? p.margemLucro) 
+                              : p.margemLucro;
+
+                            return (
+                              <div className="flex flex-col items-center">
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                                    margemExibida >= 10
+                                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
+                                      : margemExibida > 0
+                                      ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20'
+                                      : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20'
+                                  }`}
+                                  title={p.saldoUsdParaTravar > 0 ? "Margem real calculada sobre a fatia de volume já travada" : "Margem final"}
+                                >
+                                  {margemExibida.toFixed(1)}%
+                                </span>
+                                {p.saldoUsdParaTravar > 0 && (
+                                  <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
+                                    trava real
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         <td className="px-5 py-3.5 text-center">
@@ -951,6 +1103,9 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
               className="space-y-4"
             >
               <input type="hidden" name="processoId" value={processoSelecionado.id} />
+              {processoSelecionado.financeiroId && (
+                <input type="hidden" name="financeiroId" value={processoSelecionado.financeiroId} />
+              )}
 
               <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 text-xs space-y-1">
                 <div className="flex justify-between">
@@ -973,33 +1128,63 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Valor em USD para travar nesta parcela
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  name="valorUsdParcial"
-                  defaultValue={processoSelecionado.saldoUsdParaTravar.toFixed(2)}
-                  max={processoSelecionado.saldoUsdParaTravar}
-                  required
-                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Data da Trava
+                  </label>
+                  <input
+                    type="date"
+                    name="dataTrava"
+                    defaultValue={new Date().toISOString().split('T')[0]}
+                    required
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Valor USD da parcela
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    name="valorUsdParcial"
+                    defaultValue={processoSelecionado.saldoUsdParaTravar.toFixed(2)}
+                    required
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500 font-bold"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Taxa PTAX Negociada (R$)
-                </label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  name="ptax"
-                  placeholder="Ex: 5.6540"
-                  required
-                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Taxa PTAX Negociada (R$)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    name="ptax"
+                    placeholder="Ex: 5,1500727"
+                    required
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500 text-blue-600 font-bold font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Taxa Cobrada / Tarifa (R$)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    name="taxa"
+                    defaultValue="0"
+                    placeholder="0,00"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500 text-red-600 font-medium"
+                  />
+                </div>
               </div>
 
               <div>

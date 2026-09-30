@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { LogisticaCockpit } from '@/components/logistica/LogisticaCockpit';
+import { serializeDecimals } from '@/lib/serialize';
 
 export const metadata = {
   title: 'Logística & Deadlines - Bela Cereais Export',
@@ -59,7 +60,7 @@ export default async function LogisticaPage() {
 
   return (
     <div className="max-w-7xl mx-auto py-2">
-      <LogisticaCockpit processos={processosFormatados} />
+      <LogisticaCockpit processos={serializeDecimals(processosFormatados)} />
     </div>
   );
 }

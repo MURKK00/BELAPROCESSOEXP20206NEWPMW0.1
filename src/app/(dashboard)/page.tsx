@@ -112,9 +112,9 @@ export default async function DashboardPage() {
       </div>
 
       {/* CARDS SUPERIORES ESTILIZADOS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4.5">
         {/* 1. VOLUME TOTAL */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 dark:border-amber-500/30 rounded-2xl p-4.5 shadow-2xs transition-all hover:shadow-md hover:border-amber-500/40">
+        <div className="flex items-center gap-3.5 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 dark:border-amber-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-amber-500/40">
           <div className="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
             <Scale className="w-5 h-5" />
           </div>
@@ -135,7 +135,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* 2. VALOR EM OPERAÇÃO */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 dark:border-emerald-500/30 rounded-2xl p-4.5 shadow-2xs transition-all hover:shadow-md hover:border-emerald-500/40">
+        <div className="flex items-center gap-3.5 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 dark:border-emerald-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-emerald-500/40">
           <div className="w-11 h-11 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <DollarSign className="w-5 h-5" />
           </div>
@@ -155,7 +155,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* 3. EM EXECUÇÃO */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 dark:border-blue-500/30 rounded-2xl p-4.5 shadow-2xs transition-all hover:shadow-md hover:border-blue-500/40">
+        <div className="flex items-center gap-3.5 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 dark:border-blue-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-blue-500/40">
           <div className="w-11 h-11 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
             <Clock className="w-5 h-5" />
           </div>
@@ -176,7 +176,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* 4. EMBARCADOS */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-cyan-500/10 via-cyan-500/5 to-transparent border border-cyan-500/20 dark:border-cyan-500/30 rounded-2xl p-4.5 shadow-2xs transition-all hover:shadow-md hover:border-cyan-500/40">
+        <div className="flex items-center gap-3.5 bg-gradient-to-br from-cyan-500/10 via-cyan-500/5 to-transparent border border-cyan-500/20 dark:border-cyan-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-cyan-500/40">
           <div className="w-11 h-11 rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shrink-0">
             <Ship className="w-5 h-5" />
           </div>

@@ -38,7 +38,7 @@ export const INCOTERMS_EXPLICACAO = [
 ];
 
 export function IncotermSelectField({
-  defaultValue = 'FOB',
+  defaultValue = 'CFR',
   required = true,
   name = 'incoterm',
 }: {

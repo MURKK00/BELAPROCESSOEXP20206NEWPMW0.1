@@ -19,7 +19,29 @@ if (isDummyDbUrl) {
     // Wrap real Prisma with proxy to gracefully fall back to mock on connection errors
     clientInstance = new Proxy(realPrisma, {
       get(target, prop, receiver) {
+        if (prop === '$transaction') {
+          return async (arg: any) => {
+            if (Array.isArray(arg)) {
+              try {
+                return await Promise.all(arg);
+              } catch (err: any) {
+                console.warn('[Prisma] $transaction array failed, falling back to mock:', err?.message);
+                return await (mock as any).$transaction(arg);
+              }
+            }
+            try {
+              return await (target as any).$transaction(arg);
+            } catch (err: any) {
+              console.warn('[Prisma] $transaction callback failed, falling back to mock:', err?.message);
+              return await (mock as any).$transaction(arg);
+            }
+          };
+        }
+
         const origVal = Reflect.get(target, prop, receiver);
+        if (typeof origVal === 'function') {
+          return origVal.bind(target);
+        }
         if (typeof origVal === 'object' && origVal !== null) {
           return new Proxy(origVal, {
             get(subTarget, subProp, subReceiver) {
