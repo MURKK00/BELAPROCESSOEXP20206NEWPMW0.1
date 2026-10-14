@@ -28,12 +28,12 @@ export async function criarProcessoAction(formData: FormData) {
     portoOrigem: String(formData.get('portoOrigem') ?? ''),
     portoDestino: String(formData.get('portoDestino') ?? ''),
     freeTimeDestino: String(formData.get('freeTimeDestino') ?? '') || undefined,
-    redex: String(formData.get('redex') ?? '') || undefined,
+    redex: String(formData.get('redex') || formData.get('localEstufagem') || '') || undefined,
     valorDeclaradoUsd: formData.get('valorDeclaradoUsd')
       ? Number(formData.get('valorDeclaradoUsd'))
       : undefined,
 
-    localEstufagem: String(formData.get('localEstufagem') ?? '') || undefined,
+    localEstufagem: String(formData.get('localEstufagem') || formData.get('redex') || '') || undefined,
     containerQtd: formData.get('containerQtd') ? Number(formData.get('containerQtd')) : undefined,
     containerTipo: String(formData.get('containerTipo') ?? "20' DRY"),
     embalagemTipo: String(formData.get('embalagemTipo') ?? 'Sacaria 30kg'),
@@ -46,7 +46,7 @@ export async function criarProcessoAction(formData: FormData) {
     navio: String(formData.get('navio') ?? '') || undefined,
     deadlineDraftBl: parseDate(formData.get('deadlineDraftBl')),
     deadlineDraftVgm: parseDate(formData.get('deadlineDraftVgm')),
-    deadlineCarga: parseDate(formData.get('deadlineCarga')),
+    deadlineCarga: parseDate(formData.get('deadlineCarga')) || parseDate(formData.get('deadlineEmbarque')),
 
     necessitaEtiqueta: parseSimNao(formData.get('necessitaEtiqueta')),
 

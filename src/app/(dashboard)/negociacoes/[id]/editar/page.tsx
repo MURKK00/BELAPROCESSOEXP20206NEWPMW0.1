@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { atualizarProcessoAction } from '@/server/actions/editarProcessoAction';
-import { Section, Field, SelectField, PRODUTOS_FEIJAO } from '@/components/negociacoes/FormFields';
+import { Section, Field, SelectField, PRODUTOS_FEIJAO, TIPOS_FUMIGACAO } from '@/components/negociacoes/FormFields';
+import { PORTOS_ORIGEM_OPTIONS } from '@/app/(dashboard)/negociacoes/nova/page';
 
 export default async function EditarNegociacaoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,9 +23,15 @@ export default async function EditarNegociacaoPage({ params }: { params: Promise
           <Field label="Cliente final" name="clienteFinal" defaultValue={processo.clienteFinal} required />
           <Field label="Trader / Intermédio" name="traderIntermedio" defaultValue={processo.traderIntermedio ?? ''} />
           <Field label="Incoterm" name="incoterm" defaultValue={processo.incoterm ?? ''} required />
+          <SelectField
+            label="Porto de Origem (Saída)"
+            name="portoOrigem"
+            required
+            defaultValue={processo.portoOrigem || 'SANTOS (Santos - BRSSZ)'}
+            options={PORTOS_ORIGEM_OPTIONS}
+          />
           <Field label="Porto de destino" name="portoDestino" defaultValue={processo.portoDestino} required />
           <Field label="Free time (Destino)" name="freeTimeDestino" defaultValue={processo.freeTimeDestino ?? ''} />
-          <Field label="REDEX" name="redex" defaultValue={processo.redex ?? ''} />
           <Field
             label="Preço unitário declarado (USD/TON)"
             name="valorDeclaradoUsd"
@@ -34,7 +41,7 @@ export default async function EditarNegociacaoPage({ params }: { params: Promise
         </Section>
 
         <Section title="Informações">
-          <Field label="Local de estufagem" name="localEstufagem" defaultValue={processo.localEstufagem ?? ''} required />
+          <Field label="Local de estufagem / REDEX" name="localEstufagem" defaultValue={processo.localEstufagem ?? processo.redex ?? ''} required />
           <Field label="Volume (KG)" name="volumeKg" type="number" defaultValue={String(processo.volumeKg)} required />
           <Field label="Contêineres (quantidade)" name="containerQtd" type="number" defaultValue={processo.containerQtd ? String(processo.containerQtd) : ''} required />
           <Field label="Tipo de contêiner" name="containerTipo" defaultValue={processo.containerTipo ?? "20' DRY"} readOnly required />
@@ -47,7 +54,12 @@ export default async function EditarNegociacaoPage({ params }: { params: Promise
             defaultValue={toSimNao(processo.fumigacaoNecessaria)}
             options={[{ value: 'sim', label: 'Sim' }, { value: 'nao', label: 'Não' }]}
           />
-          <Field label="Tipo de fumigação" name="fumigacaoTipo" defaultValue={processo.fumigacaoTipo ?? ''} />
+          <SelectField
+            label="Tipo de fumigação"
+            name="fumigacaoTipo"
+            defaultValue={processo.fumigacaoTipo || 'Brometo'}
+            options={TIPOS_FUMIGACAO}
+          />
           <Field label="Tempo de fumigação (horas)" name="fumigacaoTempoHoras" defaultValue={String(processo.fumigacaoTempoHoras ?? 24)} readOnly required />
           
           <SelectField
@@ -82,11 +94,13 @@ export default async function EditarNegociacaoPage({ params }: { params: Promise
         </Section>
 
         <div className="border-t border-border pt-4">
-          <h4 className="text-sm font-semibold text-gray-500 uppercase mb-4">Dados de embarque</h4>
+          <h4 className="text-sm font-semibold text-gray-500 uppercase mb-4">Dados de embarque & Deadlines</h4>
           <div className="bg-surface border border-border rounded-2xl p-8 grid grid-cols-1 md:grid-cols-2 gap-5">
             <Field label="Nº Booking" name="bookingNumero" defaultValue={processo.bookingNumero ?? ''} />
             <Field label="Navio" name="navio" defaultValue={processo.navio ?? ''} />
-            <Field label="Deadline de embarque" name="deadlineEmbarque" type="date" defaultValue={toDateInput(processo.deadlineEmbarque)} />
+            <Field label="Deadline de Embarque / Gate Carga" name="deadlineCarga" type="date" defaultValue={toDateInput(processo.deadlineCarga || processo.deadlineEmbarque)} />
+            <Field label="Deadline Draft BL (Minuta)" name="deadlineDraftBl" type="date" defaultValue={toDateInput(processo.deadlineDraftBl)} />
+            <Field label="Deadline Draft VGM (SOLAS)" name="deadlineDraftVgm" type="date" defaultValue={toDateInput(processo.deadlineDraftVgm)} />
           </div>
         </div>
 

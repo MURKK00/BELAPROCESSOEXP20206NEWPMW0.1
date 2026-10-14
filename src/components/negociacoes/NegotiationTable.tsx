@@ -52,6 +52,38 @@ function getStatusColor(status: string) {
   }
 }
 
+export function getDeadlineInfo(p: {
+  deadlineEmbarque?: Date | string | null;
+  deadlineCarga?: Date | string | null;
+  deadlineDraftVgm?: Date | string | null;
+  deadlineDraftBl?: Date | string | null;
+}) {
+  const data = p.deadlineCarga || p.deadlineEmbarque || p.deadlineDraftVgm || p.deadlineDraftBl;
+  if (!data) return { data: null, label: '', tooltip: '' };
+
+  let label = '';
+  if (p.deadlineCarga || p.deadlineEmbarque) {
+    label = 'Carga / Gate';
+  } else if (p.deadlineDraftVgm) {
+    label = 'Draft VGM';
+  } else if (p.deadlineDraftBl) {
+    label = 'Draft BL';
+  }
+
+  const parts: string[] = [];
+  if (p.deadlineDraftBl) parts.push(`Draft BL: ${formatDateBR(p.deadlineDraftBl)}`);
+  if (p.deadlineDraftVgm) parts.push(`Draft VGM: ${formatDateBR(p.deadlineDraftVgm)}`);
+  if (p.deadlineCarga || p.deadlineEmbarque) {
+    parts.push(`Draft Carga: ${formatDateBR(p.deadlineCarga || p.deadlineEmbarque)}`);
+  }
+
+  return {
+    data,
+    label,
+    tooltip: parts.join(' • '),
+  };
+}
+
 export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[] }) {
   const router = useRouter();
 
@@ -105,16 +137,17 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
       if (armadorFiltro !== 'TODOS' && p.armador !== armadorFiltro) return false;
 
       // 5. Prazo / Deadline
-      if (prazoFiltro === 'URGENTES') {
-        if (!p.deadlineEmbarque) return false;
-        const dl = new Date(p.deadlineEmbarque);
-        // Menos de 48h ou vencido
-        const diffHoras = (dl.getTime() - hoje.getTime()) / (1000 * 3600);
-        if (diffHoras > 48) return false;
-      } else if (prazoFiltro === 'PROXIMOS') {
-        if (!p.deadlineEmbarque) return false;
-        const dl = new Date(p.deadlineEmbarque);
-        if (dl < hoje || dl > em7Dias) return false;
+      if (prazoFiltro === 'URGENTES' || prazoFiltro === 'PROXIMOS') {
+        const dlRaw = p.deadlineCarga || p.deadlineEmbarque || p.deadlineDraftVgm || p.deadlineDraftBl;
+        if (!dlRaw) return false;
+        const dl = new Date(dlRaw);
+        if (prazoFiltro === 'URGENTES') {
+          // Menos de 48h ou vencido
+          const diffHoras = (dl.getTime() - hoje.getTime()) / (1000 * 3600);
+          if (diffHoras > 48) return false;
+        } else if (prazoFiltro === 'PROXIMOS') {
+          if (dl < hoje || dl > em7Dias) return false;
+        }
       }
 
       // 6. Busca por texto livre (Processo, Cliente, Booking, Navio, Trader)
@@ -225,7 +258,10 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
         p.armador || '',
         p.navio || '',
         p.bookingNumero || '',
-        p.deadlineEmbarque ? new Date(p.deadlineEmbarque).toLocaleDateString('pt-BR') : '',
+        (() => {
+          const dl = p.deadlineCarga || p.deadlineEmbarque || p.deadlineDraftVgm || p.deadlineDraftBl;
+          return dl ? new Date(dl).toLocaleDateString('pt-BR') : '';
+        })(),
       ]),
     ];
 
@@ -378,7 +414,7 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                   <td>${p.armador || '-'}</td>
                   <td>${p.navio || '-'}</td>
                   <td>${p.bookingNumero || '-'}</td>
-                  <td>${formatDateBR(p.deadlineEmbarque)}</td>
+                  <td>${formatDateBR(p.deadlineCarga || p.deadlineEmbarque || p.deadlineDraftVgm || p.deadlineDraftBl)}</td>
                 </tr>
               `;
               })
@@ -629,10 +665,16 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {processosFiltrados.map((p) => {
+              const dlInfo = getDeadlineInfo(p);
               // Calcular se o deadline está próximo (< 48h)
               let deadlineProximo = false;
-              if (p.deadlineEmbarque) {
-                const diffHoras = (new Date(p.deadlineEmbarque).getTime() - Date.now()) / (1000 * 3600);
+              if (
+                dlInfo.data &&
+                p.status !== 'EMBARCADO' &&
+                p.status !== 'FINALIZADO' &&
+                p.status !== 'CANCELADO'
+              ) {
+                const diffHoras = (new Date(dlInfo.data).getTime() - Date.now()) / (1000 * 3600);
                 if (diffHoras >= 0 && diffHoras <= 48) deadlineProximo = true;
               }
 
@@ -653,10 +695,10 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                   armador: p.armador,
                   navio: p.navio,
                   bookingNumero: p.bookingNumero,
-                  deadlineEmbarque: p.deadlineEmbarque,
+                  deadlineEmbarque: p.deadlineEmbarque || p.deadlineCarga,
                   deadlineDraftBl: (p as any).deadlineDraftBl,
                   deadlineDraftVgm: (p as any).deadlineDraftVgm,
-                  deadlineCarga: (p as any).deadlineCarga,
+                  deadlineCarga: (p as any).deadlineCarga || p.deadlineEmbarque,
                   dataEstufagem: p.dataEstufagem,
                   redex: p.redex,
                   containerQtd: p.containerQtd,
@@ -761,7 +803,20 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                     {p.bookingNumero || '-'}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-300">
-                    {formatDateBR(p.deadlineEmbarque)}
+                    {dlInfo.data ? (
+                      <div title={dlInfo.tooltip || undefined} className="group cursor-default">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {formatDateBR(dlInfo.data)}
+                        </span>
+                        {dlInfo.label && (
+                          <span className="block text-[10px] text-slate-400 font-medium">
+                            {dlInfo.label}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">-</span>
+                    )}
                   </td>
 
                   <td className="px-6 py-4 text-sm text-center whitespace-nowrap">

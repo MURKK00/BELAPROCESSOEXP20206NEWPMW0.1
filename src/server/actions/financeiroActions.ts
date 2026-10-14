@@ -218,3 +218,30 @@ export async function salvarCustoAction(formData: FormData) {
   revalidatePath(`/negociacoes/${processoId}`);
   revalidatePath(`/financeiro`);
 }
+
+export async function salvarTodosCustosAction(formData: FormData) {
+  const processoId = formData.get('processoId') as string;
+  const financeiroId = formData.get('financeiroId') as string;
+  const custosJson = formData.get('custosJson') as string;
+
+  if (!financeiroId || !custosJson) return;
+
+  const usuario = await prisma.usuario.findFirst();
+  if (!usuario) throw new Error("Nenhum usuário cadastrado.");
+
+  const itens: Array<{ categoria: CategoriaCusto; valor: number }> = JSON.parse(custosJson);
+
+  await prisma.$transaction(
+    itens.map((item) =>
+      prisma.custoItem.upsert({
+        where: { financeiroId_categoria: { financeiroId, categoria: item.categoria } },
+        update: { valor: item.valor },
+        create: { financeiroId, categoria: item.categoria, valor: item.valor, atualizadoPorId: usuario.id }
+      })
+    )
+  );
+
+  revalidatePath(`/negociacoes/${processoId}/financeiro`);
+  revalidatePath(`/negociacoes/${processoId}`);
+  revalidatePath(`/financeiro`);
+}

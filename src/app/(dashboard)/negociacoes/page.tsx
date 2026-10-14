@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { NegotiationTable } from '@/components/negociacoes/NegotiationTable';
 import { serializeDecimals } from '@/lib/serialize';
+import { parseRecebimentoProformaInfo } from '@/lib/proformaHelper';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,9 +34,12 @@ export default async function NegociacoesPage() {
     const pesoFinalTon = pesoFinalKg / 1000;
     const valorTotalUsd = pesoFinalTon * precoUsd;
 
+    const proformaInfo = parseRecebimentoProformaInfo(fin?.bancoDestino, fin?.statusRecebimento, fin?.dataRecebimento, valorTotalUsd);
+    const valorLiquidoTotalUsd = proformaInfo.totalLiquidoUsd > 0 ? proformaInfo.totalLiquidoUsd : valorTotalUsd;
+
     const travamentos = fin?.travamentos || [];
     const totalUsdTravado = travamentos.reduce((acc, t) => acc + Number(t.valorUsdParcial), 0);
-    const saldoUsdParaTravar = Math.max(0, valorTotalUsd - totalUsdTravado);
+    const saldoUsdParaTravar = Math.max(0, valorLiquidoTotalUsd - totalUsdTravado);
 
     let somatorioReaisTravados = 0;
     for (const t of travamentos) {
@@ -56,6 +60,10 @@ export default async function NegociacoesPage() {
 
     return {
       ...restoDoProcesso,
+      deadlineEmbarque: p.deadlineEmbarque || p.deadlineCarga || null,
+      deadlineCarga: p.deadlineCarga || p.deadlineEmbarque || null,
+      deadlineDraftBl: p.deadlineDraftBl || null,
+      deadlineDraftVgm: p.deadlineDraftVgm || null,
       volumeKg: pesoFinalKg,
       volumeTon: pesoFinalTon,
       volumeInicialContratadoKg: volumeKg,

@@ -136,7 +136,34 @@ if (process.env.NODE_ENV !== 'production') {
   (global as any).__belaMockStore = globalStore;
 }
 
+export function reloadMockStoreFromFile(): MockStore {
+  if (fs.existsSync(STORAGE_FILE_PATH)) {
+    try {
+      const raw = fs.readFileSync(STORAGE_FILE_PATH, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.processos)) {
+        Object.keys(globalStore).forEach(k => delete (globalStore as any)[k]);
+        Object.assign(globalStore, parsed);
+      }
+    } catch (e) {
+      console.warn('[MockStore] Erro ao sincronizar dev-store.json:', e);
+    }
+  }
+  return globalStore;
+}
+
 export function getMockStore(): MockStore {
+  if (globalStore.processos.length === 0 && fs.existsSync(STORAGE_FILE_PATH)) {
+    try {
+      const raw = fs.readFileSync(STORAGE_FILE_PATH, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.processos) && parsed.processos.length > 0) {
+        Object.assign(globalStore, parsed);
+      }
+    } catch (e) {
+      console.warn('[MockStore] Erro ao sincronizar dev-store.json:', e);
+    }
+  }
   return globalStore;
 }
 

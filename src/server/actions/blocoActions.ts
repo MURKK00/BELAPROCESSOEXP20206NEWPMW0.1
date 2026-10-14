@@ -79,6 +79,7 @@ export async function atualizarInfoOperacaoAction(formData: FormData) {
     portoOrigem: String(formData.get('portoOrigem') ?? ''),
     portoDestino: String(formData.get('portoDestino') ?? ''),
     redex: String(formData.get('redex') ?? '') || null,
+    localEstufagem: String(formData.get('redex') ?? '') || null,
     valorDeclaradoUsd: formData.get('valorDeclaradoUsd') ? Number(formData.get('valorDeclaradoUsd')) : null,
     containerQtd: formData.get('containerQtd') ? Number(formData.get('containerQtd')) : null,
     sacasPorContainer: formData.get('sacasPorContainer') ? Number(formData.get('sacasPorContainer')) : null,
@@ -123,6 +124,10 @@ export async function atualizarResumoTopoAction(formData: FormData) {
   const estufagemInicioStr = String(formData.get('estufagemInicio') ?? '');
   const estufagemFimStr = String(formData.get('estufagemFim') ?? '');
 
+  const dataDeadlineCarga = deadlineCargaStr
+    ? new Date(deadlineCargaStr + 'T12:00:00Z')
+    : (deadlineStr ? new Date(deadlineStr + 'T12:00:00Z') : null);
+
   // 1. Busca os dados ANTES
   const processoAntigo = await prisma.processo.findUnique({ where: { id: processoId } });
   if (!processoAntigo) throw new Error('Processo não encontrado');
@@ -133,10 +138,10 @@ export async function atualizarResumoTopoAction(formData: FormData) {
     navio: String(formData.get('navio') ?? '') || null,
     estufagemInicio: estufagemInicioStr ? new Date(estufagemInicioStr + 'T12:00:00Z') : null,
     estufagemFim: estufagemFimStr ? new Date(estufagemFimStr + 'T12:00:00Z') : null,
-    deadlineEmbarque: deadlineStr ? new Date(deadlineStr + 'T12:00:00Z') : null,
+    deadlineEmbarque: dataDeadlineCarga,
+    deadlineCarga: dataDeadlineCarga,
     deadlineDraftBl: deadlineDraftBlStr ? new Date(deadlineDraftBlStr + 'T12:00:00Z') : null,
     deadlineDraftVgm: deadlineDraftVgmStr ? new Date(deadlineDraftVgmStr + 'T12:00:00Z') : null,
-    deadlineCarga: deadlineCargaStr ? new Date(deadlineCargaStr + 'T12:00:00Z') : null,
   };
 
   // 3. Compara

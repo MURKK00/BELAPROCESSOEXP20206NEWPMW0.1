@@ -10,10 +10,12 @@ export function Section({ title, children }: { title: string; children: React.Re
 }
 
 export function Field({
-  label, name, type = 'text', placeholder, required = false, readOnly = false, defaultValue,
+  label, name, type = 'text', placeholder, required = false, readOnly = false, defaultValue, value, onChange, helperText,
 }: {
   label: string; name: string; type?: string; placeholder?: string;
-  required?: boolean; readOnly?: boolean; defaultValue?: string;
+  required?: boolean; readOnly?: boolean; defaultValue?: string; value?: string | number;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  helperText?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -28,10 +30,13 @@ export function Field({
         required={required}
         readOnly={readOnly}
         defaultValue={defaultValue}
+        value={value}
+        onChange={onChange}
         className={`border border-border rounded-lg px-3 py-2.5 text-sm outline-none focus:border-secondary focus:ring-2 focus:ring-blue-100 ${
           readOnly ? 'bg-gray-100 text-gray-500' : ''
         }`}
       />
+      {helperText && <div className="mt-0.5">{helperText}</div>}
     </div>
   );
 }
@@ -73,4 +78,10 @@ export const PRODUTOS_FEIJAO = [
   { value: 'Feijão Caupi Vermelho (Red Cowpea)', label: 'Feijão Caupi Vermelho (Red Cowpea)' },
   { value: 'Feijão Caupi Branco (White Cowpea)', label: 'Feijão Caupi Branco (White Cowpea)' },
   { value: 'Feijão Caupi Sempre-Verde (Evergreen Cowpea)', label: 'Feijão Caupi Sempre-Verde (Evergreen Cowpea)' },
+];
+
+// Lista padrão de tipos de fumigação
+export const TIPOS_FUMIGACAO = [
+  { value: 'Brometo', label: 'Brometo' },
+  { value: 'Fosfina', label: 'Fosfina' },
 ];

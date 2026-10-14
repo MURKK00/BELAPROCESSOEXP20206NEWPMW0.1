@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { FinanceiroDashboardClient, type FinanceiroProcessoItem, type FinanceiroCustoItem } from '@/components/financeiro/FinanceiroDashboardClient';
 import { serializeDecimals } from '@/lib/serialize';
 import { parseTravamentoInfo } from '@/lib/travamentoHelper';
+import { parseRecebimentoProformaInfo } from '@/lib/proformaHelper';
 
 const CATEGORIAS_CUSTO_LABELS: Record<string, string> = {
   COMPRA: 'Compra Grãos/Matéria-Prima',
@@ -57,13 +58,17 @@ export default async function FinanceiroPage() {
     const precoUsd = fin?.precoUsd ? Number(fin.precoUsd.toString()) : Number(p.valorDeclaradoUsd) || 0;
     const valorTotalUsd = volumeTon * precoUsd;
 
+    // Informações de Recebimento e Taxas
+    const proformaInfo = parseRecebimentoProformaInfo(fin?.bancoDestino, fin?.statusRecebimento, fin?.dataRecebimento, valorTotalUsd);
+    const valorLiquidoTotalUsd = proformaInfo.totalLiquidoUsd > 0 ? proformaInfo.totalLiquidoUsd : valorTotalUsd;
+
     // Travamentos Cambiais
     const travamentos = fin?.travamentos || [];
     const totalUsdTravado = travamentos.reduce(
       (acc, t) => acc + Number(t.valorUsdParcial.toString()),
       0
     );
-    const saldoUsdParaTravar = Math.max(0, valorTotalUsd - totalUsdTravado);
+    const saldoUsdParaTravar = Math.max(0, valorLiquidoTotalUsd - totalUsdTravado);
 
     let somatorioReaisTravados = 0;
     let somatorioTaxas = 0;
@@ -93,8 +98,9 @@ export default async function FinanceiroPage() {
     const resultadoOperacionalBRL = receitaLiquidaBRL - totalCustosBRL;
     const margemLucro = receitaLiquidaBRL > 0 ? (resultadoOperacionalBRL / receitaLiquidaBRL) * 100 : 0;
 
-    // Cálculo Proporcional (Margem Real da Parcela Já Travada)
-    const proporcaoTravada = valorTotalUsd > 0 ? Math.min(1, totalUsdTravado / valorTotalUsd) : 0;
+    // Cálculo Proporcional (Margem Real da Parcela Já Travada com base no líquido a travar)
+    const baseUsdCalculo = valorLiquidoTotalUsd > 0 ? valorLiquidoTotalUsd : valorTotalUsd;
+    const proporcaoTravada = baseUsdCalculo > 0 ? Math.min(1, totalUsdTravado / baseUsdCalculo) : 0;
     const custoProporcionalTravado = totalCustosBRL * proporcaoTravada;
     const resultadoTravadoBRL = receitaLiquidaBRL - custoProporcionalTravado;
     const margemTravada = receitaLiquidaBRL > 0 ? (resultadoTravadoBRL / receitaLiquidaBRL) * 100 : 0;
@@ -134,8 +140,18 @@ export default async function FinanceiroPage() {
       resultadoProjetadoTotalBRL,
       margemProjetadaTotal,
       bancoDestino: fin?.bancoDestino || 'BB BRASIL',
+      bancoLimpo: proformaInfo.bancoLimpo,
       statusRecebimento: fin?.statusRecebimento || 'A_RECEBER',
       dataRecebimento: fin?.dataRecebimento ? new Date(fin.dataRecebimento).toLocaleDateString('pt-BR') : null,
+      totalLiquidoUsd: proformaInfo.totalLiquidoUsd > 0 ? proformaInfo.totalLiquidoUsd : valorTotalUsd,
+      totalTaxasUsd: proformaInfo.totalTaxasUsd,
+      totalBrutoUsd: proformaInfo.totalBrutoUsd > 0 ? proformaInfo.totalBrutoUsd : valorTotalUsd,
+      temProforma: proformaInfo.temProforma,
+      statusProforma: proformaInfo.statusProforma,
+      dataProforma: proformaInfo.dataProforma,
+      statusSaldo: proformaInfo.statusSaldo,
+      dataSaldo: proformaInfo.dataSaldo,
+      statusGeralRecebimento: proformaInfo.statusGeral,
       financeiroId: fin?.id,
       travamentosCount: travamentos.length,
       custosCount: custos.length,

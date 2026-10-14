@@ -29,6 +29,7 @@ import {
 import { formatBRL, formatUSD, formatNum, formatPTAX } from '@/lib/formatters';
 import { adicionarTravamentoAction, atualizarFinanceiroConfigAction } from '@/server/actions/financeiroActions';
 import { FinanceiroGraficos } from './FinanceiroGraficos';
+import { limparNomeBanco } from '@/lib/proformaHelper';
 
 export interface FinanceiroCustoItem {
   categoria: string;
@@ -64,8 +65,18 @@ export interface FinanceiroProcessoItem {
   resultadoProjetadoTotalBRL?: number;
   margemProjetadaTotal?: number;
   bancoDestino: string;
+  bancoLimpo?: string;
   statusRecebimento: string;
   dataRecebimento?: string | null;
+  totalLiquidoUsd: number;
+  totalTaxasUsd: number;
+  totalBrutoUsd: number;
+  temProforma?: boolean;
+  statusProforma?: string;
+  dataProforma?: string | null;
+  statusSaldo?: string;
+  dataSaldo?: string | null;
+  statusGeralRecebimento?: 'A_RECEBER' | 'PROFORMA_RECEBIDA' | 'RECEBIDO';
   financeiroId?: string;
   travamentosCount: number;
   custosCount: number;
@@ -84,7 +95,8 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
   const [filtroBanco, setFiltroBanco] = useState('TODOS');
   const [filtroStatusRecebimento, setFiltroStatusRecebimento] = useState('TODOS');
   const [filtroStatusCambial, setFiltroStatusCambial] = useState('TODOS'); // 'TODOS' | 'ABERTO' | 'PARCIAL' | 'FECHADO'
-  const [abaAtiva, setAbaAtiva] = useState<'cambio' | 'dre' | 'graficos'>('cambio');
+  const [abaAtiva, setAbaAtiva] = useState<'cambio' | 'recebimentos' | 'dre'>('cambio');
+  const [filtroSubRecebimento, setFiltroSubRecebimento] = useState<'TODOS' | 'RECEBIDOS' | 'A_RECEBER'>('TODOS');
   const [mostrarGraficosTopo, setMostrarGraficosTopo] = useState(true);
   const [detalhesReceitaAberto, setDetalhesReceitaAberto] = useState(false);
 
@@ -127,19 +139,25 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
         return false;
       }
 
-      // Filtro de Banco
-      if (filtroBanco !== 'TODOS' && p.bancoDestino !== filtroBanco) {
-        return false;
+      // Filtro de Banco (compara valor limpo e cru)
+      if (filtroBanco !== 'TODOS') {
+        const bancoPadrao = limparNomeBanco(p.bancoDestino);
+        if (p.bancoDestino !== filtroBanco && bancoPadrao !== filtroBanco && !p.bancoDestino.startsWith(filtroBanco)) {
+          return false;
+        }
       }
 
       // Filtro de Status de Recebimento
-      if (filtroStatusRecebimento !== 'TODOS' && p.statusRecebimento !== filtroStatusRecebimento) {
-        return false;
+      if (filtroStatusRecebimento !== 'TODOS') {
+        const isRec = p.statusGeralRecebimento === 'RECEBIDO' || p.statusRecebimento === 'RECEBIDO';
+        if (filtroStatusRecebimento === 'RECEBIDO' && !isRec) return false;
+        if (filtroStatusRecebimento === 'A_RECEBER' && isRec) return false;
       }
 
-      // Filtro de Status Cambial
+      // Filtro de Status Cambial (utiliza valor líquido para cálculo)
       if (filtroStatusCambial !== 'TODOS') {
-        const pct = p.valorTotalUsd > 0 ? (p.totalUsdTravado / p.valorTotalUsd) * 100 : 0;
+        const valLiq = (p.totalLiquidoUsd && p.totalLiquidoUsd > 0) ? p.totalLiquidoUsd : p.valorTotalUsd;
+        const pct = valLiq > 0 ? (p.totalUsdTravado / valLiq) * 100 : 0;
         if (filtroStatusCambial === 'FECHADO' && pct < 99.9) return false;
         if (filtroStatusCambial === 'ABERTO' && pct > 0.1) return false;
         if (filtroStatusCambial === 'PARCIAL' && (pct <= 0.1 || pct >= 99.9)) return false;
@@ -156,6 +174,16 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
     filtroStatusRecebimento, 
     filtroStatusCambial
   ]);
+
+  // Lista filtrada para aba de Recebimentos
+  const processosRecebimentos = useMemo(() => {
+    return processosFiltrados.filter((p) => {
+      const isLiquidado = p.statusGeralRecebimento === 'RECEBIDO' || p.statusRecebimento === 'RECEBIDO';
+      if (filtroSubRecebimento === 'RECEBIDOS') return isLiquidado;
+      if (filtroSubRecebimento === 'A_RECEBER') return !isLiquidado;
+      return true;
+    });
+  }, [processosFiltrados, filtroSubRecebimento]);
 
   const temFiltroAtivo = 
     busca.trim() !== '' ||
@@ -174,9 +202,10 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
     setFiltroStatusCambial('TODOS');
   };
 
-  // Cálculos consolidados sobre a lista filtrada
+  // Cálculos consolidados sobre a lista filtrada (usando valor LÍQUIDO efetivo)
   const metricas = useMemo(() => {
     let valorTotalUsd = 0;
+    let totalLiquidoGeralUsd = 0;
     let totalUsdTravado = 0;
     let saldoUsdParaTravar = 0;
     let receitaBrutaBRL = 0;
@@ -194,7 +223,9 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
     let countRecebido = 0;
 
     for (const p of processosFiltrados) {
+      const valLiq = p.totalLiquidoUsd > 0 ? p.totalLiquidoUsd : p.valorTotalUsd;
       valorTotalUsd += p.valorTotalUsd;
+      totalLiquidoGeralUsd += valLiq;
       totalUsdTravado += p.totalUsdTravado;
       saldoUsdParaTravar += p.saldoUsdParaTravar;
       receitaBrutaBRL += p.receitaBrutaBRL;
@@ -206,7 +237,7 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
 
       totalCustosBRL += p.totalCustosBRL;
 
-      const prop = p.valorTotalUsd > 0 ? Math.min(1, p.totalUsdTravado / p.valorTotalUsd) : 0;
+      const prop = valLiq > 0 ? Math.min(1, p.totalUsdTravado / valLiq) : 0;
       const custoProp = p.custoProporcionalTravado ?? (p.totalCustosBRL * prop);
       custoProporcionalTravado += custoProp;
 
@@ -219,17 +250,19 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
         somaPtaxPonderada += p.totalUsdTravado * p.ptaxMedia;
       }
 
-      if (p.statusRecebimento === 'RECEBIDO') {
-        totalRecebidoUsd += p.valorTotalUsd;
+      // Soma de recebimento usando o valor LÍQUIDO efetivo (sem as taxas bancárias descontadas)
+      const isRecebido = p.statusGeralRecebimento === 'RECEBIDO' || p.statusRecebimento === 'RECEBIDO';
+      if (isRecebido) {
+        totalRecebidoUsd += valLiq;
         countRecebido++;
       } else {
-        totalAReceberUsd += p.valorTotalUsd;
+        totalAReceberUsd += valLiq;
         countAReceber++;
       }
     }
 
     const ptaxMediaPonderadaGeral = somaUsdComPtax > 0 ? somaPtaxPonderada / somaUsdComPtax : 0;
-    const percentualTravadoGeral = valorTotalUsd > 0 ? (totalUsdTravado / valorTotalUsd) * 100 : 0;
+    const percentualTravadoGeral = totalLiquidoGeralUsd > 0 ? (totalUsdTravado / totalLiquidoGeralUsd) * 100 : 0;
 
     // 1. Margem e Lucro REALIZADOS da Parcela Travada (justo e exato, sem distorção por custos de saldo aberto)
     const resultadoTravadoBRL = receitaLiquidaBRL - custoProporcionalTravado;
@@ -532,7 +565,7 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
       </div>
 
       {/* SEÇÃO VISUAL: GRÁFICOS DE PIZZA (MIX DE CUSTOS) E BARRAS (DISTRIBUIÇÃO DE MARGEM) */}
-      {mostrarGraficosTopo && abaAtiva !== 'graficos' && (
+      {mostrarGraficosTopo && (
         <div className="transition-all animate-in fade-in duration-200">
           <FinanceiroGraficos processos={processosFiltrados} />
         </div>
@@ -543,7 +576,7 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
         {/* Abas e Filtros Rápidos */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-3">
           {/* Navegação entre Abas */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl self-start">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl self-start flex-wrap">
             <button
               type="button"
               onClick={() => setAbaAtiva('cambio')}
@@ -558,6 +591,18 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
             </button>
             <button
               type="button"
+              onClick={() => setAbaAtiva('recebimentos')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                abaAtiva === 'recebimentos'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
+              <span>Recebimentos (Liquidado vs A Receber)</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setAbaAtiva('dre')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 abaAtiva === 'dre'
@@ -567,18 +612,6 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
             >
               <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
               <span>Mini-DRE & Custos Operacionais</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAbaAtiva('graficos')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                abaAtiva === 'graficos'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <PieChartIcon className="w-3.5 h-3.5 text-blue-500" />
-              <span>Gráficos & Análise Visual</span>
             </button>
           </div>
 
@@ -687,8 +720,8 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
               className="w-full py-2 px-3 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-orange-500 font-medium"
             >
               <option value="TODOS">Todos os bancos</option>
-              <option value="BB BRASIL">Banco do Brasil (Brasil)</option>
-              <option value="BB AMERICA">BB (América / Miami)</option>
+              <option value="BB BRASIL">Banco do Brasil</option>
+              <option value="BB AMERICA">BB América</option>
             </select>
           </div>
 
@@ -720,21 +753,21 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+            <table className="w-full min-w-[1250px] text-left text-xs text-slate-600 dark:text-slate-300">
               <thead className="bg-slate-100/70 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-5 py-3">Processo</th>
-                  <th className="px-5 py-3">Empresa / Importador</th>
-                  <th className="px-5 py-3">Produto</th>
-                  <th className="px-5 py-3 text-right">Volume</th>
-                  <th className="px-5 py-3 text-right">Total Contrato</th>
-                  <th className="px-5 py-3 text-right">Travado (Hedge)</th>
-                  <th className="px-5 py-3 text-right">Pending FX (Aberto)</th>
-                  <th className="px-5 py-3 text-center">Status Cambial</th>
-                  <th className="px-5 py-3 text-right">PTAX Média</th>
-                  <th className="px-5 py-3 text-right">Receita (BRL)</th>
-                  <th className="px-5 py-3 text-center">Banco</th>
-                  <th className="px-5 py-3 text-center">Ações</th>
+                  <th className="px-5 py-3 whitespace-nowrap min-w-[140px]">Processo</th>
+                  <th className="px-5 py-3 whitespace-nowrap min-w-[180px]">Empresa / Importador</th>
+                  <th className="px-5 py-3 whitespace-nowrap min-w-[140px]">Produto</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[110px]">Volume</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[130px]">Líquido a Travar ($)</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[120px]">Travado (Hedge)</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[130px]">Pending FX (Aberto)</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[120px]">Status Cambial</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[110px]">PTAX Média</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[130px]">Receita (BRL)</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[120px]">Banco</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[100px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -746,7 +779,8 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
                   </tr>
                 ) : (
                   processosFiltrados.map((p) => {
-                    const pctTravado = p.valorTotalUsd > 0 ? (p.totalUsdTravado / p.valorTotalUsd) * 100 : 0;
+                    const valLiq = p.totalLiquidoUsd > 0 ? p.totalLiquidoUsd : p.valorTotalUsd;
+                    const pctTravado = valLiq > 0 ? (p.totalUsdTravado / valLiq) * 100 : 0;
                     const isTotalmenteTravado = pctTravado >= 99.9;
                     const isParcial = pctTravado > 0.1 && pctTravado < 99.9;
                     const isAberto = pctTravado <= 0.1;
@@ -754,72 +788,78 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                         {/* Processo */}
-                        <td className="px-5 py-3.5">
+                        <td className="px-5 py-3.5 whitespace-nowrap">
                           <Link
                             href={`/negociacoes/${p.id}/financeiro`}
-                            className="font-extrabold text-slate-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 flex items-center gap-1.5"
+                            className="font-extrabold text-slate-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1.5 whitespace-nowrap"
                           >
-                            <span>{p.numeroProcesso}</span>
-                            <ArrowRight className="w-3 h-3 text-slate-400" />
+                            <span className="font-mono tracking-tight">{p.numeroProcesso}</span>
+                            <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
                           </Link>
                         </td>
 
                         {/* Empresa / Importador */}
-                        <td className="px-5 py-3.5">
+                        <td className="px-5 py-3.5 whitespace-nowrap">
                           <span className="font-bold text-slate-800 dark:text-slate-200 block truncate max-w-[170px]" title={p.clienteFinal}>
                             {p.clienteFinal}
                           </span>
                         </td>
 
                         {/* Produto */}
-                        <td className="px-5 py-3.5">
+                        <td className="px-5 py-3.5 whitespace-nowrap">
                           <span className="font-semibold text-slate-700 dark:text-slate-300 block truncate max-w-[150px]">
                             {p.produto}
                           </span>
                         </td>
 
                         {/* Volume */}
-                        <td className="px-5 py-3.5 text-right font-semibold">
-                          <span>{formatNum(p.volumeTon, 3)} t</span>
+                        <td className="px-5 py-3.5 text-right font-semibold whitespace-nowrap">
+                          <span className="inline-block whitespace-nowrap">{formatNum(p.volumeTon, 3)} t</span>
                           {p.temContainersPreenchidos && (
-                            <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-bold" title="Peso aferido de containers">
+                            <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap" title="Peso aferido de containers">
                               ✓ real
                             </span>
                           )}
                         </td>
 
-                        {/* Total Contrato */}
-                        <td className="px-5 py-3.5 text-right font-bold text-slate-900 dark:text-white">
-                          <div>{formatUSD(p.valorTotalUsd)}</div>
-                          <span className="text-[10px] text-slate-400 font-normal">
-                            @ {formatUSD(p.precoUsd)}/t
-                          </span>
+                        {/* Total Líquido ($) */}
+                        <td className="px-5 py-3.5 text-right font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                          <div>{formatUSD(valLiq)}</div>
+                          {p.totalTaxasUsd && p.totalTaxasUsd > 0 ? (
+                            <span className="text-[10px] text-slate-400 font-normal block whitespace-nowrap">
+                              Bruto: {formatUSD(p.totalBrutoUsd > 0 ? p.totalBrutoUsd : p.valorTotalUsd)}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-normal block whitespace-nowrap">
+                              @ {formatUSD(p.precoUsd)}/t
+                            </span>
+                          )}
                         </td>
 
                         {/* Travado */}
-                        <td className="px-5 py-3.5 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                          {formatUSD(p.totalUsdTravado)}
-                          <span className="block text-[10px] text-slate-400 font-normal">
+                        <td className="px-5 py-3.5 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                          <div>{formatUSD(p.totalUsdTravado)}</div>
+                          <span className="block text-[10px] text-slate-400 font-normal whitespace-nowrap">
                             {p.travamentosCount} trava(s)
                           </span>
                         </td>
 
                         {/* Pending FX (Saldo a travar) */}
-                        <td className="px-5 py-3.5 text-right font-bold">
+                        <td className="px-5 py-3.5 text-right font-bold whitespace-nowrap">
                           {p.saldoUsdParaTravar > 0 ? (
-                            <span className="text-amber-600 dark:text-amber-400">
+                            <span className="text-amber-600 dark:text-amber-400 whitespace-nowrap">
                               {formatUSD(p.saldoUsdParaTravar)}
                             </span>
                           ) : (
-                            <span className="text-slate-400">US$ 0,00</span>
+                            <span className="text-slate-400 whitespace-nowrap">US$ 0,00</span>
                           )}
                         </td>
 
                         {/* Status Cambial (Progresso) */}
-                        <td className="px-5 py-3.5 text-center">
-                          <div className="flex flex-col items-center gap-1">
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          <div className="flex flex-col items-center gap-1 whitespace-nowrap">
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
                                 isTotalmenteTravado
                                   ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
                                   : isParcial
@@ -829,37 +869,37 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
                             >
                               {isTotalmenteTravado ? 'Travado' : isParcial ? 'Parcial' : 'Aberto'}
                             </span>
-                            <span className="text-[10px] font-bold text-slate-500">
+                            <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap">
                               {pctTravado.toFixed(1)}%
                             </span>
                           </div>
                         </td>
 
                         {/* PTAX Média */}
-                        <td className="px-5 py-3.5 text-right font-bold text-slate-900 dark:text-white font-mono">
+                        <td className="px-5 py-3.5 text-right font-bold text-slate-900 dark:text-white font-mono whitespace-nowrap">
                           {p.ptaxMedia > 0 ? `R$ ${formatPTAX(p.ptaxMedia)}` : '-'}
                         </td>
 
                         {/* Receita Fixada BRL */}
-                        <td className="px-5 py-3.5 text-right font-extrabold text-slate-900 dark:text-white">
+                        <td className="px-5 py-3.5 text-right font-extrabold text-slate-900 dark:text-white whitespace-nowrap">
                           <div>{formatBRL(p.receitaLiquidaBRL ?? p.receitaBrutaBRL)}</div>
                           {p.totalTaxasBRL && p.totalTaxasBRL > 0 ? (
-                            <span className="text-[10px] text-slate-400 font-normal block" title={`Receita Bruta: ${formatBRL(p.receitaBrutaBRL)} - Taxas: ${formatBRL(p.totalTaxasBRL)}`}>
+                            <span className="text-[10px] text-slate-400 font-normal block whitespace-nowrap" title={`Receita Bruta: ${formatBRL(p.receitaBrutaBRL)} - Taxas: ${formatBRL(p.totalTaxasBRL)}`}>
                               Bruto: {formatBRL(p.receitaBrutaBRL)}
                             </span>
                           ) : null}
                         </td>
 
                         {/* Banco */}
-                        <td className="px-5 py-3.5 text-center">
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                            {p.bancoDestino === 'BB AMERICA' ? 'BB América' : 'BB Brasil'}
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          <span className="inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                            {limparNomeBanco(p.bancoDestino)}
                           </span>
                         </td>
 
                         {/* Ações */}
-                        <td className="px-5 py-3.5 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                             {p.saldoUsdParaTravar > 0 && (
                               <button
                                 type="button"
@@ -867,7 +907,7 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
                                   setProcessoSelecionado(p);
                                   setModalTravaOpen(true);
                                 }}
-                                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-orange-500/10 hover:bg-orange-500 text-orange-600 hover:text-white transition-all border border-orange-500/20 cursor-pointer"
+                                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-orange-500/10 hover:bg-orange-500 text-orange-600 hover:text-white transition-all border border-orange-500/20 cursor-pointer whitespace-nowrap"
                                 title="Registrar trava PTAX rápida"
                               >
                                 + Trava
@@ -906,19 +946,19 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+            <table className="w-full min-w-[1200px] text-left text-xs text-slate-600 dark:text-slate-300">
               <thead className="bg-slate-100/70 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-5 py-3">Processo</th>
-                  <th className="px-5 py-3">Empresa / Importador</th>
-                  <th className="px-5 py-3">Produto</th>
-                  <th className="px-5 py-3 text-right">Volume</th>
-                  <th className="px-5 py-3 text-right">Receita Bruta (BRL)</th>
-                  <th className="px-5 py-3 text-right">Custos Totais (BRL)</th>
-                  <th className="px-5 py-3 text-right">Resultado Operacional</th>
-                  <th className="px-5 py-3 text-center">Margem (%)</th>
-                  <th className="px-5 py-3 text-center">Liquidação</th>
-                  <th className="px-5 py-3 text-center">Ações</th>
+                  <th className="px-5 py-3 whitespace-nowrap min-w-[140px]">Processo</th>
+                  <th className="px-5 py-3 whitespace-nowrap min-w-[180px]">Empresa / Importador</th>
+                  <th className="px-5 py-3 whitespace-nowrap min-w-[140px]">Produto</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[110px]">Volume</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[130px]">Receita Bruta (BRL)</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[130px]">Custos Totais (BRL)</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[140px]">Resultado Operacional</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[110px]">Margem (%)</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[120px]">Liquidação</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[90px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -934,50 +974,57 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
 
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-5 py-3.5">
+                        {/* Processo */}
+                        <td className="px-5 py-3.5 whitespace-nowrap">
                           <Link
                             href={`/negociacoes/${p.id}/financeiro`}
-                            className="font-extrabold text-slate-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 flex items-center gap-1.5"
+                            className="font-extrabold text-slate-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1.5 whitespace-nowrap"
                           >
-                            <span>{p.numeroProcesso}</span>
-                            <ArrowRight className="w-3 h-3 text-slate-400" />
+                            <span className="font-mono tracking-tight">{p.numeroProcesso}</span>
+                            <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
                           </Link>
                         </td>
 
-                        <td className="px-5 py-3.5">
+                        {/* Empresa / Importador */}
+                        <td className="px-5 py-3.5 whitespace-nowrap">
                           <span className="font-bold text-slate-800 dark:text-slate-200 block truncate max-w-[180px]">
                             {p.clienteFinal}
                           </span>
                         </td>
 
-                        <td className="px-5 py-3.5">
+                        {/* Produto */}
+                        <td className="px-5 py-3.5 whitespace-nowrap">
                           <span className="font-semibold text-slate-700 dark:text-slate-300 block truncate max-w-[150px]">
                             {p.produto}
                           </span>
                         </td>
 
-                        <td className="px-5 py-3.5 text-right font-semibold">
-                          {formatNum(p.volumeTon, 3)} t
+                        {/* Volume */}
+                        <td className="px-5 py-3.5 text-right font-semibold whitespace-nowrap">
+                          <span className="inline-block whitespace-nowrap">{formatNum(p.volumeTon, 3)} t</span>
                         </td>
 
-                        <td className="px-5 py-3.5 text-right font-bold text-slate-900 dark:text-white">
+                        {/* Receita Bruta (BRL) */}
+                        <td className="px-5 py-3.5 text-right font-bold text-slate-900 dark:text-white whitespace-nowrap">
                           <div>{formatBRL(p.receitaLiquidaBRL ?? p.receitaBrutaBRL)}</div>
                           {p.totalTaxasBRL && p.totalTaxasBRL > 0 ? (
-                            <span className="text-[10px] text-slate-400 font-normal block">
+                            <span className="text-[10px] text-slate-400 font-normal block whitespace-nowrap">
                               Bruto: {formatBRL(p.receitaBrutaBRL)}
                             </span>
                           ) : null}
                         </td>
 
-                        <td className="px-5 py-3.5 text-right font-bold text-rose-600 dark:text-rose-400">
-                          {formatBRL(p.totalCustosBRL)}
-                          <span className="block text-[10px] text-slate-400 font-normal">
+                        {/* Custos Totais (BRL) */}
+                        <td className="px-5 py-3.5 text-right font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                          <div>{formatBRL(p.totalCustosBRL)}</div>
+                          <span className="block text-[10px] text-slate-400 font-normal whitespace-nowrap">
                             {p.custosCount} rubrica(s)
                           </span>
                         </td>
 
+                        {/* Resultado Operacional */}
                         <td
-                          className={`px-5 py-3.5 text-right font-extrabold ${
+                          className={`px-5 py-3.5 text-right font-extrabold whitespace-nowrap ${
                             (p.saldoUsdParaTravar > 0 ? (p.resultadoTravadoBRL ?? p.resultadoOperacionalBRL) : p.resultadoOperacionalBRL) >= 0
                               ? 'text-emerald-600 dark:text-emerald-400' 
                               : 'text-rose-600 dark:text-rose-400'
@@ -987,22 +1034,23 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
                             {formatBRL(p.saldoUsdParaTravar > 0 ? (p.resultadoTravadoBRL ?? p.resultadoOperacionalBRL) : p.resultadoOperacionalBRL)}
                           </div>
                           {p.saldoUsdParaTravar > 0 && p.resultadoProjetadoTotalBRL !== undefined && (
-                            <span className="block text-[10px] text-slate-400 font-normal" title="Projeção para quando 100% do contrato for travado em câmbio">
+                            <span className="block text-[10px] text-slate-400 font-normal whitespace-nowrap" title="Projeção para quando 100% do contrato for travado em câmbio">
                               Proj: {formatBRL(p.resultadoProjetadoTotalBRL)}
                             </span>
                           )}
                         </td>
 
-                        <td className="px-5 py-3.5 text-center">
+                        {/* Margem (%) */}
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
                           {(() => {
                             const margemExibida = p.saldoUsdParaTravar > 0 
                               ? (p.margemTravada ?? p.margemLucro) 
                               : p.margemLucro;
 
                             return (
-                              <div className="flex flex-col items-center">
+                              <div className="flex flex-col items-center whitespace-nowrap">
                                 <span
-                                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                                  className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black whitespace-nowrap ${
                                     margemExibida >= 10
                                       ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
                                       : margemExibida > 0
@@ -1014,7 +1062,7 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
                                   {margemExibida.toFixed(1)}%
                                 </span>
                                 {p.saldoUsdParaTravar > 0 && (
-                                  <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
+                                  <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5 whitespace-nowrap">
                                     trava real
                                   </span>
                                 )}
@@ -1023,22 +1071,32 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
                           })()}
                         </td>
 
-                        <td className="px-5 py-3.5 text-center">
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                              p.statusRecebimento === 'RECEBIDO'
-                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
-                            }`}
-                          >
-                            {p.statusRecebimento === 'RECEBIDO' ? '✓ Liquidado' : '⏳ A Receber'}
-                          </span>
+                        {/* Liquidação */}
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          {(() => {
+                            const isLiquidado = p.statusGeralRecebimento === 'RECEBIDO' || p.statusRecebimento === 'RECEBIDO';
+                            const isEntrada = p.statusGeralRecebimento === 'PROFORMA_RECEBIDA';
+                            return (
+                              <span
+                                className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap ${
+                                  isLiquidado
+                                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
+                                    : isEntrada
+                                    ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20'
+                                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20'
+                                }`}
+                              >
+                                {isLiquidado ? '✓ Liquidado' : isEntrada ? '⚡ Entrada' : '⏳ A Receber'}
+                              </span>
+                            );
+                          })()}
                         </td>
 
-                        <td className="px-5 py-3.5 text-center">
+                        {/* Ações */}
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
                           <Link
                             href={`/negociacoes/${p.id}/financeiro`}
-                            className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors inline-block"
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors inline-block whitespace-nowrap"
                           >
                             Ver DRE
                           </Link>
@@ -1053,22 +1111,206 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
         </div>
       )}
 
-      {/* ABA 3: ANÁLISE GRÁFICA DEDICADA & INDICADORES (RECHARTS) */}
-      {abaAtiva === 'graficos' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-6 shadow-2xs transition-colors space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-2">
+      {/* ABA: RECEBIMENTOS & FLUXO (RECEBIDO VS A RECEBER) */}
+      {abaAtiva === 'recebimentos' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs transition-colors">
+          <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-850/50">
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <PieChartIcon className="w-5 h-5 text-orange-500" />
-                <span>Painel Visual de Custos & Rentabilidade de Exportação</span>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                <span>Fluxo de Liquidações: Recebidos vs A Receber</span>
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Gráficos analíticos dinâmicos gerados via Recharts baseados nos filtros de empresa, produto e status selecionados acima.
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Acompanhe as divisas creditadas e pendentes em cada contrato, com separação de taxas bancárias e status de liquidação.
               </p>
+            </div>
+
+            {/* Sub-filtros rápidos: Todos / Já Recebidos / A Receber */}
+            <div className="flex items-center gap-1.5 bg-slate-200/70 dark:bg-slate-800 p-1 rounded-xl self-start sm:self-auto text-xs">
+              <button
+                type="button"
+                onClick={() => setFiltroSubRecebimento('TODOS')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                  filtroSubRecebimento === 'TODOS'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Todos ({processosFiltrados.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltroSubRecebimento('RECEBIDOS')}
+                className={`flex items-center gap-1 px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                  filtroSubRecebimento === 'RECEBIDOS'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Já Recebidos ({metricas.countRecebido})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltroSubRecebimento('A_RECEBER')}
+                className={`flex items-center gap-1 px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                  filtroSubRecebimento === 'A_RECEBER'
+                    ? 'bg-amber-600 text-white shadow-2xs'
+                    : 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>A Receber ({metricas.countAReceber})</span>
+              </button>
             </div>
           </div>
 
-          <FinanceiroGraficos processos={processosFiltrados} />
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1250px] text-left text-xs text-slate-600 dark:text-slate-300">
+              <thead className="bg-slate-100/70 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                  <th className="px-5 py-3 whitespace-nowrap min-w-[140px]">Processo</th>
+                  <th className="px-5 py-3 whitespace-nowrap min-w-[180px]">Empresa / Importador</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[120px]">Valor Bruto ($)</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[100px]">(-) Taxas ($)</th>
+                  <th className="px-5 py-3 text-right whitespace-nowrap min-w-[130px]">(=) Líquido Efetivo ($)</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[140px]">Condição</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[140px]">Status Pagamento</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[130px]">Data Recebimento</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[130px]">Banco</th>
+                  <th className="px-5 py-3 text-center whitespace-nowrap min-w-[90px]">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                {processosRecebimentos.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-5 py-12 text-center text-slate-400">
+                      Nenhum processo nesta categoria de recebimento.
+                    </td>
+                  </tr>
+                ) : (
+                  processosRecebimentos.map((p) => {
+                    const isTotalmenteRecebido = p.statusGeralRecebimento === 'RECEBIDO' || p.statusRecebimento === 'RECEBIDO';
+                    const isEntradaPaga = p.statusGeralRecebimento === 'PROFORMA_RECEBIDA';
+                    const valBruto = p.totalBrutoUsd > 0 ? p.totalBrutoUsd : p.valorTotalUsd;
+                    const taxas = p.totalTaxasUsd || 0;
+                    const valLiquido = p.totalLiquidoUsd > 0 ? p.totalLiquidoUsd : (valBruto - taxas);
+
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        {/* Processo */}
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          <Link
+                            href={`/negociacoes/${p.id}/financeiro`}
+                            className="font-extrabold text-slate-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 inline-flex items-center gap-1.5 whitespace-nowrap"
+                          >
+                            <span className="font-mono tracking-tight">{p.numeroProcesso}</span>
+                            <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
+                          </Link>
+                        </td>
+
+                        {/* Empresa / Importador */}
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          <span className="font-bold text-slate-800 dark:text-slate-200 block truncate max-w-[180px]" title={p.clienteFinal}>
+                            {p.clienteFinal}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block truncate max-w-[180px]">
+                            {p.produto}
+                          </span>
+                        </td>
+
+                        {/* Valor Bruto */}
+                        <td className="px-5 py-3.5 text-right font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                          {formatUSD(valBruto)}
+                        </td>
+
+                        {/* Taxas Bancárias */}
+                        <td className="px-5 py-3.5 text-right font-medium whitespace-nowrap">
+                          {taxas > 0 ? (
+                            <span className="text-rose-600 dark:text-rose-400 font-bold whitespace-nowrap">
+                              -{formatUSD(taxas)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 whitespace-nowrap">$0.00</span>
+                          )}
+                        </td>
+
+                        {/* Líquido Efetivo */}
+                        <td className="px-5 py-3.5 text-right font-extrabold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                          {formatUSD(valLiquido)}
+                        </td>
+
+                        {/* Condição */}
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          <span className="inline-block px-2.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                            {p.temProforma ? 'Pro-forma + Saldo' : 'Pagamento Único'}
+                          </span>
+                        </td>
+
+                        {/* Status Pagamento */}
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                              isTotalmenteRecebido
+                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
+                                : isEntradaPaga
+                                ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20'
+                                : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20'
+                            }`}
+                          >
+                            {isTotalmenteRecebido ? (
+                              <>
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span className="whitespace-nowrap">100% Recebido</span>
+                              </>
+                            ) : isEntradaPaga ? (
+                              <>
+                                <Clock className="w-3 h-3 text-blue-600 shrink-0" />
+                                <span className="whitespace-nowrap">Entrada Paga</span>
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                                <span className="whitespace-nowrap">A Receber</span>
+                              </>
+                            )}
+                          </span>
+                        </td>
+
+                        {/* Data Recebimento */}
+                        <td className="px-5 py-3.5 text-center text-[11px] font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                          {isTotalmenteRecebido ? (
+                            <span className="whitespace-nowrap">{p.dataSaldo || p.dataRecebimento || p.dataProforma || 'Liquidado'}</span>
+                          ) : isEntradaPaga ? (
+                            <span className="whitespace-nowrap">Entrada: {p.dataProforma || '-'}</span>
+                          ) : (
+                            <span className="text-slate-400 whitespace-nowrap">Pendente</span>
+                          )}
+                        </td>
+
+                        {/* Banco */}
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          <span className="inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                            {limparNomeBanco(p.bancoDestino)}
+                          </span>
+                        </td>
+
+                        {/* Ação */}
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          <Link
+                            href={`/negociacoes/${p.id}/financeiro`}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors inline-block whitespace-nowrap"
+                          >
+                            Gerenciar
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

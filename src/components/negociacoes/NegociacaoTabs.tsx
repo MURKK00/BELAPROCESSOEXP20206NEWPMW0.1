@@ -24,8 +24,8 @@ export function NegociacaoTabs({ processoId }: NegociacaoTabsProps) {
     { href: base, label: 'Visão Geral', icon: LayoutDashboard },
     { href: `${base}/importador`, label: 'Importador (Buyer)', icon: UserCheck },
     { href: `${base}/checklist`, label: 'Linha do Tempo & Etapas', icon: CheckSquare },
-    { href: `${base}/financeiro`, label: 'Financeiro & DRE', icon: DollarSign },
     { href: `${base}/containers`, label: 'Contêineres & Lotes', icon: Container },
+    { href: `${base}/financeiro`, label: 'Financeiro & DRE', icon: DollarSign },
     { href: `${base}/documentos`, label: 'Documentos', icon: FileSpreadsheet },
     { href: `${base}/auditoria`, label: 'Auditoria', icon: History },
   ];

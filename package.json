@@ -13,6 +13,7 @@
     "db:reset": "prisma migrate reset",
     "db:seed": "tsx prisma/seed.ts",
     "db:clean": "tsx scripts/limpar-banco.ts",
+    "db:exemplos": "tsx scripts/gerar-exemplos.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {

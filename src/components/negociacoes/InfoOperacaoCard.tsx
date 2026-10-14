@@ -71,7 +71,7 @@ export function InfoOperacaoCard(props: Props) {
           </div>
 
           <Info label="Porto de Origem → Destino" value={`${props.portoOrigem || '-'} → ${props.portoDestino || '-'}`} />
-          <Info label="Redex" value={props.redex || '-'} />
+          <Info label="Local de Estufagem / REDEX" value={props.redex || '-'} />
           <Info
             label="Valor Declarado"
             value={props.valorDeclaradoUsd ? `$ ${Number(props.valorDeclaradoUsd).toFixed(2)}` : '-'}
@@ -130,7 +130,7 @@ export function InfoOperacaoCard(props: Props) {
         />
 
         <EditField label="Porto de destino" name="portoDestino" defaultValue={props.portoDestino} />
-        <EditField label="Redex" name="redex" defaultValue={props.redex} />
+        <EditField label="Local de Estufagem / REDEX" name="redex" defaultValue={props.redex} />
         <EditField
           label="Valor Declarado (USD)"
           name="valorDeclaradoUsd"

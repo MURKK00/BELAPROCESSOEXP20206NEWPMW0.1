@@ -18,10 +18,37 @@ function matchesWhere(item: any, where?: Record<string, any>): boolean {
   return true;
 }
 
+const DATE_FIELDS = [
+  'criadoEm',
+  'atualizadoEm',
+  'estufagemInicio',
+  'estufagemFim',
+  'deadlineEmbarque',
+  'deadlineDraftBl',
+  'deadlineDraftVgm',
+  'deadlineCarga',
+  'dataEstufagem',
+  'dataRecebimento',
+  'dataTravamento',
+  'concluidaEm',
+];
+
+function ensureDates(obj: any): any {
+  if (!obj || typeof obj !== 'object') return obj;
+  for (const f of DATE_FIELDS) {
+    if (obj[f] && typeof obj[f] === 'string') {
+      const d = new Date(obj[f]);
+      if (!isNaN(d.getTime())) obj[f] = d;
+    }
+  }
+  return obj;
+}
+
 function resolveProcessoIncludes(processo: any, include?: Record<string, any>) {
-  if (!include || !processo) return processo;
+  if (!processo) return processo;
   const store = getMockStore();
-  const copy = { ...processo };
+  const copy = ensureDates({ ...processo });
+  if (!include) return copy;
 
   if (include.etapas) {
     let etapas = store.processoEtapas.filter((e) => e.processoId === processo.id);
@@ -70,13 +97,26 @@ function resolveProcessoIncludes(processo: any, include?: Record<string, any>) {
 
   if (include.documentos) {
     let docs = store.documentos.filter((d) => d.processoId === processo.id);
-    if (include.documentos.include?.tipoDocumento) {
-      docs = docs.map((d) => ({
-        ...d,
-        tipoDocumento: store.tiposDocumento.find((td) => td.id === d.tipoDocumentoId) ?? null,
-        uploadedBy: store.usuarios.find((u) => u.id === d.uploadedPorId) ?? null,
-      }));
-    }
+    docs = docs.map((d) => ({
+      ...d,
+      nomeArquivo: d.nomeArquivo || d.nome || 'documento.pdf',
+      storagePath: d.storagePath || d.url || '/uploads/docs/documento.pdf',
+      versao: d.versao || 1,
+      status: d.status || 'EMITIDO_FINAL',
+      uploadedEm: d.uploadedEm ? new Date(d.uploadedEm) : new Date(d.criadoEm || Date.now()),
+      uploadedById: d.uploadedById || 'usr_dev_admin',
+      tipoDocumento: store.tiposDocumento.find((td) => td.id === d.tipoDocumentoId) ?? {
+        id: 'td_default',
+        nome: 'Documento Geral',
+        categoria: 'DOCUMENTACAO_EXPORTACAO',
+        obrigatorioNoPacoteFinal: false,
+      },
+      uploadedBy: store.usuarios.find((u) => u.id === (d.uploadedById || d.uploadedPorId)) ?? store.usuarios[0] ?? {
+        id: 'usr_dev_admin',
+        nome: 'Admin (Dev)',
+        email: 'dev@belacereais.local',
+      },
+    }));
     copy.documentos = docs;
   }
 

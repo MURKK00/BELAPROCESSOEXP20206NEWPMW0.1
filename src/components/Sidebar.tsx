@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Handshake, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Handshake, DollarSign, TrendingUp } from 'lucide-react';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -10,6 +10,7 @@ export function Sidebar() {
   const isVisaoGeral = pathname === '/';
   const isNegociacoes = pathname.startsWith('/negociacoes');
   const isFinanceiro = pathname.startsWith('/financeiro');
+  const isCotacoes = pathname.startsWith('/cotacoes');
 
   const links = [
     {
@@ -29,6 +30,13 @@ export function Sidebar() {
       label: 'Financeiro',
       active: isFinanceiro,
       icon: DollarSign,
+    },
+    {
+      href: '/cotacoes',
+      label: 'Cotações Mercado',
+      active: isCotacoes,
+      icon: TrendingUp,
+      badge: 'LIVE',
     },
   ];
 
@@ -53,7 +61,12 @@ export function Sidebar() {
                   : 'text-slate-400 dark:text-slate-500'
               }`}
             />
-            <span>{link.label}</span>
+            <span className="flex-1">{link.label}</span>
+            {link.badge && (
+              <span className="px-1.5 py-0.5 text-[9px] font-black uppercase rounded tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 animate-pulse">
+                {link.badge}
+              </span>
+            )}
           </Link>
         );
       })}

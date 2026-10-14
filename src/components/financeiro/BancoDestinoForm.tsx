@@ -32,8 +32,8 @@ export function BancoDestinoForm({ processoId, bancoInicial }: { processoId: str
           onChange={(e) => setBanco(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-bold bg-white outline-none focus:border-[#f58220]"
         >
-          <option value="BB BRASIL">Banco do Brasil (Brasil)</option>
-          <option value="BB AMERICA">Banco do Brasil (América / Exterior)</option>
+          <option value="BB BRASIL">Banco do Brasil</option>
+          <option value="BB AMERICA">BB América</option>
         </select>
       </div>
       <button 

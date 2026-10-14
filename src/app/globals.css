@@ -32,3 +32,25 @@
 .badge-concluido { @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300; }
 .badge-alerta { @apply bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300; }
 
+/* ESTEIRA HORIZONTAL DE LED WALL STREET */
+@keyframes ledMarquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-led-marquee {
+  display: flex;
+  width: max-content;
+  animation: ledMarquee 120s linear infinite;
+  will-change: transform;
+}
+
+.animate-led-marquee:hover {
+  animation-play-state: paused;
+}
+
+

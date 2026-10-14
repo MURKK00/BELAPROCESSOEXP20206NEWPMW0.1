@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { formatDateBR, formatNum } from '@/lib/formatters';
 import { PrintButton } from '@/components/documentos/PrintButton';
+import { parseCompradorInfo } from '@/lib/compradorHelper';
 
 export default async function InstrucaoEmbarquePrintPage({ 
   params
@@ -16,6 +17,10 @@ export default async function InstrucaoEmbarquePrintPage({
   });
 
   if (!processo) notFound();
+
+  // Decodifica dados estruturados de Comprador e Importador
+  const { complementoLimpo, comprador } = parseCompradorInfo(processo.complementoBuyer);
+  const isCompradorDiferente = Boolean(comprador?.diferente);
 
   const qtyContainers = processo.containerQtd || 1;
   
@@ -114,44 +119,126 @@ export default async function InstrucaoEmbarquePrintPage({
         </div>
 
         {/* Quadros de Endereço */}
-        <div className="grid grid-cols-2 gap-4 mb-4 border-b-2 border-black pb-3">
-          <div className="leading-snug">
-            <p className="font-bold">SELLER TO:</p>
-            <p className="font-bold">BELA CEREAIS COMERCIO LTDA.</p>
-            <p>CNPJ: 15.726.793/0001-06</p>
-            <p>RUA A-4, Nº 20 QUADRA 136 - C20 PARQUE CUIABÁ</p>
-            <p>CUIABÁ - MT - BRAZIL, ZIP CODE: 78.095-296</p>
+        {isCompradorDiferente ? (
+          /* CASO 1: Comprador (Buyer) é DIFERENTE do Importador (Consignee) */
+          <div className="space-y-3 mb-4 border-b-2 border-black pb-3">
+            <div className="grid grid-cols-2 gap-4">
+              {/* VENDEDOR / EXPORTADOR */}
+              <div className="leading-snug">
+                <p className="font-bold">SELLER / SHIPPER:</p>
+                <p className="font-bold">BELA CEREAIS COMERCIO LTDA.</p>
+                <p>CNPJ: 15.726.793/0001-06</p>
+                <p>RUA A-4, Nº 20 QUADRA 136 - C20 PARQUE CUIABÁ</p>
+                <p>CUIABÁ - MT - BRAZIL, ZIP CODE: 78.095-296</p>
+              </div>
+
+              {/* COMPRADOR COMERCIAL (BUYER / APPLICANT) */}
+              <div className="leading-snug bg-slate-50/80 p-2.5 rounded border border-gray-300">
+                <div className="flex items-center justify-between pb-0.5 mb-1 border-b border-gray-200">
+                  <p className="font-bold text-blue-950">BUYER TO (COMPRADOR / APPLICANT):</p>
+                  <span className="text-[9px] font-extrabold uppercase bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded">
+                    Faturamento / Contrato
+                  </span>
+                </div>
+                <p className="font-bold uppercase text-black">{comprador.nome || processo.clienteFinal}</p>
+                {(comprador.endereco || comprador.complemento) && (
+                  <p className="uppercase">
+                    {comprador.endereco}
+                    {comprador.complemento ? `, ${comprador.complemento}` : ''}
+                  </p>
+                )}
+                {(comprador.cidade || comprador.pais) && (
+                  <p className="uppercase mb-0.5">
+                    {comprador.cidade}
+                    {comprador.cidade && comprador.pais ? ', ' : ''}
+                    {comprador.pais}
+                  </p>
+                )}
+                {comprador.taxId && <p className="uppercase font-mono">TAX ID / VAT: {comprador.taxId}</p>}
+                {comprador.email && <p className="lowercase font-sans">{comprador.email}</p>}
+                {comprador.telefone && <p>{comprador.telefone}</p>}
+              </div>
+            </div>
+
+            {/* IMPORTADOR NO DESTINO (CONSIGNEE NO BL / ALFÂNDEGA) */}
+            <div className="leading-snug bg-amber-50/50 p-2.5 rounded border border-gray-300">
+              <div className="flex items-center justify-between pb-0.5 mb-1 border-b border-gray-200">
+                <p className="font-bold text-amber-950">CONSIGNEE TO (IMPORTADOR / RECEBEDOR NO DESTINO):</p>
+                <span className="text-[9px] font-extrabold uppercase bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded">
+                  Desembaraço Aduaneiro / BL
+                </span>
+              </div>
+              <p className="font-bold uppercase text-black">{comprador.importadorNome || processo.clienteFinal}</p>
+              
+              {(processo.enderecoBuyer || complementoLimpo) && (
+                <p className="uppercase">
+                  {processo.enderecoBuyer}
+                  {complementoLimpo ? `, ${complementoLimpo}` : ''}
+                </p>
+              )}
+              
+              {(processo.cidadeBuyer || processo.paisBuyer) && (
+                <p className="uppercase mb-0.5">
+                  {processo.cidadeBuyer}
+                  {processo.cidadeBuyer && processo.paisBuyer ? ', ' : ''}
+                  {processo.paisBuyer}
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 font-mono text-[10px] mt-1 pt-1 border-t border-gray-200">
+                {processo.iecBuyer && <span className="uppercase">IEC: {processo.iecBuyer}</span>}
+                {processo.panBuyer && <span className="uppercase">PAN NO.: {processo.panBuyer}</span>}
+                {processo.fassaiBuyer && <span className="uppercase">FASSAI: {processo.fassaiBuyer}</span>}
+                {processo.gstBuyer && <span className="uppercase">GST NO: {processo.gstBuyer}</span>}
+                {processo.emailBuyer && <span className="lowercase font-sans">{processo.emailBuyer}</span>}
+                {processo.telefoneBuyer && <span className="font-sans">{processo.telefoneBuyer}</span>}
+              </div>
+            </div>
           </div>
-          <div className="leading-snug">
-            <p className="font-bold">BUYER TO:</p>
-            <p className="font-bold uppercase">{processo.clienteFinal}</p>
-            
-            {/* Endereço e Complemento na mesma linha */}
-            {(processo.enderecoBuyer || processo.complementoBuyer) && (
-              <p className="uppercase">
-                {processo.enderecoBuyer}
-                {processo.complementoBuyer ? `, ${processo.complementoBuyer}` : ''}
-              </p>
-            )}
-            
-            {/* Cidade e País na mesma linha, mantendo a margem (mb-0.5) que você usava */}
-            {(processo.cidadeBuyer || processo.paisBuyer) && (
-              <p className="uppercase mb-0.5">
-                {processo.cidadeBuyer}
-                {processo.cidadeBuyer && processo.paisBuyer ? ', ' : ''}
-                {processo.paisBuyer}
-              </p>
-            )}
-            
-            {/* Documentos e Contatos originais mantidos */}
-            {processo.iecBuyer && <p className="uppercase">IEC {processo.iecBuyer}</p>}
-            {processo.fassaiBuyer && <p className="uppercase">FASSAI-{processo.fassaiBuyer}</p>}
-            {processo.panBuyer && <p className="uppercase">PAN NO. - {processo.panBuyer}</p>}
-            {processo.gstBuyer && <p className="uppercase">GST NO-{processo.gstBuyer}</p>}
-            {processo.emailBuyer && <p className="lowercase">{processo.emailBuyer}</p>}
-            {processo.telefoneBuyer && <p>{processo.telefoneBuyer}</p>}
+        ) : (
+          /* CASO 2: Comprador e Importador são os MESMOS (Padrão) */
+          <div className="grid grid-cols-2 gap-4 mb-4 border-b-2 border-black pb-3">
+            <div className="leading-snug">
+              <p className="font-bold">SELLER / SHIPPER:</p>
+              <p className="font-bold">BELA CEREAIS COMERCIO LTDA.</p>
+              <p>CNPJ: 15.726.793/0001-06</p>
+              <p>RUA A-4, Nº 20 QUADRA 136 - C20 PARQUE CUIABÁ</p>
+              <p>CUIABÁ - MT - BRAZIL, ZIP CODE: 78.095-296</p>
+            </div>
+            <div className="leading-snug">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <p className="font-bold">BUYER & CONSIGNEE TO:</p>
+                <span className="text-[9px] text-gray-500 font-semibold">(Comprador e Importador Unificados)</span>
+              </div>
+              <p className="font-bold uppercase">{processo.clienteFinal}</p>
+              
+              {/* Endereço e Complemento limpo na mesma linha */}
+              {(processo.enderecoBuyer || complementoLimpo) && (
+                <p className="uppercase">
+                  {processo.enderecoBuyer}
+                  {complementoLimpo ? `, ${complementoLimpo}` : ''}
+                </p>
+              )}
+              
+              {/* Cidade e País na mesma linha */}
+              {(processo.cidadeBuyer || processo.paisBuyer) && (
+                <p className="uppercase mb-0.5">
+                  {processo.cidadeBuyer}
+                  {processo.cidadeBuyer && processo.paisBuyer ? ', ' : ''}
+                  {processo.paisBuyer}
+                </p>
+              )}
+              
+              {/* Documentos e Contatos originais mantidos */}
+              {processo.iecBuyer && <p className="uppercase">IEC {processo.iecBuyer}</p>}
+              {processo.fassaiBuyer && <p className="uppercase">FASSAI-{processo.fassaiBuyer}</p>}
+              {processo.panBuyer && <p className="uppercase">PAN NO. - {processo.panBuyer}</p>}
+              {processo.gstBuyer && <p className="uppercase">GST NO-{processo.gstBuyer}</p>}
+              {processo.emailBuyer && <p className="lowercase">{processo.emailBuyer}</p>}
+              {processo.telefoneBuyer && <p>{processo.telefoneBuyer}</p>}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Dados do Processo */}
         <div className="grid grid-cols-2 gap-y-1 gap-x-2 mb-4 leading-snug">
@@ -208,6 +295,7 @@ export default async function InstrucaoEmbarquePrintPage({
 
         {/* Rodapé e Informações Extras */}
         <div className="space-y-1 mt-auto leading-snug">
+          <p><span className="font-bold">NOTIFY PARTY:</span> {isCompradorDiferente ? `SAME AS CONSIGNEE (OR BUYER: ${comprador.nome || processo.clienteFinal})` : 'SAME AS CONSIGNEE'}</p>
           <p><span className="font-bold">RUC:</span> {processo.ruc || 'A INFORMAR'}</p>
           <p><span className="font-bold">DUE:</span> </p>
           <p><span className="font-bold">FREE TIME AT DESTINATION:</span> {processo.freeTimeDestino || '21 free days demurrage'}</p>

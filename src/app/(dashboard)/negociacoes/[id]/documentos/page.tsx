@@ -20,28 +20,28 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
 
   if (!processo) notFound();
 
-  const serializedDocs = processo.documentos.map((d) => ({
+  const serializedDocs = (processo.documentos || []).map((d: any) => ({
     id: d.id,
     processoId: d.processoId,
     tipoDocumentoId: d.tipoDocumentoId,
     tipoDocumento: {
-      id: d.tipoDocumento.id,
-      nome: d.tipoDocumento.nome,
-      categoria: d.tipoDocumento.categoria,
-      obrigatorioNoPacoteFinal: d.tipoDocumento.obrigatorioNoPacoteFinal,
+      id: d.tipoDocumento?.id || 'td_unknown',
+      nome: d.tipoDocumento?.nome || 'Documento',
+      categoria: d.tipoDocumento?.categoria || 'DOCUMENTACAO_EXPORTACAO',
+      obrigatorioNoPacoteFinal: Boolean(d.tipoDocumento?.obrigatorioNoPacoteFinal),
     },
-    nomeArquivo: d.nomeArquivo,
-    storagePath: d.storagePath,
-    versao: d.versao,
-    status: d.status,
-    uploadedEm: d.uploadedEm.toISOString(),
-    uploadedById: d.uploadedById,
+    nomeArquivo: d.nomeArquivo || d.nome || 'arquivo.pdf',
+    storagePath: d.storagePath || d.url || '/uploads/docs/arquivo.pdf',
+    versao: d.versao || 1,
+    status: d.status || 'EMITIDO_FINAL',
+    uploadedEm: d.uploadedEm ? (typeof d.uploadedEm === 'string' ? d.uploadedEm : d.uploadedEm.toISOString()) : new Date().toISOString(),
+    uploadedById: d.uploadedById || 'usr_dev_admin',
     uploadedBy: {
-      id: d.uploadedBy.id,
-      nome: d.uploadedBy.nome,
-      email: d.uploadedBy.email,
+      id: d.uploadedBy?.id || 'usr_dev_admin',
+      nome: d.uploadedBy?.nome || 'Admin (Dev)',
+      email: d.uploadedBy?.email || 'dev@belacereais.local',
     },
-    descricaoOutro: d.descricaoOutro,
+    descricaoOutro: d.descricaoOutro || null,
   }));
 
   const serializedTipos = tipos.map((t) => ({

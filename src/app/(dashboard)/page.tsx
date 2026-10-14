@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getDaysLeft } from '@/lib/workflow';
 import { formatNum, formatDateBR } from '@/lib/formatters';
-import { Scale, DollarSign, Clock, Ship } from 'lucide-react';
+import { Scale, DollarSign, Clock, Ship, TrendingUp, ArrowRight, Activity, Globe } from 'lucide-react';
+import { LedTickerTape } from '@/components/cotacoes/LedTickerTape';
 
 export default async function DashboardPage() {
   const processos = await prisma.processo.findMany({
@@ -95,6 +96,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* ESTEIRA HORIZONTAL DE COTAÇÕES EM LED (WALL STREET STYLE) */}
+      <div className="-mx-8 -mt-7 mb-2">
+        <LedTickerTape />
+      </div>
+
       {/* CABEÇALHO */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -103,12 +109,14 @@ export default async function DashboardPage() {
             Acompanhamento executivo de volumes, câmbio e operações em andamento.
           </p>
         </div>
-        <Link
-          href="/negociacoes/nova"
-          className="inline-flex items-center gap-2 bg-[#f58220] hover:bg-orange-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 transition-all self-start sm:self-auto"
-        >
-          <span>+ Nova Negociação</span>
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/negociacoes/nova"
+            className="inline-flex items-center gap-2 bg-[#f58220] hover:bg-orange-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 transition-all self-start sm:self-auto"
+          >
+            <span>+ Nova Negociação</span>
+          </Link>
+        </div>
       </div>
 
       {/* CARDS SUPERIORES ESTILIZADOS */}

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { InfoOperacaoCard } from '@/components/negociacoes/InfoOperacaoCard';
 import { ResumoTopoCard } from '@/components/negociacoes/ResumoTopoCard';
 import { Ship, DollarSign, Container, FileText, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { parseRecebimentoProformaInfo } from '@/lib/proformaHelper';
 
 const FASES_STATUS: { fase: string; label: string }[] = [
   { fase: 'BOOKING_TRANSPORTE', label: 'Booking & Industrialização' },
@@ -57,9 +58,12 @@ export default async function VisaoGeralNegociacaoPage({
   const pesoFinalTon = pesoFinalKg / 1000;
   const valorTotalUsd = pesoFinalTon * precoUsd;
 
+  const proformaInfo = parseRecebimentoProformaInfo(fin?.bancoDestino, fin?.statusRecebimento, fin?.dataRecebimento, valorTotalUsd);
+  const valorLiquidoTotalUsd = proformaInfo.totalLiquidoUsd > 0 ? proformaInfo.totalLiquidoUsd : valorTotalUsd;
+
   const travamentos = fin?.travamentos || [];
   const totalUsdTravado = travamentos.reduce((acc, t) => acc + Number(t.valorUsdParcial), 0);
-  const saldoUsdParaTravar = Math.max(0, valorTotalUsd - totalUsdTravado);
+  const saldoUsdParaTravar = Math.max(0, valorLiquidoTotalUsd - totalUsdTravado);
   let somatorioReais = 0;
   for (const t of travamentos) {
     somatorioReais += Number(t.valorUsdParcial) * Number(t.ptax);
@@ -93,12 +97,12 @@ export default async function VisaoGeralNegociacaoPage({
         status={processo.status}
         bookingNumero={processo.bookingNumero ?? ''}
         navio={processo.navio ?? ''}
-        estufagemInicio={processo.estufagemInicio ? processo.estufagemInicio.toISOString() : null}
-        estufagemFim={processo.estufagemFim ? processo.estufagemFim.toISOString() : null}
-        deadlineEmbarque={processo.deadlineEmbarque ? processo.deadlineEmbarque.toISOString() : null}
-        deadlineDraftBl={processo.deadlineDraftBl ? processo.deadlineDraftBl.toISOString() : null}
-        deadlineDraftVgm={processo.deadlineDraftVgm ? processo.deadlineDraftVgm.toISOString() : null}
-        deadlineCarga={processo.deadlineCarga ? processo.deadlineCarga.toISOString() : null}
+        estufagemInicio={processo.estufagemInicio ? (typeof processo.estufagemInicio === 'string' ? processo.estufagemInicio : processo.estufagemInicio.toISOString()) : null}
+        estufagemFim={processo.estufagemFim ? (typeof processo.estufagemFim === 'string' ? processo.estufagemFim : processo.estufagemFim.toISOString()) : null}
+        deadlineEmbarque={processo.deadlineEmbarque ? (typeof processo.deadlineEmbarque === 'string' ? processo.deadlineEmbarque : processo.deadlineEmbarque.toISOString()) : null}
+        deadlineDraftBl={processo.deadlineDraftBl ? (typeof processo.deadlineDraftBl === 'string' ? processo.deadlineDraftBl : processo.deadlineDraftBl.toISOString()) : null}
+        deadlineDraftVgm={processo.deadlineDraftVgm ? (typeof processo.deadlineDraftVgm === 'string' ? processo.deadlineDraftVgm : processo.deadlineDraftVgm.toISOString()) : null}
+        deadlineCarga={processo.deadlineCarga ? (typeof processo.deadlineCarga === 'string' ? processo.deadlineCarga : processo.deadlineCarga.toISOString()) : null}
       />
 
       {/* 3 CARDS DE ATALHO RÁPIDO PARA O COCKPIT 360 */}

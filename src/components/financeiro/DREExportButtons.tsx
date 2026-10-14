@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Download, Printer, FileSpreadsheet } from 'lucide-react';
 import { formatPTAX } from '@/lib/formatters';
+import { parseRecebimentoProformaInfo } from '@/lib/proformaHelper';
 
 interface DREExportProps {
   processo: {
@@ -69,6 +70,13 @@ export function DREExportButtons({
   const totalTaxas = metricas.totalTaxasBRL ?? 0;
   const receitaLiquida = metricas.receitaLiquidaBRL ?? (metricas.receitaBrutaBRL - totalTaxas);
 
+  const proformaInfo = parseRecebimentoProformaInfo(
+    financeiro.bancoDestino,
+    financeiro.statusRecebimento,
+    financeiro.dataRecebimento,
+    metricas.valorTotalUsd
+  );
+
   const dataRecebFormatada = financeiro.dataRecebimento
     ? new Date(financeiro.dataRecebimento).toLocaleDateString('pt-BR')
     : null;
@@ -77,12 +85,20 @@ export function DREExportButtons({
   const exportarExcel = () => {
     setExportando(true);
     try {
+      const statusRecebDesc = proformaInfo.temProforma
+        ? (proformaInfo.statusGeral === 'RECEBIDO'
+            ? `100% Liquidado (Entr: ${proformaInfo.dataProforma || '-'} / Saldo: ${proformaInfo.dataSaldo || '-'})`
+            : (proformaInfo.statusProforma === 'RECEBIDO'
+                ? `Entrada Recebida em ${proformaInfo.dataProforma || '-'} (Saldo Pendente)`
+                : 'Aguardando Entrada Pro-forma'))
+        : (financeiro.statusRecebimento === 'RECEBIDO' ? `Recebido em ${dataRecebFormatada || '-'}` : 'A Receber');
+
       const rows: string[][] = [
         ['BELA CEREAIS - DEMONSTRATIVO DE RESULTADO DO PROCESSO (DRE)'],
         [`Processo:`, processo.numeroProcesso, `Data Extração:`, new Date().toLocaleDateString('pt-BR')],
         [`Cliente Final:`, processo.clienteFinal, `Produto:`, processo.produto],
         [`Incoterm:`, processo.incoterm || 'FOB', `Origem / Destino:`, `${processo.portoOrigem || '-'} -> ${processo.portoDestino || '-'}`],
-        [`Banco Destino:`, financeiro.bancoDestino || 'BB BRASIL', `Status Recebimento:`, financeiro.statusRecebimento === 'RECEBIDO' ? `Recebido em ${dataRecebFormatada || '-'}` : 'A Receber'],
+        [`Banco Destino:`, proformaInfo.bancoLimpo, `Status Recebimento:`, statusRecebDesc],
         [],
         ['1. RESUMO OPERACIONAL'],
         ['Item', 'Unidade', 'Valor'],
@@ -234,9 +250,15 @@ export function DREExportButtons({
           </div>
           <div class="card">
             <div class="card-title">Liquidação / Banco</div>
-            <div class="card-value" style="font-size: 13px;">${financeiro.bancoDestino || 'BB BRASIL'}</div>
-            <div style="color: ${financeiro.statusRecebimento === 'RECEBIDO' ? '#059669' : '#d97706'}; font-size: 11px; font-weight: 600;">
-              ${financeiro.statusRecebimento === 'RECEBIDO' ? `Liquidado (${dataRecebFormatada || '-'})` : 'Pendente de Recebimento'}
+            <div class="card-value" style="font-size: 13px;">${proformaInfo.bancoLimpo}</div>
+            <div style="color: ${proformaInfo.statusGeral === 'RECEBIDO' ? '#059669' : '#d97706'}; font-size: 11px; font-weight: 600;">
+              ${proformaInfo.temProforma 
+                ? (proformaInfo.statusGeral === 'RECEBIDO' 
+                    ? `100% Liquidado (Entr: ${proformaInfo.dataProforma || '-'} / Saldo: ${proformaInfo.dataSaldo || '-'})`
+                    : (proformaInfo.statusProforma === 'RECEBIDO' 
+                        ? `Entrada Recebida (${proformaInfo.dataProforma || '-'}) • Saldo Pendente`
+                        : 'Aguardando Entrada Pro-forma'))
+                : (financeiro.statusRecebimento === 'RECEBIDO' ? `Liquidado (${dataRecebFormatada || '-'})` : 'Pendente de Recebimento')}
             </div>
           </div>
         </div>

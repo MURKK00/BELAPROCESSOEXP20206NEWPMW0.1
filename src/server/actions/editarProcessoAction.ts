@@ -23,6 +23,7 @@ const labelsCampos: Record<string, string> = {
   produto: 'Produto',
   volumeKg: 'Volume (KG)',
   incoterm: 'Incoterm',
+  portoOrigem: 'Porto de Origem',
   portoDestino: 'Porto de Destino',
   freeTimeDestino: 'Free Time (Destino)',
   redex: 'REDEX',
@@ -57,6 +58,14 @@ export async function atualizarProcessoAction(formData: FormData) {
   if (!processoAntigo) throw new Error('Processo não encontrado');
 
   const deadlineStr = String(formData.get('deadlineEmbarque') ?? '');
+  const deadlineCargaStr = String(formData.get('deadlineCarga') ?? '');
+  const deadlineDraftBlStr = String(formData.get('deadlineDraftBl') ?? '');
+  const deadlineDraftVgmStr = String(formData.get('deadlineDraftVgm') ?? '');
+
+  const dataDeadlineCarga = deadlineCargaStr
+    ? new Date(deadlineCargaStr + 'T12:00:00Z')
+    : (deadlineStr ? new Date(deadlineStr + 'T12:00:00Z') : null);
+
   const containerQtd = formData.get('containerQtd') ? Number(formData.get('containerQtd')) : null;
 
   // 2. Monta o objeto com os dados novos que vieram da tela
@@ -66,14 +75,18 @@ export async function atualizarProcessoAction(formData: FormData) {
     produto: String(formData.get('produto') ?? ''),
     volumeKg: Number(formData.get('volumeKg') ?? 0),
     incoterm: String(formData.get('incoterm') ?? ''),
+    portoOrigem: String(formData.get('portoOrigem') ?? '') || null,
     portoDestino: String(formData.get('portoDestino') ?? ''),
     freeTimeDestino: String(formData.get('freeTimeDestino') ?? '') || null,
-    redex: String(formData.get('redex') ?? '') || null,
+    redex: String(formData.get('redex') || formData.get('localEstufagem') || '') || null,
     valorDeclaradoUsd: formData.get('valorDeclaradoUsd') ? Number(formData.get('valorDeclaradoUsd')) : null,
     bookingNumero: String(formData.get('bookingNumero') ?? '') || null,
     navio: String(formData.get('navio') ?? '') || null,
-    deadlineEmbarque: deadlineStr ? new Date(deadlineStr + 'T12:00:00Z') : null,
-    localEstufagem: String(formData.get('localEstufagem') ?? '') || null,
+    deadlineEmbarque: dataDeadlineCarga,
+    deadlineCarga: dataDeadlineCarga,
+    deadlineDraftBl: deadlineDraftBlStr ? new Date(deadlineDraftBlStr + 'T12:00:00Z') : null,
+    deadlineDraftVgm: deadlineDraftVgmStr ? new Date(deadlineDraftVgmStr + 'T12:00:00Z') : null,
+    localEstufagem: String(formData.get('localEstufagem') || formData.get('redex') || '') || null,
     containerQtd: containerQtd,
     containerTipo: String(formData.get('containerTipo') ?? "20' DRY"),
     embalagemTipo: String(formData.get('embalagemTipo') ?? 'Sacaria 30kg'),

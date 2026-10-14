@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { atualizarImportadorAction } from '@/server/actions/importadorActions';
+import { atualizarImportadorAction, toggleCompradorDiferenteAction } from '@/server/actions/importadorActions';
 import type { Processo } from '@prisma/client';
+import { parseCompradorInfo } from '@/lib/compradorHelper';
 import { 
   Building2, 
   MapPin, 
@@ -12,22 +13,73 @@ import {
   Phone, 
   Check, 
   Globe2, 
-  ShieldCheck, 
   Info,
-  Sparkles
+  Users,
+  Briefcase,
+  Layers,
+  ArrowRight,
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 
 interface ImportadorCardProps {
   processo: Processo;
 }
 
-export function ImportadorCard({ processo }: { processo: Processo }) {
+export function ImportadorCard({ processo }: ImportadorCardProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [sucesso, setSucesso] = useState(false);
+  const [salvandoToggle, setSalvandoToggle] = useState(false);
+  const [toggleMsg, setToggleMsg] = useState<string | null>(null);
+
+  // Extrai informações salvas de Comprador caso sejam entidades diferentes
+  const { complementoLimpo, comprador } = parseCompradorInfo(processo.complementoBuyer);
+
+  // Controle se o comprador é diferente do importador
+  const [compradorDiferente, setCompradorDiferente] = useState<boolean>(comprador.diferente);
+
+  // Estado dos campos do Comprador (Buyer) quando diferente
+  const [compradorNome, setCompradorNome] = useState(comprador.nome || processo.clienteFinal);
+  const [compradorEndereco, setCompradorEndereco] = useState(comprador.endereco || '');
+  const [compradorComplemento, setCompradorComplemento] = useState(comprador.complemento || '');
+  const [compradorCidade, setCompradorCidade] = useState(comprador.cidade || '');
+  const [compradorPais, setCompradorPais] = useState(comprador.pais || '');
+  const [compradorTaxId, setCompradorTaxId] = useState(comprador.taxId || '');
+  const [compradorEmail, setCompradorEmail] = useState(comprador.email || '');
+  const [compradorTelefone, setCompradorTelefone] = useState(comprador.telefone || '');
+
+  // Nome do Importador (se diferente, pode ser editável)
+  const [importadorNome, setImportadorNome] = useState(comprador.importadorNome || processo.clienteFinal);
+
+  // Alterna e salva imediatamente no banco ao clicar no switch
+  async function handleToggleDiferente(novoValor: boolean) {
+    setCompradorDiferente(novoValor);
+    setSalvandoToggle(true);
+    try {
+      await toggleCompradorDiferenteAction(processo.id, novoValor, {
+        nome: compradorNome || processo.clienteFinal,
+        importadorNome: importadorNome || processo.clienteFinal,
+        endereco: compradorEndereco,
+        complemento: compradorComplemento,
+        cidade: compradorCidade,
+        pais: compradorPais,
+        taxId: compradorTaxId,
+        email: compradorEmail,
+        telefone: compradorTelefone,
+      });
+      setToggleMsg(novoValor ? 'Opção salva: Comprador e Importador separados' : 'Opção salva: Mesma empresa');
+      router.refresh();
+      setTimeout(() => setToggleMsg(null), 3500);
+    } catch (err) {
+      console.error('Erro ao salvar opção:', err);
+      alert('Erro ao salvar alteração. Tente novamente.');
+    } finally {
+      setSalvandoToggle(false);
+    }
+  }
 
   // Perfil / Região de destino para pré-configurar rótulos e placeholders internacionais
-  // Detecta se o porto de destino ou país sugere Índia, Europa, China/Leste Asiático ou Geral
   const destinoUpper = ((processo.portoDestino || '') + ' ' + (processo.paisBuyer || '')).toUpperCase();
   const perfilInicial = destinoUpper.includes('INDIA') || destinoUpper.includes('MUNDRA') || destinoUpper.includes('NHAVA') || destinoUpper.includes('CHENNAI') || destinoUpper.includes('KOLKATA')
     ? 'INDIA'
@@ -39,9 +91,9 @@ export function ImportadorCard({ processo }: { processo: Processo }) {
 
   const [perfilRegiao, setPerfilRegiao] = useState<'GLOBAL' | 'INDIA' | 'EUROPA' | 'ASIA_ORIENTAL'>(perfilInicial);
 
-  // Checkboxes "Não aplicável / Não informado" para flexibilidade total
+  // Checkboxes "Não aplicável / Não informado" para o Importador
   const [naoTemComplemento, setNaoTemComplemento] = useState(
-    processo.complementoBuyer === 'N/A' || processo.complementoBuyer === 'NÃO APLICÁVEL'
+    complementoLimpo === 'N/A' || complementoLimpo === 'NÃO APLICÁVEL'
   );
   const [naoTemSecundario, setNaoTemSecundario] = useState(
     processo.panBuyer === 'N/A' || processo.panBuyer === 'NÃO APLICÁVEL'
@@ -64,6 +116,20 @@ export function ImportadorCard({ processo }: { processo: Processo }) {
     const form = e.currentTarget;
     const formData = new FormData(form);
     formData.append('processoId', processo.id);
+    formData.append('compradorDiferente', compradorDiferente ? 'true' : 'false');
+
+    // Se comprador diferente estiver ativo, anexa os dados do comprador
+    if (compradorDiferente) {
+      formData.set('importadorNome', importadorNome);
+      formData.set('compradorNome', compradorNome);
+      formData.set('compradorEndereco', compradorEndereco);
+      formData.set('compradorComplemento', compradorComplemento);
+      formData.set('compradorCidade', compradorCidade);
+      formData.set('compradorPais', compradorPais);
+      formData.set('compradorTaxId', compradorTaxId);
+      formData.set('compradorEmail', compradorEmail);
+      formData.set('compradorTelefone', compradorTelefone);
+    }
 
     // Ajusta os valores caso os checkboxes estejam marcados
     if (naoTemComplemento) {
@@ -88,7 +154,7 @@ export function ImportadorCard({ processo }: { processo: Processo }) {
       setSucesso(true);
       setTimeout(() => setSucesso(false), 4000);
     } catch (error) {
-      alert('❌ Erro ao salvar os dados do importador.');
+      alert('❌ Erro ao salvar os dados do importador/comprador.');
     } finally {
       setLoading(false);
     }
@@ -165,11 +231,15 @@ export function ImportadorCard({ processo }: { processo: Processo }) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-gray-100">
         <div>
           <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-secondary" />
-            <h3 className="text-lg font-bold text-gray-900">Dados do Importador (Buyer / Consignee)</h3>
+            <Building2 className="w-5 h-5 text-[#f58220]" />
+            <h3 className="text-lg font-bold text-gray-900">
+              {compradorDiferente 
+                ? 'Identificação: Importador (Consignee) & Comprador (Buyer)' 
+                : 'Dados do Importador (Buyer / Consignee)'}
+            </h3>
           </div>
           <p className="text-xs text-gray-500 mt-1 max-w-2xl">
-            Padrão universal compatível com qualquer país da <strong className="text-gray-700">Ásia, Europa, Oriente Médio e Américas</strong>. 
+            Padrão universal compatível com qualquer país de destino. 
             Estes dados integram automaticamente a emissão do <strong>Draft BL, Certificado Fitossanitário e Fatura Comercial</strong>.
           </p>
         </div>
@@ -182,16 +252,82 @@ export function ImportadorCard({ processo }: { processo: Processo }) {
         )}
       </div>
 
-      {/* SELETOR DE PRESET / CONTEXTO REGIONAL */}
+      {/* BOX DE SEPARAÇÃO: COMPRADOR É DIFERENTE DO IMPORTADOR? */}
+      <div className={`p-4 rounded-xl border transition-all ${
+        compradorDiferente 
+          ? 'bg-orange-50/80 border-orange-200 text-orange-950 shadow-xs' 
+          : 'bg-slate-50 border-slate-200 text-slate-800'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className={`p-2 rounded-lg ${compradorDiferente ? 'bg-orange-200 text-[#f58220]' : 'bg-slate-200 text-slate-600'}`}>
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-bold text-slate-900">
+                  O Comprador (Buyer) é diferente do Importador (Consignee)?
+                </span>
+                <span className={`text-[10px] uppercase font-extrabold px-2 py-0.5 rounded ${
+                  compradorDiferente ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {compradorDiferente ? 'Duas Entidades Separadas' : 'Mesma Empresa'}
+                </span>
+                {salvandoToggle && (
+                  <span className="flex items-center gap-1 text-[11px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded font-bold animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Salvando no sistema...
+                  </span>
+                )}
+                {toggleMsg && (
+                  <span className="flex items-center gap-1 text-[11px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded font-bold animate-fadeIn">
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    {toggleMsg}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5 max-w-2xl">
+                Marque esta opção quando o faturamento comercial for emitido para uma Trading/Comprador diferente da empresa que desembaraça e recebe a carga no porto de destino. Esta informação reflete automaticamente no documento de <strong>Instrução de Embarque</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+            <a
+              href={`/instrucao-embarque/${processo.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs"
+              title="Abrir a Instrução de Embarque em nova aba para conferência"
+            >
+              <span>📄 Ver Instrução de Embarque</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+
+            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+              <input
+                type="checkbox"
+                checked={compradorDiferente}
+                disabled={salvandoToggle}
+                onChange={(e) => handleToggleDiferente(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-12 h-6.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#f58220]"></div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* SELETOR DE PRESET / CONTEXTO REGIONAL DO IMPORTADOR */}
       <div className="bg-gray-50 border border-gray-200/80 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Globe2 className="w-4 h-4 text-secondary shrink-0" />
+          <Globe2 className="w-4 h-4 text-[#f58220] shrink-0" />
           <div>
             <span className="text-xs font-bold text-gray-800 block">
-              Contexto do Destino: {labelsRegiao.titulo}
+              Regras Aduaneiras do Destino: {labelsRegiao.titulo}
             </span>
             <span className="text-[11px] text-gray-500 block">
-              Altera as orientações e exemplos dos campos para se adequar ao destino da carga ({processo.portoDestino || 'Porto não definido'})
+              Adequa exemplos e identificadores fiscais ao porto de destino ({processo.portoDestino || 'Porto não definido'})
             </span>
           </div>
         </div>
@@ -209,9 +345,9 @@ export function ImportadorCard({ processo }: { processo: Processo }) {
               key={item.id}
               type="button"
               onClick={() => setPerfilRegiao(item.id)}
-              className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+              className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
                 perfilRegiao === item.id
-                  ? 'bg-secondary text-white shadow-2xs'
+                  ? 'bg-[#f58220] text-white shadow-2xs'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
@@ -221,322 +357,492 @@ export function ImportadorCard({ processo }: { processo: Processo }) {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        
-        {/* SEÇÃO 1: RAZÃO SOCIAL */}
-        <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-            Nome / Razão Social do Comprador (Buyer / Consignee)
-          </label>
-          <input 
-            type="text" 
-            value={processo.clienteFinal}
-            disabled
-            className="w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold cursor-not-allowed" 
-            title="Definido na abertura da negociação"
-          />
-          <span className="text-[11px] text-gray-400 mt-1 block">
-            Nome oficial do comprador registrado no contrato de exportação. Para alterar a razão social, edite a negociação principal.
-          </span>
-        </div>
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <input type="hidden" name="compradorDiferente" value={compradorDiferente ? 'true' : 'false'} />
 
-        {/* SEÇÃO 2: ENDEREÇO UNIVERSAL */}
-        <div className="space-y-4 pt-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
-            <MapPin className="w-4 h-4 text-secondary" />
-            <span>Endereço Comercial & Entrega (Destino)</span>
+        {/* ============================================================== */}
+        {/* BLOCO 1: DADOS DO IMPORTADOR (CONSIGNEE NO DESTINO) */}
+        {/* ============================================================== */}
+        <div className="space-y-5">
+          <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+            <Building2 className="w-4 h-4 text-[#f58220]" />
+            <h4 className="text-sm font-black uppercase tracking-wider text-gray-900">
+              1. Dados do Importador (Consignee no Porto de Destino)
+            </h4>
+            <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded">
+              Recebedor da Carga na Alfândega
+            </span>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                Endereço Principal (Logradouro, Número, Bairro/Distrito) <span className="text-red-500">*</span>
-              </label>
+          
+          {/* RAZÃO SOCIAL DO IMPORTADOR */}
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+              Nome / Razão Social do Importador (Consignee) <span className="text-red-500">*</span>
+            </label>
+            {compradorDiferente ? (
               <input 
                 type="text" 
-                name="enderecoBuyer" 
+                name="importadorNome"
                 required
-                defaultValue={processo.enderecoBuyer || ''} 
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none" 
-                placeholder="Ex: 123 Rue de la Loi / Industrial Area, Phase 2" 
+                value={importadorNome}
+                onChange={(e) => setImportadorNome(e.target.value)}
+                className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none" 
+                placeholder="Ex: R S TRIVENI FOODS PVT LTD"
               />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-gray-600 uppercase">
-                  Complemento / Sala / Edifício / Ponto de Referência
-                </label>
-                <label className="flex items-center gap-1.5 text-[11px] text-gray-500 font-normal cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={naoTemComplemento}
-                    onChange={(e) => setNaoTemComplemento(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded border-gray-300 text-secondary focus:ring-secondary cursor-pointer"
-                  />
-                  <span>Sem complemento</span>
-                </label>
-              </div>
+            ) : (
               <input 
                 type="text" 
-                name="complementoBuyer" 
-                disabled={naoTemComplemento}
-                defaultValue={naoTemComplemento ? '' : (processo.complementoBuyer || '')} 
-                className={`w-full border rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
-                  naoTemComplemento 
-                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                    : 'border-gray-300 focus:border-secondary focus:ring-1 focus:ring-secondary/20'
-                }`}
-                placeholder={naoTemComplemento ? 'Não aplicável (N/A)' : 'Ex: Suite 400 / Building B'} 
+                value={processo.clienteFinal}
+                disabled
+                className="w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold cursor-not-allowed" 
+                title="Comprador e Importador unificados"
               />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                Cidade & Estado / Província <span className="text-red-500">*</span>
-              </label>
-              <input 
-                type="text" 
-                name="cidadeBuyer" 
-                required
-                defaultValue={processo.cidadeBuyer || ''} 
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none" 
-                placeholder="Ex: Rotterdam / Antwerp / Gujarat" 
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                País & Código Postal (CEP / ZIP / Postal Code / PIN) <span className="text-red-500">*</span>
-              </label>
-              <input 
-                type="text" 
-                name="paisBuyer" 
-                required
-                defaultValue={processo.paisBuyer || ''} 
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none" 
-                placeholder="Ex: Netherlands, 3011 / India, PIN 370410" 
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* SEÇÃO 3: CÓDIGOS REGULATÓRIOS, FISCAIS E ADUANEIROS (UNIVERSAL) */}
-        <div className="pt-4 border-t border-gray-100 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-            <div className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
-              <FileText className="w-4 h-4 text-blue-600" />
-              <span>Identificadores Fiscais, Sanitários & Aduaneiros</span>
-            </div>
-            <span className="text-[11px] text-gray-400">
-              Marque as caixas de seleção caso a empresa não possua ou o registro não seja exigido
+            )}
+            <span className="text-[11px] text-gray-400 mt-1 block">
+              {compradorDiferente 
+                ? 'Nome da empresa que receberá o BL e fará o desembaraço aduaneiro no porto de destino.'
+                : 'Nome registrado na abertura da negociação. Para alterar a razão social quando unificados, edite os dados gerais do processo.'}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            {/* 1. REGISTRO ADUANEIRO PRINCIPAL (IEC / EORI / USCI / TAX ID) */}
-            <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-gray-900 uppercase">
-                    {perfilRegiao === 'INDIA' ? 'IEC (Índia)' : perfilRegiao === 'EUROPA' ? 'EORI (Europa)' : 'Reg. Aduaneiro / Tax ID'}
-                  </label>
-                  <span className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-100 text-blue-800 rounded">
-                    Fundamental
-                  </span>
-                </div>
-                <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
-                  {labelsRegiao.docPrincipalHint}
-                </p>
-              </div>
-              <input 
-                type="text" 
-                name="iecBuyer" 
-                defaultValue={processo.iecBuyer || ''} 
-                className="w-full bg-white border border-gray-300 rounded-md px-2.5 py-1.5 text-xs font-mono font-semibold focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none uppercase" 
-                placeholder={labelsRegiao.docPrincipalPlaceholder}
-              />
+          {/* ENDEREÇO UNIVERSAL DO IMPORTADOR */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <MapPin className="w-4 h-4 text-[#f58220]" />
+              <span>Endereço de Entrega & Desembaraço (Destino)</span>
             </div>
 
-            {/* 2. REGISTRO FISCAL SECUNDÁRIO / CORPORATIVO (PAN / VAT / CNPJ LOCAL) */}
-            <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Endereço Principal (Logradouro, Número, Bairro/Distrito) <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  name="enderecoBuyer" 
+                  required
+                  defaultValue={processo.enderecoBuyer || ''} 
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none" 
+                  placeholder="Ex: 123 Rue de la Loi / Industrial Area, Phase 2" 
+                />
+              </div>
+
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-gray-900 uppercase">
-                    {perfilRegiao === 'INDIA' ? 'PAN NO. (Índia)' : perfilRegiao === 'EUROPA' ? 'VAT NO. (UE)' : 'Tax ID Corporativo'}
+                  <label className="block text-xs font-semibold text-gray-600 uppercase">
+                    Complemento / Sala / Edifício / Ponto de Referência
                   </label>
-                  <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer select-none">
+                  <label className="flex items-center gap-1.5 text-[11px] text-gray-500 font-normal cursor-pointer select-none">
                     <input
                       type="checkbox"
-                      checked={naoTemSecundario}
-                      onChange={(e) => setNaoTemSecundario(e.target.checked)}
-                      className="w-3 h-3 rounded border-gray-300 text-secondary focus:ring-secondary cursor-pointer"
+                      checked={naoTemComplemento}
+                      onChange={(e) => setNaoTemComplemento(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded border-gray-300 text-[#f58220] focus:ring-[#f58220] cursor-pointer"
                     />
-                    <span>Não possui / N/A</span>
+                    <span>Sem complemento</span>
                   </label>
                 </div>
-                <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
-                  {labelsRegiao.docSecundarioHint}
-                </p>
+                <input 
+                  type="text" 
+                  name="complementoBuyer" 
+                  disabled={naoTemComplemento}
+                  defaultValue={naoTemComplemento ? '' : complementoLimpo} 
+                  className={`w-full border rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
+                    naoTemComplemento 
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                      : 'border-gray-300 focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20'
+                  }`}
+                  placeholder={naoTemComplemento ? 'Não aplicável (N/A)' : 'Ex: Suite 400 / Building B'} 
+                />
               </div>
-              <input 
-                type="text" 
-                name="panBuyer" 
-                disabled={naoTemSecundario}
-                defaultValue={naoTemSecundario ? '' : (processo.panBuyer || '')} 
-                className={`w-full border rounded-md px-2.5 py-1.5 text-xs font-mono outline-none transition-colors ${
-                  naoTemSecundario 
-                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                    : 'bg-white border-gray-300 focus:border-secondary focus:ring-1 focus:ring-secondary/20 font-semibold uppercase'
-                }`}
-                placeholder={naoTemSecundario ? 'Não aplicável (N/A)' : labelsRegiao.docSecundarioPlaceholder}
-              />
             </div>
 
-            {/* 3. LICENÇA SANITÁRIA / ALIMENTAR (FSSAI / TRACES / FDA / MINISTÉRIO DA AGRICULTURA) */}
-            <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-gray-900 uppercase">
-                    {perfilRegiao === 'INDIA' ? 'FSSAI License' : 'Licença Sanitária / Fito'}
-                  </label>
-                  <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={naoTemSanitaria}
-                      onChange={(e) => setNaoTemSanitaria(e.target.checked)}
-                      className="w-3 h-3 rounded border-gray-300 text-secondary focus:ring-secondary cursor-pointer"
-                    />
-                    <span>Não possui / N/A</span>
-                  </label>
-                </div>
-                <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
-                  {labelsRegiao.docSanitarioHint}
-                </p>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Cidade & Estado / Província <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  name="cidadeBuyer" 
+                  required
+                  defaultValue={processo.cidadeBuyer || ''} 
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none" 
+                  placeholder="Ex: Rotterdam / Antwerp / Gujarat" 
+                />
               </div>
-              <input 
-                type="text" 
-                name="fassaiBuyer" 
-                disabled={naoTemSanitaria}
-                defaultValue={naoTemSanitaria ? '' : (processo.fassaiBuyer || '')} 
-                className={`w-full border rounded-md px-2.5 py-1.5 text-xs font-mono outline-none transition-colors ${
-                  naoTemSanitaria 
-                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                    : 'bg-white border-gray-300 focus:border-secondary focus:ring-1 focus:ring-secondary/20 font-semibold'
-                }`}
-                placeholder={naoTemSanitaria ? 'Não aplicável (N/A)' : labelsRegiao.docSanitarioPlaceholder}
-              />
-            </div>
-
-            {/* 4. INSCRIÇÃO ESTADUAL / IMPOSTO DE CONSUMO (GSTIN / VAT LOCAL / COMERCIAL) */}
-            <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-gray-900 uppercase">
-                    {perfilRegiao === 'INDIA' ? 'GSTIN NO. (Índia)' : 'Inscrição Estadual / IVA'}
-                  </label>
-                  <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={naoTemEstadual}
-                      onChange={(e) => setNaoTemEstadual(e.target.checked)}
-                      className="w-3 h-3 rounded border-gray-300 text-secondary focus:ring-secondary cursor-pointer"
-                    />
-                    <span>Não informado</span>
-                  </label>
-                </div>
-                <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
-                  {labelsRegiao.docEstadualHint}
-                </p>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  País & Código Postal (CEP / ZIP / Postal Code / PIN) <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  name="paisBuyer" 
+                  required
+                  defaultValue={processo.paisBuyer || ''} 
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none" 
+                  placeholder="Ex: Netherlands, 3011 / India, PIN 370410" 
+                />
               </div>
-              <input 
-                type="text" 
-                name="gstBuyer" 
-                disabled={naoTemEstadual}
-                defaultValue={naoTemEstadual ? '' : (processo.gstBuyer || '')} 
-                className={`w-full border rounded-md px-2.5 py-1.5 text-xs font-mono outline-none transition-colors ${
-                  naoTemEstadual 
-                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                    : 'bg-white border-gray-300 focus:border-secondary focus:ring-1 focus:ring-secondary/20 font-semibold uppercase'
-                }`}
-                placeholder={naoTemEstadual ? 'Não informado (N/A)' : labelsRegiao.docEstadualPlaceholder}
-              />
             </div>
-
-          </div>
-        </div>
-
-        {/* SEÇÃO 4: CONTATO OPERACIONAL UNIVERSAL */}
-        <div className="pt-4 border-t border-gray-100 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
-            <Mail className="w-4 h-4 text-emerald-600" />
-            <span>Contatos Operacionais para Aviso de Chegada (Notice of Arrival / Consignee Notice)</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                E-mail Operacional / Notificação <span className="text-red-500">*</span>
-              </label>
-              <input 
-                type="email" 
-                name="emailBuyer" 
-                required
-                defaultValue={processo.emailBuyer || ''} 
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none" 
-                placeholder="operations@buyer.com / import@company.com"
-              />
-              <span className="text-[11px] text-gray-400 mt-1 block">
-                E-mail que constará nos rascunhos de BL, fatura comercial e certificados internacionais
+          {/* CÓDIGOS REGULATÓRIOS DO IMPORTADOR */}
+          <div className="pt-3 border-t border-gray-100 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <FileText className="w-4 h-4 text-blue-600" />
+                <span>Identificadores Fiscais, Sanitários & Aduaneiros do Importador</span>
+              </div>
+              <span className="text-[11px] text-gray-400">
+                Marque caso o importador não possua ou o registro não seja aplicável
               </span>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-gray-600 uppercase">
-                  Telefone Internacional (com DDI e DDD)
-                </label>
-                <label className="flex items-center gap-1.5 text-[11px] text-gray-500 font-normal cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={naoTemTelefone}
-                    onChange={(e) => setNaoTemTelefone(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded border-gray-300 text-secondary focus:ring-secondary cursor-pointer"
-                  />
-                  <span>Sem telefone</span>
-                </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* 1. REGISTRO ADUANEIRO PRINCIPAL */}
+              <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-gray-900 uppercase">
+                      {perfilRegiao === 'INDIA' ? 'IEC (Índia)' : perfilRegiao === 'EUROPA' ? 'EORI (Europa)' : 'Reg. Aduaneiro / Tax ID'}
+                    </label>
+                    <span className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-100 text-blue-800 rounded">
+                      Principal
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                    {labelsRegiao.docPrincipalHint}
+                  </p>
+                </div>
+                <input 
+                  type="text" 
+                  name="iecBuyer" 
+                  defaultValue={processo.iecBuyer || ''} 
+                  className="w-full bg-white border border-gray-300 rounded-md px-2.5 py-1.5 text-xs font-mono font-semibold focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none uppercase" 
+                  placeholder={labelsRegiao.docPrincipalPlaceholder}
+                />
               </div>
-              <input 
-                type="text" 
-                name="telefoneBuyer" 
-                disabled={naoTemTelefone}
-                defaultValue={naoTemTelefone ? '' : (processo.telefoneBuyer || '')} 
-                className={`w-full border rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
-                  naoTemTelefone 
-                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                    : 'border-gray-300 focus:border-secondary focus:ring-1 focus:ring-secondary/20'
-                }`}
-                placeholder={naoTemTelefone ? 'Não informado (N/A)' : '+31 10 123 4567 / +91 98250 12345'} 
-              />
-              <span className="text-[11px] text-gray-400 mt-1 block">
-                Ex: +31 (Holanda), +49 (Alemanha), +91 (Índia), +86 (China), +971 (Emirados)
-              </span>
+
+              {/* 2. REGISTRO FISCAL SECUNDÁRIO */}
+              <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-gray-900 uppercase">
+                      {perfilRegiao === 'INDIA' ? 'PAN NO. (Índia)' : perfilRegiao === 'EUROPA' ? 'VAT NO. (UE)' : 'Tax ID Corporativo'}
+                    </label>
+                    <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={naoTemSecundario}
+                        onChange={(e) => setNaoTemSecundario(e.target.checked)}
+                        className="w-3 h-3 rounded border-gray-300 text-[#f58220] focus:ring-[#f58220] cursor-pointer"
+                      />
+                      <span>N/A</span>
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                    {labelsRegiao.docSecundarioHint}
+                  </p>
+                </div>
+                <input 
+                  type="text" 
+                  name="panBuyer" 
+                  disabled={naoTemSecundario}
+                  defaultValue={naoTemSecundario ? '' : (processo.panBuyer || '')} 
+                  className={`w-full border rounded-md px-2.5 py-1.5 text-xs font-mono outline-none transition-colors ${
+                    naoTemSecundario 
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                      : 'bg-white border-gray-300 focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 font-semibold uppercase'
+                  }`}
+                  placeholder={naoTemSecundario ? 'Não aplicável (N/A)' : labelsRegiao.docSecundarioPlaceholder}
+                />
+              </div>
+
+              {/* 3. LICENÇA SANITÁRIA / FITO */}
+              <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-gray-900 uppercase">
+                      {perfilRegiao === 'INDIA' ? 'FSSAI License' : 'Licença Sanitária / Fito'}
+                    </label>
+                    <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={naoTemSanitaria}
+                        onChange={(e) => setNaoTemSanitaria(e.target.checked)}
+                        className="w-3 h-3 rounded border-gray-300 text-[#f58220] focus:ring-[#f58220] cursor-pointer"
+                      />
+                      <span>N/A</span>
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                    {labelsRegiao.docSanitarioHint}
+                  </p>
+                </div>
+                <input 
+                  type="text" 
+                  name="fassaiBuyer" 
+                  disabled={naoTemSanitaria}
+                  defaultValue={naoTemSanitaria ? '' : (processo.fassaiBuyer || '')} 
+                  className={`w-full border rounded-md px-2.5 py-1.5 text-xs font-mono outline-none transition-colors ${
+                    naoTemSanitaria 
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                      : 'bg-white border-gray-300 focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 font-semibold'
+                  }`}
+                  placeholder={naoTemSanitaria ? 'Não aplicável (N/A)' : labelsRegiao.docSanitarioPlaceholder}
+                />
+              </div>
+
+              {/* 4. INSCRIÇÃO ESTADUAL / IVA */}
+              <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-gray-900 uppercase">
+                      {perfilRegiao === 'INDIA' ? 'GSTIN NO. (Índia)' : 'Inscrição Estadual / IVA'}
+                    </label>
+                    <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={naoTemEstadual}
+                        onChange={(e) => setNaoTemEstadual(e.target.checked)}
+                        className="w-3 h-3 rounded border-gray-300 text-[#f58220] focus:ring-[#f58220] cursor-pointer"
+                      />
+                      <span>N/A</span>
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                    {labelsRegiao.docEstadualHint}
+                  </p>
+                </div>
+                <input 
+                  type="text" 
+                  name="gstBuyer" 
+                  disabled={naoTemEstadual}
+                  defaultValue={naoTemEstadual ? '' : (processo.gstBuyer || '')} 
+                  className={`w-full border rounded-md px-2.5 py-1.5 text-xs font-mono outline-none transition-colors ${
+                    naoTemEstadual 
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                      : 'bg-white border-gray-300 focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 font-semibold uppercase'
+                  }`}
+                  placeholder={naoTemEstadual ? 'Não informado (N/A)' : labelsRegiao.docEstadualPlaceholder}
+                />
+              </div>
+
+            </div>
+          </div>
+
+          {/* CONTATOS DO IMPORTADOR */}
+          <div className="pt-3 border-t border-gray-100 space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <Mail className="w-4 h-4 text-emerald-600" />
+              <span>Contatos Operacionais do Importador (Aviso de Chegada / Notice of Arrival)</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  E-mail do Importador <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="email" 
+                  name="emailBuyer" 
+                  required
+                  defaultValue={processo.emailBuyer || ''} 
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none" 
+                  placeholder="import@company.com / clearance@broker.com"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-600 uppercase">
+                    Telefone do Importador
+                  </label>
+                  <label className="flex items-center gap-1.5 text-[11px] text-gray-500 font-normal cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={naoTemTelefone}
+                      onChange={(e) => setNaoTemTelefone(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded border-gray-300 text-[#f58220] focus:ring-[#f58220] cursor-pointer"
+                    />
+                    <span>Sem telefone</span>
+                  </label>
+                </div>
+                <input 
+                  type="text" 
+                  name="telefoneBuyer" 
+                  disabled={naoTemTelefone}
+                  defaultValue={naoTemTelefone ? '' : (processo.telefoneBuyer || '')} 
+                  className={`w-full border rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
+                    naoTemTelefone 
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                      : 'border-gray-300 focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20'
+                  }`}
+                  placeholder={naoTemTelefone ? 'Não informado (N/A)' : '+91 98250 12345 / +31 10 123 4567'} 
+                />
+              </div>
             </div>
           </div>
         </div>
+
+        {/* ============================================================== */}
+        {/* BLOCO 2: DADOS DO COMPRADOR (BUYER) - SE DIFERENTE */}
+        {/* ============================================================== */}
+        {compradorDiferente && (
+          <div className="space-y-5 pt-6 border-t-2 border-dashed border-orange-300 animate-fadeIn bg-orange-50/30 p-5 rounded-2xl border border-orange-200">
+            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-orange-200">
+              <div className="flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-blue-700" />
+                <h4 className="text-sm font-black uppercase tracking-wider text-blue-950">
+                  2. Dados do Comprador Comercial (Buyer / Faturamento)
+                </h4>
+              </div>
+              <span className="text-[10px] bg-blue-100 text-blue-800 font-extrabold px-2.5 py-0.5 rounded-full">
+                Empresa Contratante / Pagadora
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Preencha os dados comerciais da empresa que está comprando e pagando pelo contrato (Trading, Matriz ou Intermediária comercial).
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* NOME / RAZÃO SOCIAL DO COMPRADOR */}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Nome / Razão Social do Comprador Comercial (Buyer)
+                </label>
+                <input 
+                  type="text" 
+                  name="compradorNome"
+                  value={compradorNome}
+                  onChange={(e) => setCompradorNome(e.target.value)}
+                  className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  placeholder="Ex: AGRI FORTUNE PTE LTD"
+                />
+                <span className="text-[11px] text-gray-400 mt-1 block">
+                  Razão social da empresa compradora que constará no contrato de venda e fatura pro-forma.
+                </span>
+              </div>
+
+              {/* ENDEREÇO COMERCIAL */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Endereço Comercial da Empresa Compradora
+                </label>
+                <input 
+                  type="text" 
+                  name="compradorEndereco"
+                  value={compradorEndereco}
+                  onChange={(e) => setCompradorEndereco(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  placeholder="Ex: 10 Marina Boulevard, Tower 2 #28-00" 
+                />
+              </div>
+
+              {/* COMPLEMENTO COMERCIAL */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Complemento / Sala / Edifício
+                </label>
+                <input 
+                  type="text" 
+                  name="compradorComplemento"
+                  value={compradorComplemento}
+                  onChange={(e) => setCompradorComplemento(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  placeholder="Ex: Ocean Financial Centre" 
+                />
+              </div>
+
+              {/* CIDADE & ESTADO */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Cidade & Estado / Província
+                </label>
+                <input 
+                  type="text" 
+                  name="compradorCidade"
+                  value={compradorCidade}
+                  onChange={(e) => setCompradorCidade(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  placeholder="Ex: Singapore / Dubai / London" 
+                />
+              </div>
+
+              {/* PAÍS & CEP / ZIP */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  País & Código Postal (ZIP / Postal Code)
+                </label>
+                <input 
+                  type="text" 
+                  name="compradorPais"
+                  value={compradorPais}
+                  onChange={(e) => setCompradorPais(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  placeholder="Ex: Singapore 018983 / UAE" 
+                />
+              </div>
+
+              {/* TAX ID / REGISTRO FISCAL */}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Tax ID / Registro Fiscal / CNPJ Internacional do Comprador
+                </label>
+                <input 
+                  type="text" 
+                  name="compradorTaxId"
+                  value={compradorTaxId}
+                  onChange={(e) => setCompradorTaxId(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  placeholder="Ex: UEN 201812345M / VAT GB123456789 / Registration No." 
+                />
+              </div>
+
+              {/* E-MAIL COMERCIAL */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  E-mail Comercial do Comprador
+                </label>
+                <input 
+                  type="email" 
+                  name="compradorEmail"
+                  value={compradorEmail}
+                  onChange={(e) => setCompradorEmail(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  placeholder="finance@buyer.com / commercial@trader.com" 
+                />
+              </div>
+
+              {/* TELEFONE COMERCIAL */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Telefone Comercial
+                </label>
+                <input 
+                  type="text" 
+                  name="compradorTelefone"
+                  value={compradorTelefone}
+                  onChange={(e) => setCompradorTelefone(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  placeholder="+65 6123 4567 / +971 4 123 4567" 
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* NOTA EXPLICATIVA UNIVERSAL */}
-        <div className="bg-blue-50/70 border border-blue-200/80 rounded-lg p-3 text-xs text-blue-900 flex items-start gap-2.5">
+        <div className="bg-blue-50/70 border border-blue-200/80 rounded-lg p-3.5 text-xs text-blue-900 flex items-start gap-2.5">
           <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
-            <span className="font-bold">Equivalências Aduaneiras Internacionais:</span>
+          <div className="space-y-1">
+            <span className="font-bold">Equivalências & Documentos no Comércio Internacional:</span>
             <p className="text-[11px] text-blue-800 leading-relaxed">
-              • <strong>União Europeia / UK</strong>: O identificador principal é o número <strong>EORI</strong> + número <strong>VAT</strong> intracomunitário.<br/>
-              • <strong>Índia</strong>: O identificador aduaneiro é o <strong>IEC</strong> + <strong>PAN</strong> + licença alimentar <strong>FSSAI</strong>.<br/>
-              • <strong>China e Extremo Oriente</strong>: Utiliza-se o código unificado <strong>USCI</strong> (18 dígitos) e registro alfandegário GACC.<br/>
-              • <strong>Américas e Demais Países</strong>: Utiliza-se o <strong>Tax ID / EIN / RFC / RUT</strong> corporativo nacional.
+              • <strong>Importador (Consignee)</strong>: Constará no conhecimento de embarque (BL), certificados fitossanitários do MAPA e desembaraço aduaneiro.<br/>
+              • <strong>Comprador (Buyer / Notify / Applicant)</strong>: Constará nos contratos comerciais, faturas pro-forma e invoice comercial quando houver faturamento para trading.
             </p>
           </div>
         </div>
@@ -546,14 +852,14 @@ export function ImportadorCard({ processo }: { processo: Processo }) {
           <button 
             type="submit" 
             disabled={loading} 
-            className="flex items-center gap-2 bg-[#1a365d] hover:bg-blue-900 text-white px-6 py-2.5 rounded-lg font-semibold text-sm transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-2 bg-[#1a365d] hover:bg-blue-900 text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
-              <span>Salvando dados do importador...</span>
+              <span>Salvando dados...</span>
             ) : (
               <>
                 <Check className="w-4 h-4 text-white" />
-                <span>Salvar Dados do Importador</span>
+                <span>Salvar Dados de Importador & Comprador</span>
               </>
             )}
           </button>
