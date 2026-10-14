@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import {
   COTACOES_INICIAIS,
   CotacoesMercadoState,
-  simularTickMercado,
   calcularParidadeExportacaoSoja,
   ContratoCotacao,
   VARIEDADES_FEIJAO_ASIA,
@@ -17,8 +16,6 @@ import {
   TrendingUp,
   TrendingDown,
   Activity,
-  Play,
-  Pause,
   RefreshCw,
   Calculator,
   DollarSign,
@@ -35,6 +32,7 @@ import {
   Compass,
   CheckCircle2,
   Copy,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   LineChart,
@@ -54,10 +52,9 @@ export function WallStreetTerminalClient() {
   const [mercado, setMercado] = useState<CotacoesMercadoState>(() =>
     JSON.parse(JSON.stringify(COTACOES_INICIAIS))
   );
-  // Por padrão o live feed suave fica ativo com sincronização oficial e sem piscar em branco
-  const [simuladorAtivo, setSimuladorAtivo] = useState(false);
   const [tabAtiva, setTabAtiva] = useState<TabView>('GERAL');
   const [tickCounter, setTickCounter] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
   // Parâmetros da Calculadora de Paridade de Exportação (Soja Santos)
   const [paridadeCbot, setParidadeCbot] = useState<number>(1032.50);
@@ -248,6 +245,7 @@ export function WallStreetTerminalClient() {
 
   // Carga inicial e atualização periódica oficial a cada 5 minutos (300s) com contagem regressiva
   useEffect(() => {
+    setMounted(true);
     carregarCotacoesOficiais();
 
     const countdownInterval = setInterval(() => {
@@ -262,18 +260,6 @@ export function WallStreetTerminalClient() {
 
     return () => clearInterval(countdownInterval);
   }, []);
-
-  // Intervalo do simulador suave de pregão (apenas se o usuário ativar explicitamente)
-  useEffect(() => {
-    if (!simuladorAtivo) return;
-
-    const timer = setInterval(() => {
-      setMercado((prev) => simularTickMercado(prev));
-      setTickCounter((c) => c + 1);
-    }, 6000);
-
-    return () => clearInterval(timer);
-  }, [simuladorAtivo]);
 
   // Atualiza contrato selecionado quando os dados do mercado atualizarem
   useEffect(() => {
@@ -356,71 +342,94 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
       {/* ========================================================================= */}
       <div className="bg-[#070b13] border border-slate-800 text-slate-100 rounded-2xl shadow-2xl overflow-hidden">
         
-        {/* BARRA SUPERIOR DE STATUS DE MERCADO */}
-        <div className="px-5 py-3 border-b border-slate-800/80 bg-slate-900/80 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-              <span className="font-mono font-black tracking-wider text-emerald-400">
-                PREGÃO ELETRÔNICO · BELA CEREAIS
+        {/* BARRA SUPERIOR DE STATUS DE MERCADO E CONTROLES DE SINCRONIZAÇÃO */}
+        <div className="px-5 py-3.5 border-b border-slate-800/80 bg-slate-900/95 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          
+          {/* LADO ESQUERDO: IDENTIFICAÇÃO E CERTIFICADO DE DADOS OFICIAIS */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="font-mono font-black tracking-wider text-sm text-white">
+                PREGÃO &amp; COTAÇÕES OFICIAIS
               </span>
             </div>
-            <span className="text-slate-600 hidden sm:inline">|</span>
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[10px]">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              <span>OFICIAL: {fonteOficial} {ultimaAtualizacaoOficial ? `(${ultimaAtualizacaoOficial})` : ''}</span>
+
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[11px] font-bold">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>DADOS 100% OFICIAIS · BACEN PTAX · CBOT · B3</span>
             </div>
-            <div className="hidden xl:flex items-center gap-4 text-slate-400 font-mono text-[11px]">
-              <span>MUMBAI (IST): {new Date().toLocaleTimeString('pt-BR', { timeZone: 'Asia/Kolkata' })}</span>
-              <span>XANGAI (CST): {new Date().toLocaleTimeString('pt-BR', { timeZone: 'Asia/Shanghai' })}</span>
-              <span className="text-amber-400 font-bold">B3 (SP): {new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+
+            {ultimaAtualizacaoOficial && (
+              <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">
+                Sincronizado: <span className="text-slate-200 font-bold">{ultimaAtualizacaoOficial}</span>
+              </span>
+            )}
+          </div>
+
+          {/* CENTRO: RELÓGIOS DOS CENTROS DE PREGÃO */}
+          <div className="flex items-center flex-wrap gap-2 text-xs font-mono">
+            <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span className="text-slate-400 text-[10px] font-semibold">B3 (SP):</span>
+              <span className="font-bold text-emerald-400">
+                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              </span>
+            </div>
+
+            <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              <span className="text-slate-400 text-[10px] font-semibold">CBOT:</span>
+              <span className="font-bold text-white">
+                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit' }) : '--:--'}
+              </span>
+            </div>
+
+            <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+              <span className="text-slate-400 text-[10px] font-semibold">MUMBAI:</span>
+              <span className="font-bold text-white">
+                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }) : '--:--'}
+              </span>
+            </div>
+
+            <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm hidden md:flex">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+              <span className="text-slate-400 text-[10px] font-semibold">XANGAI:</span>
+              <span className="font-bold text-white">
+                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' }) : '--:--'}
+              </span>
             </div>
           </div>
 
-          {/* CONTROLES AO VIVO */}
-          <div className="flex items-center flex-wrap gap-2.5">
+          {/* LADO DIREITO: AUTO-REFRESH 5 MIN E BOTÃO DE ATUALIZAR */}
+          <div className="flex items-center gap-2.5 justify-end">
             {/* BADGE DE AUTO-REFRESH A CADA 5 MINUTOS */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/60 border border-slate-700/80 text-xs font-mono shadow-inner" title="Atualização automática dos valores programada a cada 5 minutos">
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 border border-slate-800 text-xs font-mono shadow-inner"
+              title="Atualização automática dos valores programada a cada 5 minutos"
+            >
               <div className="relative flex items-center justify-center">
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               </div>
-              <span className="text-slate-400 hidden sm:inline">Auto-refresh (5 min):</span>
-              <span className="text-amber-300 font-black">
+              <span className="text-slate-400 text-[11px] hidden sm:inline whitespace-nowrap">Auto-refresh (5m):</span>
+              <span className="text-amber-300 font-black tracking-wide">
                 {Math.floor(segundosAteAtualizacao / 60)}:{(segundosAteAtualizacao % 60).toString().padStart(2, '0')}
               </span>
             </div>
 
-            <button
-              onClick={() => setSimuladorAtivo(!simuladorAtivo)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                simuladorAtivo
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
-                  : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-              }`}
-              title="Ativar/desativar oscilação simulada de pregão"
-            >
-              {simuladorAtivo ? (
-                <>
-                  <Pause className="w-3.5 h-3.5" />
-                  <span>SIMULADOR ON</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5" />
-                  <span>MODO OFICIAL ESTÁVEL</span>
-                </>
-              )}
-            </button>
-
+            {/* BOTÃO ATUALIZAR AGORA (AÇÃO PRIMÁRIA ÚNICA - SEM MODO SIMULADOR) */}
             <button
               onClick={handleForcarTick}
               disabled={carregandoOficial}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-              title="Atualizar cotações oficiais imediatamente e reiniciar contador de 5 min"
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-slate-950 border border-emerald-400/40 rounded-xl text-xs font-mono font-black flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-950/40 disabled:opacity-50"
+              title="Sincronizar dados oficiais com Banco Central e bolsas imediatamente"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${carregandoOficial ? 'animate-spin text-emerald-400' : ''}`} />
-              <span>{carregandoOficial ? 'Buscando...' : 'Atualizar Agora'}</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${carregandoOficial ? 'animate-spin' : ''}`} />
+              <span>{carregandoOficial ? 'Sincronizando...' : 'Atualizar Agora'}</span>
             </button>
           </div>
         </div>
