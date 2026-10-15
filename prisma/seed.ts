@@ -9,11 +9,32 @@ import { CHECKLIST_ETAPAS, TIPOS_DOCUMENTO_CHECKLIST } from './checklistData';
 const prisma = new PrismaClient();
 
 async function main() {
-  // 0. Usuário padrão de desenvolvimento
+  // 0. Usuários padrão (com senha padrão admin123 criptografada via bcrypt)
+  const bcrypt = await import('bcryptjs');
+  const senhaHash = await bcrypt.default.hash('admin123', 10);
+
+  await prisma.usuario.upsert({
+    where: { email: 'admin@belacereais.com.br' },
+    update: { senhaHash, papel: Papel.ADMIN, ativo: true },
+    create: {
+      nome: 'Administrador Bela Cereais',
+      email: 'admin@belacereais.com.br',
+      senhaHash,
+      papel: Papel.ADMIN,
+      ativo: true,
+    },
+  });
+
   await prisma.usuario.upsert({
     where: { email: 'dev@belacereais.local' },
-    update: {},
-    create: { nome: 'Admin (Dev)', email: 'dev@belacereais.local', papel: Papel.ADMIN },
+    update: { senhaHash, papel: Papel.ADMIN, ativo: true },
+    create: {
+      nome: 'Admin (Dev)',
+      email: 'dev@belacereais.local',
+      senhaHash,
+      papel: Papel.ADMIN,
+      ativo: true,
+    },
   });
 
   // 1. Parceiros externos

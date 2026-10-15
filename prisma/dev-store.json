@@ -1,10 +1,22 @@
 {
   "usuarios": [
     {
+      "id": "usr_admin_principal",
+      "nome": "Administrador Bela Cereais",
+      "email": "admin@belacereais.com.br",
+      "senhaHash": "$2b$10$yRoQm3q1YO96MOvhwgGFieNmCSuyhC.fG9kNcvfkQTU8ji7UfbCQW",
+      "papel": "ADMIN",
+      "ativo": true,
+      "criadoEm": "2026-09-01T08:00:00.000Z",
+      "atualizadoEm": "2026-09-01T08:00:00.000Z"
+    },
+    {
       "id": "usr_dev_admin",
       "nome": "Admin (Dev)",
       "email": "dev@belacereais.local",
+      "senhaHash": "$2b$10$yRoQm3q1YO96MOvhwgGFieNmCSuyhC.fG9kNcvfkQTU8ji7UfbCQW",
       "papel": "ADMIN",
+      "ativo": true,
       "criadoEm": "2026-09-01T08:00:00.000Z",
       "atualizadoEm": "2026-09-01T08:00:00.000Z"
     }

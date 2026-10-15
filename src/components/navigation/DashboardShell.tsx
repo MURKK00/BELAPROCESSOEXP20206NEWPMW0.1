@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSession, signOut } from 'next-auth/react';
 import { Sidebar } from '@/components/Sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { 
@@ -14,7 +15,9 @@ import {
   Handshake, 
   DollarSign, 
   TrendingUp,
-  Sparkles
+  Sparkles,
+  LogOut,
+  User
 } from 'lucide-react';
 
 interface DashboardShellProps {
@@ -22,6 +25,7 @@ interface DashboardShellProps {
 }
 
 export function DashboardShell({ children }: DashboardShellProps) {
+  const { data: session } = useSession();
   // Estado para recolher/minimizar sidebar no desktop via setinha
   const [isCollapsed, setIsCollapsed] = useState(false);
   // Estado para abrir/fechar drawer no mobile
@@ -195,12 +199,41 @@ export function DashboardShell({ children }: DashboardShellProps) {
             </div>
 
             {/* Rodapé Mobile */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Sistema Online</span>
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-3 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Sistema Online</span>
+                </div>
+                <ThemeToggle />
               </div>
-              <ThemeToggle />
+
+              {/* Informações do Usuário no Mobile & Botão Sair */}
+              {session?.user && (
+                <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold flex items-center justify-center shrink-0 text-xs">
+                      {(session.user.name || session.user.email || 'A')[0].toUpperCase()}
+                    </div>
+                    <div className="truncate text-left">
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                        {session.user.name || 'Administrador'}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">
+                        {session.user.email}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/60 transition-colors shrink-0 cursor-pointer"
+                    title="Sair do sistema"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -246,11 +279,33 @@ export function DashboardShell({ children }: DashboardShellProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-              <span className="hidden lg:inline">Sistema Online</span>
-            </div>
+          <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
+            {/* USUÁRIO AUTENTICADO & BOTÃO SAIR */}
+            {session?.user && (
+              <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-slate-200/80 dark:border-slate-800">
+                <div className="hidden sm:flex items-center gap-2 bg-slate-100/80 dark:bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700/80 text-xs">
+                  <div className="w-5 h-5 rounded-full bg-orange-500 text-white font-black text-[10px] flex items-center justify-center">
+                    {(session.user.name || session.user.email || 'A')[0].toUpperCase()}
+                  </div>
+                  <span className="font-bold text-slate-700 dark:text-slate-200 max-w-[120px] truncate">
+                    {session.user.name || session.user.email}
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black tracking-wider bg-orange-500/15 text-orange-600 dark:text-orange-400 uppercase">
+                    {(session.user as any).role || (session.user as any).papel || 'ADMIN'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/50 dark:text-slate-300 dark:hover:text-rose-400 text-xs font-bold border border-slate-200 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-900/50 transition-all cursor-pointer shadow-2xs"
+                  title="Sair do sistema (Logout)"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Sair</span>
+                </button>
+              </div>
+            )}
 
             {/* SELETOR DE MODO CLARO / ESCURO */}
             <ThemeToggle />

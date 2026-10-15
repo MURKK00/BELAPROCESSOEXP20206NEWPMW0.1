@@ -39,10 +39,22 @@ function initMockStore(): MockStore {
   const store: MockStore = {
     usuarios: [
       {
+        id: 'usr_admin_principal',
+        nome: 'Administrador Bela Cereais',
+        email: 'admin@belacereais.com.br',
+        senhaHash: '$2b$10$pbhcS1a8GjPLThpTUtinN.sUhuNTjdLNfpBIU4iotF97VmbzIOnM2',
+        papel: Papel.ADMIN,
+        ativo: true,
+        criadoEm: new Date(),
+        atualizadoEm: new Date(),
+      },
+      {
         id: 'usr_dev_admin',
         nome: 'Admin (Dev)',
         email: 'dev@belacereais.local',
+        senhaHash: '$2b$10$pbhcS1a8GjPLThpTUtinN.sUhuNTjdLNfpBIU4iotF97VmbzIOnM2',
         papel: Papel.ADMIN,
+        ativo: true,
         criadoEm: new Date(),
         atualizadoEm: new Date(),
       },

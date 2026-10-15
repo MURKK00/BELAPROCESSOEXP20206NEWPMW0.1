@@ -23,9 +23,15 @@ model Usuario {
   id                 String          @id @default(cuid())
   nome               String
   email              String          @unique
-  papel              Papel
+  senhaHash          String?
+  papel              Papel           @default(ADMIN)
   ativo              Boolean         @default(true)
+  imagem             String?
   criadoEm           DateTime        @default(now())
+  atualizadoEm       DateTime        @default(now()) @updatedAt
+
+  accounts           Account[]
+  sessions           Session[]
 
   processosCriados   Processo[]      @relation("ProcessoCriadoPor")
   etapasResponsavel  ProcessoEtapa[] @relation("EtapaResponsavel")
@@ -33,6 +39,41 @@ model Usuario {
   mensagens          ChatMessage[]
   logs               AuditLog[]
   custosAtualizados  CustoItem[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user Usuario @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 // ---------------------------------------------------------------------------
