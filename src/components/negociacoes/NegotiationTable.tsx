@@ -651,9 +651,10 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
 
       {/* TABELA DE RESULTADOS */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs transition-colors">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider border-b border-slate-200/90 dark:border-slate-800 font-bold">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[850px]">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider border-b border-slate-200/90 dark:border-slate-800 font-bold">
               <th className="text-left px-6 py-4">Nº Processo</th>
               <th className="text-left px-6 py-4 whitespace-nowrap">Status</th>
               <th className="text-left px-6 py-4">Cliente</th>
@@ -835,6 +836,7 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
             })}
           </tbody>
         </table>
+        </div>
         {processosFiltrados.length === 0 && (
           <div className="p-8 text-center text-sm text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900">
             Nenhuma negociação encontrada com os filtros selecionados.

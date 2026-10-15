@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Users, CheckCircle2, Clock } from 'lucide-react';
 import { criarProcessoAction } from '@/server/actions/criarProcessoAction';
 import { Section, Field, SelectField, PRODUTOS_FEIJAO, TIPOS_FUMIGACAO } from '@/components/negociacoes/FormFields';
 import { IncotermSelectField } from '@/components/negociacoes/IncotermSelectField';
@@ -18,6 +20,12 @@ export const EMBALAGENS_OPTIONS = [
 ];
 
 export default function NovaNegociacaoPage() {
+  const router = useRouter();
+
+  // Estado para controlar se o comprador é diferente do importador
+  const [compradorDiferente, setCompradorDiferente] = useState(false);
+  const [clienteFinal, setClienteFinal] = useState('');
+
   // Estado para controlar se a fumigação é sim ou não
   const [fumigacao, setFumigacao] = useState('sim');
 
@@ -52,12 +60,121 @@ export default function NovaNegociacaoPage() {
 
   return (
     <div className="max-w-3xl">
-      <h2 className="text-2xl font-bold mb-6">Nova negociação</h2>
+      {/* CABEÇALHO COM SETINHA DE VOLTAR */}
+      <div className="flex items-center gap-3.5 mb-6">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all shadow-2xs group cursor-pointer"
+          title="Voltar para a página anterior"
+        >
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+        </button>
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Nova negociação</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Lançamento de novo processo de exportação
+          </p>
+        </div>
+      </div>
+
       <form action={criarProcessoAction} className="space-y-6">
 
         <Section title="Dados do contrato">
-          <Field label="Cliente final" name="clienteFinal" placeholder="Ex: AKSHAR AGRI INDIA PRIVATE LIMITED" required />
+          <Field
+            label="Cliente final"
+            name="clienteFinal"
+            placeholder="Ex: AKSHAR AGRI INDIA PRIVATE LIMITED"
+            required
+            value={clienteFinal}
+            onChange={(e) => setClienteFinal(e.target.value)}
+          />
           <Field label="Trader / Intermédio" name="traderIntermedio" placeholder="Ex: AgriTrading Partners SA" />
+
+          {/* PERGUNTA: O COMPRADOR (BUYER) É DIFERENTE DO IMPORTADOR (CONSIGNEE)? */}
+          <div className="col-span-full bg-slate-50 dark:bg-slate-850/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4.5 space-y-3.5 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                <Users className="w-4 h-4" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                  O Comprador (Buyer) é diferente do Importador (Consignee)?
+                </label>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Indique se o faturamento comercial e o desembaraço no destino são para entidades separadas. Esta definição já ficará marcada na aba Importador (buyer).
+                </p>
+              </div>
+            </div>
+
+            {/* SELETOR EM BOTÕES RADIO ESTILIZADOS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setCompradorDiferente(false)}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  !compradorDiferente
+                    ? 'bg-white dark:bg-slate-900 border-orange-500/80 ring-2 ring-orange-500/20 shadow-xs'
+                    : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                    Não — Mesma empresa
+                  </span>
+                  {!compradorDiferente && <CheckCircle2 className="w-4 h-4 text-orange-500" />}
+                </div>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Cliente Final é simultaneamente o Comprador e o Importador (Consignee).
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCompradorDiferente(true)}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  compradorDiferente
+                    ? 'bg-white dark:bg-slate-900 border-orange-500/80 ring-2 ring-orange-500/20 shadow-xs'
+                    : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                    Sim — Entidades diferentes
+                  </span>
+                  {compradorDiferente && <CheckCircle2 className="w-4 h-4 text-orange-500" />}
+                </div>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Faturamento para o Comprador (Buyer) e Entrega/BL para o Importador (Consignee).
+                </span>
+              </button>
+            </div>
+
+            {/* CAMPO OCULTO ENVIADO NO FORMDATA */}
+            <input
+              type="hidden"
+              name="compradorDiferente"
+              value={compradorDiferente ? 'sim' : 'nao'}
+            />
+
+            {/* QUANDO MARCADO SIM: NÃO EXIBE CAMPOS AGORA, SÓ DEIXA MARCADO E PENDENTE NA NEGOCIAÇÃO */}
+            {compradorDiferente && (
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 animate-fadeIn">
+                <div className="p-3 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 text-[11px] font-medium text-orange-900 dark:text-orange-200 flex items-start gap-2.5">
+                  <Clock className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block text-xs">
+                      ✓ Definição registrada: Comprador e Importador separados
+                    </span>
+                    <span className="text-[11px] text-orange-800 dark:text-orange-300 block mt-0.5">
+                      Nenhum dado cadastral precisa ser preenchido agora. A negociação será criada com a separação já ativada e os campos de cada empresa ficarão <strong>pendentes para preenchimento na aba &quot;Importador (buyer)&quot;</strong> dentro do processo.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <IncotermSelectField defaultValue="CFR" required />
           
           {/* Porto de Origem como lista suspensa */}

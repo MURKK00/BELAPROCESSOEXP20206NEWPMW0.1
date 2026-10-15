@@ -16,7 +16,8 @@ import {
   ChevronRight,
   ExternalLink,
   Edit3,
-  MessageSquare
+  MessageSquare,
+  ArrowLeft
 } from 'lucide-react';
 import { formatDateBR, STATUS_NEGOCIACAO_MAP } from '@/lib/formatters';
 import { StatusSelect } from '@/components/negociacoes/StatusSelect';
@@ -100,27 +101,37 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xs p-5 mb-6 space-y-4 transition-colors">
       
-      {/* LINHA SUPERIOR: TÍTULO, STATUS E AÇÃO PRIMÁRIA */}
+      {/* LINHA SUPERIOR: SETINHA DE VOLTAR, TÍTULO, STATUS E AÇÃO PRIMÁRIA */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs uppercase font-extrabold tracking-wider text-slate-400 dark:text-slate-500">
-              Processo de Exportação
-            </span>
-            <span className="text-slate-300 dark:text-slate-700">•</span>
-            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-              {processo.produto} ({processo.incoterm || 'FOB'} → {processo.portoDestino})
-            </span>
-          </div>
+        <div className="flex items-start gap-3 sm:gap-3.5">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="p-2 sm:p-2.5 mt-0.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-600 dark:text-slate-300 border border-slate-200/90 dark:border-slate-700 transition-colors shadow-2xs group cursor-pointer shrink-0"
+            title="Voltar para a página anterior"
+          >
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="text-xs uppercase font-extrabold tracking-wider text-slate-400 dark:text-slate-500">
+                Processo de Exportação
+              </span>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                {processo.produto} ({processo.incoterm || 'FOB'} → {processo.portoDestino})
+              </span>
+            </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              {processo.numeroProcesso}
-            </h1>
-            <span className="text-lg text-slate-300 dark:text-slate-700 font-normal">·</span>
-            <span className="text-lg font-bold text-slate-700 dark:text-slate-300">
-              {processo.clienteFinal}
-            </span>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                {processo.numeroProcesso}
+              </h1>
+              <span className="text-lg text-slate-300 dark:text-slate-700 font-normal">·</span>
+              <span className="text-lg font-bold text-slate-700 dark:text-slate-300">
+                {processo.clienteFinal}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -133,12 +144,15 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
             <StatusSelect processoId={processo.id} status={processo.status} />
           </div>
 
-          <Link
-            href="/negociacoes"
-            className="px-3.5 py-3 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-colors shadow-2xs self-center"
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="px-3.5 py-3 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-colors shadow-2xs self-center flex items-center gap-1.5 cursor-pointer"
+            title="Voltar para onde estava antes"
           >
-            ← Voltar
-          </Link>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Voltar</span>
+          </button>
         </div>
       </div>
 

@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { criarProcesso } from '@/server/services/processoService';
 import { getSessionUser } from '@/lib/auth';
+import { formatComplementoWithComprador } from '@/lib/compradorHelper';
 
 function parseSimNao(value: FormDataEntryValue | null): boolean | undefined {
   if (value === 'sim') return true;
@@ -19,8 +20,18 @@ export async function criarProcessoAction(formData: FormData) {
   const user = await getSessionUser();
   if (!user) throw new Error('Não autenticado — rode o seed (npm run db:seed) para criar o usuário de dev.');
 
+  const compradorDiferente = formData.get('compradorDiferente') === 'sim';
+  const clienteFinal = String(formData.get('clienteFinal') ?? '').trim();
+
+  // Se o comprador for diferente, salva a marcação como diferente e deixa os campos cadastrais pendentes para a aba Importador (buyer)
+  const complementoBuyer = formatComplementoWithComprador('', {
+    diferente: compradorDiferente,
+    nome: '',
+    importadorNome: clienteFinal,
+  });
+
   const processo = await criarProcesso({
-    clienteFinal: String(formData.get('clienteFinal') ?? ''),
+    clienteFinal,
     traderIntermedio: String(formData.get('traderIntermedio') ?? '') || undefined,
     produto: String(formData.get('produto') ?? ''),
     volumeKg: Number(formData.get('volumeKg') ?? 0),
@@ -54,6 +65,7 @@ export async function criarProcessoAction(formData: FormData) {
     estufagemFim: parseDate(formData.get('estufagemFim')),
     mapaNaSequencia: parseSimNao(formData.get('mapaNaSequencia')),
     ncm: String(formData.get('ncm') ?? '') || undefined,
+    complementoBuyer,
 
     criadoPorId: user.id,
   });

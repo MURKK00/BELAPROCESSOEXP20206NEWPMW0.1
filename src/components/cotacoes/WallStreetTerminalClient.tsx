@@ -336,14 +336,125 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
   const eur = mercado.cambio.euroComercial;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 select-none">
+    <div className="space-y-5 max-w-7xl mx-auto pb-12 select-none">
+      {/* ========================================================================= */}
+      {/* 0. RELÓGIOS MUNDIAIS DOS CENTROS DE PREGÃO (CENTRALIZADOS E COM BANDEIRAS) */}
+      {/* ========================================================================= */}
+      <div className="w-full">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+          {/* 1. BRASIL / B3 (SP) */}
+          <div className="bg-gradient-to-b from-slate-900/95 via-[#0c1322] to-slate-950 border border-slate-800/90 hover:border-emerald-500/40 rounded-2xl p-3 sm:p-3.5 shadow-lg flex items-center justify-between gap-3 transition-all group">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="Brasil">🇧🇷</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                  <span className="text-xs font-mono font-black text-slate-200 tracking-wider uppercase truncate">
+                    B3 · SÃO PAULO
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 block truncate mt-0.5">
+                  BM&amp;F · Futuros Agro (BRT)
+                </span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="font-mono font-black text-sm sm:text-base text-emerald-400 tracking-wider block">
+                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              </span>
+              <span className="text-[9px] font-mono font-bold text-emerald-500/90 uppercase tracking-widest block">
+                PREGÃO ATIVO
+              </span>
+            </div>
+          </div>
+
+          {/* 2. EUA / CBOT CHICAGO */}
+          <div className="bg-gradient-to-b from-slate-900/95 via-[#0c1322] to-slate-950 border border-slate-800/90 hover:border-amber-500/40 rounded-2xl p-3 sm:p-3.5 shadow-lg flex items-center justify-between gap-3 transition-all group">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="Estados Unidos">🇺🇸</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                  <span className="text-xs font-mono font-black text-slate-200 tracking-wider uppercase truncate">
+                    CBOT · CHICAGO
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 block truncate mt-0.5">
+                  CME · Soja &amp; Milho (CT)
+                </span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="font-mono font-black text-sm sm:text-base text-amber-300 tracking-wider block">
+                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              </span>
+              <span className="text-[9px] font-mono font-bold text-amber-400/90 uppercase tracking-widest block">
+                MERCADO CME
+              </span>
+            </div>
+          </div>
+
+          {/* 3. ÍNDIA / MUMBAI */}
+          <div className="bg-gradient-to-b from-slate-900/95 via-[#0c1322] to-slate-950 border border-slate-800/90 hover:border-blue-500/40 rounded-2xl p-3 sm:p-3.5 shadow-lg flex items-center justify-between gap-3 transition-all group">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="Índia">🇮🇳</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
+                  <span className="text-xs font-mono font-black text-slate-200 tracking-wider uppercase truncate">
+                    NCDEX · MUMBAI
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 block truncate mt-0.5">
+                  Pulses &amp; Feijão Mungo (IST)
+                </span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="font-mono font-black text-sm sm:text-base text-cyan-300 tracking-wider block">
+                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              </span>
+              <span className="text-[9px] font-mono font-bold text-blue-400/90 uppercase tracking-widest block">
+                ÁSIA MERIDIONAL
+              </span>
+            </div>
+          </div>
+
+          {/* 4. CHINA / DALIAN & XANGAI */}
+          <div className="bg-gradient-to-b from-slate-900/95 via-[#0c1322] to-slate-950 border border-slate-800/90 hover:border-rose-500/40 rounded-2xl p-3 sm:p-3.5 shadow-lg flex items-center justify-between gap-3 transition-all group">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="China">🇨🇳</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0"></span>
+                  <span className="text-xs font-mono font-black text-slate-200 tracking-wider uppercase truncate">
+                    DCE · XANGAI
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 block truncate mt-0.5">
+                  Complexo Soja &amp; Grãos (CST)
+                </span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="font-mono font-black text-sm sm:text-base text-rose-300 tracking-wider block">
+                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              </span>
+              <span className="text-[9px] font-mono font-bold text-rose-400/90 uppercase tracking-widest block">
+                MERCADO ASIÁTICO
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ========================================================================= */}
       {/* 1. CHASSIS WALL STREET: HEADER & TICKER TAPE BAR CONTÍNUO                */}
       {/* ========================================================================= */}
       <div className="bg-[#070b13] border border-slate-800 text-slate-100 rounded-2xl shadow-2xl overflow-hidden">
         
         {/* BARRA SUPERIOR DE STATUS DE MERCADO E CONTROLES DE SINCRONIZAÇÃO */}
-        <div className="px-5 py-3.5 border-b border-slate-800/80 bg-slate-900/95 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="px-5 py-3.5 border-b border-slate-800/80 bg-slate-900/95 flex flex-col md:flex-row md:items-center justify-between gap-4">
           
           {/* LADO ESQUERDO: IDENTIFICAÇÃO E CERTIFICADO DE DADOS OFICIAIS */}
           <div className="flex flex-wrap items-center gap-3">
@@ -367,41 +478,6 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
                 Sincronizado: <span className="text-slate-200 font-bold">{ultimaAtualizacaoOficial}</span>
               </span>
             )}
-          </div>
-
-          {/* CENTRO: RELÓGIOS DOS CENTROS DE PREGÃO */}
-          <div className="flex items-center flex-wrap gap-2 text-xs font-mono">
-            <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              <span className="text-slate-400 text-[10px] font-semibold">B3 (SP):</span>
-              <span className="font-bold text-emerald-400">
-                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
-              </span>
-            </div>
-
-            <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-              <span className="text-slate-400 text-[10px] font-semibold">CBOT:</span>
-              <span className="font-bold text-white">
-                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit' }) : '--:--'}
-              </span>
-            </div>
-
-            <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-              <span className="text-slate-400 text-[10px] font-semibold">MUMBAI:</span>
-              <span className="font-bold text-white">
-                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }) : '--:--'}
-              </span>
-            </div>
-
-            <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm hidden md:flex">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
-              <span className="text-slate-400 text-[10px] font-semibold">XANGAI:</span>
-              <span className="font-bold text-white">
-                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' }) : '--:--'}
-              </span>
-            </div>
           </div>
 
           {/* LADO DIREITO: AUTO-REFRESH 5 MIN E BOTÃO DE ATUALIZAR */}
@@ -552,8 +628,8 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
         </div>
 
         {/* BARRA DE NAVEGAÇÃO DE ABAS DO TERMINAL */}
-        <div className="px-5 py-3 bg-[#0a0e17] border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-900/90 rounded-xl border border-slate-800">
+        <div className="px-4 sm:px-5 py-3 bg-[#0a0e17] border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-900/90 rounded-xl border border-slate-800 overflow-x-auto no-scrollbar max-w-full">
             {[
               { id: 'GERAL', label: 'Visão Geral Mercado', icon: Globe2 },
               { id: 'FEIJOES_ASIA', label: 'Feijões & Ásia (US$)', icon: Ship, highlight: true },
@@ -567,7 +643,7 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
                 <button
                   key={tab.id}
                   onClick={() => setTabAtiva(tab.id as TabView)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                     ativa
                       ? tab.highlight
                         ? 'bg-amber-500 text-slate-950 shadow-md font-black'

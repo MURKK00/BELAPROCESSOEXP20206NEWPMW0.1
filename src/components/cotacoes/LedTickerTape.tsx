@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ExternalLink, RefreshCw } from 'lucide-react';
 
 interface TickerItem {
   id: string;
@@ -369,34 +367,22 @@ export function LedTickerTape() {
     <div className="w-full relative overflow-hidden bg-[#070b12] border-y border-slate-800 shadow-inner group">
       {/* Moldura de LED com efeito de painel eletrônico de bolsa */}
       <div className="flex items-center">
-        {/* BLOCO FIXO ESQUERDA: IDENTIFICADOR DO PAINEL DE LED */}
-        <div className="shrink-0 z-20 flex items-center gap-2 bg-[#05080e] px-3.5 py-2 border-r border-slate-800/90 shadow-md">
-          <span className="relative flex h-2.5 w-2.5">
+        {/* BLOCO FIXO ESQUERDA: APENAS COTAÇÕES */}
+        <div className="shrink-0 z-20 flex items-center gap-2 bg-[#05080e] px-2.5 sm:px-3 py-2 border-r border-slate-800/90 shadow-md">
+          <span className="relative flex h-2 w-2 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-          <div className="leading-none">
-            <div className="text-[10px] font-black tracking-widest text-emerald-400 font-mono uppercase flex items-center gap-1">
-              <span>COTAÇÕES LED</span>
-            </div>
-            <div className="text-[9px] text-slate-500 font-mono mt-0.5">
-              {horaAtualizacao !== '--:--' ? horaAtualizacao : 'TEMPO REAL'}
-            </div>
-          </div>
-          <button
-            onClick={fetchLiveQuotes}
-            title="Atualizar cotações oficiais agora"
-            className="text-slate-500 hover:text-emerald-400 transition-colors p-1"
-          >
-            <RefreshCw className={`w-3 h-3 ${carregando ? 'animate-spin text-emerald-400' : ''}`} />
-          </button>
+          <span className="text-[11px] font-black tracking-wider text-emerald-400 font-mono uppercase whitespace-nowrap">
+            COTAÇÕES
+          </span>
         </div>
 
-        {/* ESTEIRA HORIZONTAL INFINITA DE LED */}
+        {/* ESTEIRA HORIZONTAL INFINITA DE LED (OCUPA PRATICAMENTE TODA A LARGURA DA TELA) */}
         <div className="flex-1 overflow-hidden relative py-2">
           {/* Degradê de fade nas bordas para sensação de tela contínua */}
-          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#070b12] to-transparent z-10" />
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#070b12] to-transparent z-10" />
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 sm:w-8 bg-gradient-to-r from-[#070b12] to-transparent z-10" />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 sm:w-8 bg-gradient-to-l from-[#070b12] to-transparent z-10" />
 
           <div className="animate-led-marquee flex items-center">
             {/* DUPLICAMOS O ARRAY PARA LOOP CONTÍNUO PERFEITO SEM CORTES */}
@@ -405,15 +391,15 @@ export function LedTickerTape() {
               return (
                 <div
                   key={`${item.id}-${idx}`}
-                  className="inline-flex items-center gap-2.5 px-5 font-mono text-xs select-none border-r border-slate-800/50"
+                  className="inline-flex items-center gap-2 sm:gap-2.5 px-3.5 sm:px-5 font-mono text-xs select-none border-r border-slate-800/50 shrink-0"
                 >
                   {/* Ticker / Nome do Ativo */}
-                  <span className="font-extrabold text-amber-300 tracking-wider text-[11px] drop-shadow-[0_0_6px_rgba(252,211,77,0.4)]">
+                  <span className="font-extrabold text-amber-300 tracking-wider text-[11px] drop-shadow-[0_0_6px_rgba(252,211,77,0.4)] whitespace-nowrap">
                     {item.ticker}
                   </span>
 
                   {/* Valor Principal com brilho de LED */}
-                  <span className="font-bold text-white text-[12px] tracking-tight">
+                  <span className="font-bold text-white text-[12px] tracking-tight whitespace-nowrap">
                     {item.precoStr}
                     <span className="text-[10px] text-slate-400 font-normal ml-1">
                       {item.unidade}
@@ -422,7 +408,7 @@ export function LedTickerTape() {
 
                   {/* Variação em LED Verde/Vermelho */}
                   <span
-                    className={`text-[11px] font-bold flex items-center gap-0.5 ${
+                    className={`text-[11px] font-bold flex items-center gap-0.5 whitespace-nowrap ${
                       isPositivo
                         ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.7)]'
                         : 'text-rose-400 drop-shadow-[0_0_8px_rgba(244,63,94,0.7)]'
@@ -437,7 +423,7 @@ export function LedTickerTape() {
 
                   {/* Informação adicional de paridade ou mercado */}
                   {item.subinfo && (
-                    <span className="text-[10px] text-slate-500 font-sans font-medium bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-800">
+                    <span className="text-[10px] text-slate-500 font-sans font-medium bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-800 whitespace-nowrap hidden sm:inline">
                       {item.subinfo}
                     </span>
                   )}
@@ -448,18 +434,6 @@ export function LedTickerTape() {
               );
             })}
           </div>
-        </div>
-
-        {/* BLOCO FIXO DIREITA: LINK PARA WALL STREET COMPLETO */}
-        <div className="shrink-0 z-20 flex items-center bg-[#05080e] px-3 py-2 border-l border-slate-800/90 shadow-md">
-          <Link
-            href="/cotacoes"
-            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-emerald-400 transition-colors font-mono"
-            title="Abrir painel completo interativo de Wall Street"
-          >
-            <span>PAINEL WALL ST</span>
-            <ExternalLink className="w-3 h-3 text-emerald-400" />
-          </Link>
         </div>
       </div>
     </div>

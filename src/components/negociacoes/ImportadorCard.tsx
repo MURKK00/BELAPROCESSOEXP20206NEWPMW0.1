@@ -19,7 +19,8 @@ import {
   Layers,
   ArrowRight,
   ExternalLink,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 
 interface ImportadorCardProps {
@@ -40,7 +41,7 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
   const [compradorDiferente, setCompradorDiferente] = useState<boolean>(comprador.diferente);
 
   // Estado dos campos do Comprador (Buyer) quando diferente
-  const [compradorNome, setCompradorNome] = useState(comprador.nome || processo.clienteFinal);
+  const [compradorNome, setCompradorNome] = useState(comprador.nome || '');
   const [compradorEndereco, setCompradorEndereco] = useState(comprador.endereco || '');
   const [compradorComplemento, setCompradorComplemento] = useState(comprador.complemento || '');
   const [compradorCidade, setCompradorCidade] = useState(comprador.cidade || '');
@@ -317,6 +318,21 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
           </div>
         </div>
       </div>
+
+      {/* AVISO DE CADASTRO PENDENTE QUANDO COMPRADOR DIFERENTE E DADOS AINDA NÃO PREENCHIDOS */}
+      {compradorDiferente && !compradorNome && (
+        <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs shadow-2xs animate-fadeIn">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-bold block text-sm text-amber-900">
+              ⚠️ Cadastro Pendente: Comprador e Importador definidos como entidades separadas
+            </span>
+            <span className="text-[11px] text-amber-800 block">
+              Esta negociação foi registrada na abertura com a separação entre <strong>Comprador (Buyer)</strong> e <strong>Importador (Consignee)</strong>. Preencha os dados de cada entidade abaixo e clique em &quot;Salvar Dados do Importador / Comprador&quot; para atualizar a emissão de documentos.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* SELETOR DE PRESET / CONTEXTO REGIONAL DO IMPORTADOR */}
       <div className="bg-gray-50 border border-gray-200/80 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -720,7 +736,7 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   value={compradorNome}
                   onChange={(e) => setCompradorNome(e.target.value)}
                   className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
-                  placeholder="Ex: AGRI FORTUNE PTE LTD"
+                  placeholder="Pendente de preenchimento — Ex: AGRI FORTUNE PTE LTD"
                 />
                 <span className="text-[11px] text-gray-400 mt-1 block">
                   Razão social da empresa compradora que constará no contrato de venda e fatura pro-forma.

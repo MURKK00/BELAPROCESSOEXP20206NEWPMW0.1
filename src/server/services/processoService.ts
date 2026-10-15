@@ -37,6 +37,10 @@ export async function criarProcesso(input: {
   deadlineCarga?: Date;
   mapaNaSequencia?: boolean;
   ncm?: string;
+  complementoBuyer?: string;
+  paisBuyer?: string;
+  cidadeBuyer?: string;
+  enderecoBuyer?: string;
   criadoPorId: string;
 }) {
   // Pega o ano atual (ex: 2026) e o início do ano para contar os processos anuais
@@ -100,6 +104,10 @@ export async function criarProcesso(input: {
             estufagemFim: input.estufagemFim,
             mapaNaSequencia: input.mapaNaSequencia,
             ncm: input.ncm,
+            complementoBuyer: input.complementoBuyer,
+            paisBuyer: input.paisBuyer,
+            cidadeBuyer: input.cidadeBuyer,
+            enderecoBuyer: input.enderecoBuyer,
             criadoPorId: input.criadoPorId,
             statusCache: 'Criado',
             etapas: {
