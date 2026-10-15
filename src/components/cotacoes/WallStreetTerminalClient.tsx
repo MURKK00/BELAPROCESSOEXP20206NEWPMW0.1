@@ -627,47 +627,45 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
           </div>
         </div>
 
-        {/* BARRA DE NAVEGAÇÃO DE ABAS DO TERMINAL */}
-        <div className="px-4 sm:px-5 py-3 bg-[#0a0e17] border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 p-1 bg-slate-900/90 rounded-xl border border-slate-800 overflow-x-auto no-scrollbar max-w-full">
+        {/* BARRA DE NAVEGAÇÃO DE ABAS DO TERMINAL (JUSTIFICADA DE PONTA A PONTA) */}
+        <div className="px-3 sm:px-4 py-2.5 bg-[#0a0e17] border-b border-slate-800 w-full">
+          <div className="w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 p-1 bg-slate-900/90 rounded-xl border border-slate-800">
             {[
               { id: 'GERAL', label: 'Visão Geral Mercado', icon: Globe2 },
               { id: 'FEIJOES_ASIA', label: 'Feijões & Ásia (US$)', icon: Ship, highlight: true },
               { id: 'CAMBIO_CURVA', label: 'Câmbio Dólar & Curva', icon: DollarSign },
               { id: 'GRAOS', label: 'CBOT Soja & Milho B3', icon: Activity },
               { id: 'PARIDADE', label: 'Calculadora de Paridade', icon: Calculator },
-            ].map((tab) => {
+            ].map((tab, idx) => {
               const Icon = tab.icon;
               const ativa = tabAtiva === tab.id;
+              const isUltimo = idx === 4; // Calculadora de Paridade
               return (
                 <button
                   key={tab.id}
                   onClick={() => setTabAtiva(tab.id as TabView)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 sm:px-3 py-2 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer text-center w-full ${
+                    isUltimo ? 'col-span-2 sm:col-span-1 lg:col-span-1' : ''
+                  } ${
                     ativa
                       ? tab.highlight
                         ? 'bg-amber-500 text-slate-950 shadow-md font-black'
                         : 'bg-emerald-500 text-slate-950 shadow-md font-black'
                       : tab.highlight
-                        ? 'text-amber-400 hover:text-amber-300 hover:bg-slate-800/80'
+                        ? 'text-amber-400 hover:text-amber-300 hover:bg-slate-800/80 bg-slate-950/40'
                         : 'text-slate-300 hover:text-white hover:bg-slate-800/80'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span>{tab.label}</span>
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{tab.label}</span>
                   {tab.highlight && !ativa && (
-                    <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 text-[9px] font-black rounded uppercase">
+                    <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-300 text-[9px] font-black rounded uppercase shrink-0 hidden xl:inline">
                       Ásia
                     </span>
                   )}
                 </button>
               );
             })}
-          </div>
-
-          <div className="text-[11px] font-mono text-slate-400 flex items-center gap-2">
-            <span>Trading Desk:</span>
-            <span className="text-amber-400 font-bold">BELA CEREAIS · EXPORTAÇÃO CONTAINERIZADA</span>
           </div>
         </div>
       </div>
