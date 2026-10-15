@@ -26,6 +26,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const { data: session } = useSession();
+  const [localUser, setLocalUser] = useState<any>(null);
   // Estado para recolher/minimizar sidebar no desktop via setinha
   const [isCollapsed, setIsCollapsed] = useState(false);
   // Estado para abrir/fechar drawer no mobile
@@ -34,6 +35,12 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
   useEffect(() => {
     setMounted(true);
+    // Recupera usuário salvo no localStorage (resiliente para iframes com cookies restritos)
+    try {
+      const savedUser = localStorage.getItem('bela_user');
+      if (savedUser) setLocalUser(JSON.parse(savedUser));
+    } catch {}
+
     // Recupera preferência do usuário salva no navegador
     try {
       const saved = localStorage.getItem('sidebar_minimizada');
@@ -44,6 +51,23 @@ export function DashboardShell({ children }: DashboardShellProps) {
       // Ignora erro em ambientes sem localStorage
     }
   }, []);
+
+  const currentUser = session?.user || localUser;
+
+  async function handleLogout() {
+    try {
+      localStorage.removeItem('bela_user');
+      document.cookie = 'bela_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure';
+      document.cookie = 'bela_user_email=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure';
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+
+    try {
+      await signOut({ redirect: false });
+    } catch {}
+
+    window.location.href = '/login';
+  }
 
   const toggleCollapse = () => {
     setIsCollapsed((prev) => {
@@ -209,24 +233,24 @@ export function DashboardShell({ children }: DashboardShellProps) {
               </div>
 
               {/* Informações do Usuário no Mobile & Botão Sair */}
-              {session?.user && (
+              {currentUser && (
                 <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-7 h-7 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold flex items-center justify-center shrink-0 text-xs">
-                      {(session.user.name || session.user.email || 'A')[0].toUpperCase()}
+                      {(currentUser.name || currentUser.email || 'A')[0].toUpperCase()}
                     </div>
                     <div className="truncate text-left">
                       <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                        {session.user.name || 'Administrador'}
+                        {currentUser.name || 'Administrador'}
                       </div>
                       <div className="text-[10px] text-slate-400 truncate">
-                        {session.user.email}
+                        {currentUser.email}
                       </div>
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    onClick={handleLogout}
                     className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/60 transition-colors shrink-0 cursor-pointer"
                     title="Sair do sistema"
                   >
@@ -281,23 +305,23 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
           <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
             {/* USUÁRIO AUTENTICADO & BOTÃO SAIR */}
-            {session?.user && (
+            {currentUser && (
               <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-slate-200/80 dark:border-slate-800">
                 <div className="hidden sm:flex items-center gap-2 bg-slate-100/80 dark:bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700/80 text-xs">
                   <div className="w-5 h-5 rounded-full bg-orange-500 text-white font-black text-[10px] flex items-center justify-center">
-                    {(session.user.name || session.user.email || 'A')[0].toUpperCase()}
+                    {(currentUser.name || currentUser.email || 'A')[0].toUpperCase()}
                   </div>
                   <span className="font-bold text-slate-700 dark:text-slate-200 max-w-[120px] truncate">
-                    {session.user.name || session.user.email}
+                    {currentUser.name || currentUser.email}
                   </span>
                   <span className="px-1.5 py-0.2 rounded text-[9px] font-black tracking-wider bg-orange-500/15 text-orange-600 dark:text-orange-400 uppercase">
-                    {(session.user as any).role || (session.user as any).papel || 'ADMIN'}
+                    {(currentUser as any).role || (currentUser as any).papel || 'ADMIN'}
                   </span>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  onClick={handleLogout}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/50 dark:text-slate-300 dark:hover:text-rose-400 text-xs font-bold border border-slate-200 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-900/50 transition-all cursor-pointer shadow-2xs"
                   title="Sair do sistema (Logout)"
                 >

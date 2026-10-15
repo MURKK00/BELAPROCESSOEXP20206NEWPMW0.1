@@ -40,27 +40,48 @@ function LoginForm() {
     setCarregando(true);
 
     try {
-      const res = await signIn('credentials', {
-        email: email.trim().toLowerCase(),
-        password,
-        redirect: false,
-        callbackUrl,
+      // 1. Faz autenticação direta via API segura
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
       });
 
-      if (res?.error) {
-        if (res.error === 'CredentialsSignin' || res.error.includes('CredentialsSignin')) {
-          setErro('E-mail ou senha incorretos. Verifique suas credenciais.');
-        } else {
-          setErro(res.error || 'Credenciais inválidas. Verifique seu e-mail e senha.');
-        }
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setErro(data.error || 'E-mail ou senha incorretos. Verifique suas credenciais.');
         setCarregando(false);
-      } else if (res?.ok) {
-        // Redirecionamento completo para carregar sessão e passar pelo middleware imediatamente
-        window.location.href = callbackUrl;
-      } else {
-        setErro('Não foi possível realizar o login. Tente novamente.');
-        setCarregando(false);
+        return;
       }
+
+      // 2. Grava no localStorage e nos cookies do navegador para máxima compatibilidade
+      try {
+        localStorage.setItem('bela_user', JSON.stringify(data.user));
+        document.cookie = `bela_session=1; path=/; max-age=2592000; SameSite=None; Secure`;
+        document.cookie = `bela_user_email=${encodeURIComponent(data.user.email)}; path=/; max-age=2592000; SameSite=None; Secure`;
+      } catch (storageErr) {
+        console.warn('Aviso ao armazenar sessão local:', storageErr);
+      }
+
+      // 3. Sincroniza sessão NextAuth em segundo plano
+      try {
+        await signIn('credentials', {
+          email: email.trim().toLowerCase(),
+          password,
+          redirect: false,
+        });
+      } catch {
+        // Ignora caso iframe bloqueie CSRF interno do NextAuth
+      }
+
+      // 4. Redirecionamento completo para carregar sessão e passar pelo middleware imediatamente
+      const target = callbackUrl && callbackUrl !== '/login' ? callbackUrl : '/';
+      const sep = target.includes('?') ? '&' : '?';
+      window.location.href = `${target}${sep}auth=1`;
     } catch (err: any) {
       console.error('[Login] Erro ao autenticar:', err);
       setErro('Falha de conexão com o servidor de autenticação.');
