@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Handshake, DollarSign, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Handshake, DollarSign, TrendingUp, ShieldCheck } from 'lucide-react';
 
 export interface SidebarProps {
   collapsed?: boolean;
@@ -16,6 +16,7 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
   const isNegociacoes = pathname.startsWith('/negociacoes');
   const isFinanceiro = pathname.startsWith('/financeiro');
   const isCotacoes = pathname.startsWith('/cotacoes');
+  const isAdmin = pathname.startsWith('/admin');
 
   const links = [
     {
@@ -42,6 +43,13 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       active: isCotacoes,
       icon: TrendingUp,
       badge: 'LIVE',
+    },
+    {
+      href: '/admin',
+      label: 'Painel Admin',
+      active: isAdmin,
+      icon: ShieldCheck,
+      badge: 'GESTAO',
     },
   ];
 

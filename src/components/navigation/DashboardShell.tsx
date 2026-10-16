@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Sparkles,
   LogOut,
-  User
+  User,
+  ShieldCheck
 } from 'lucide-react';
 
 interface DashboardShellProps {
@@ -318,6 +319,15 @@ export function DashboardShell({ children }: DashboardShellProps) {
                     {(currentUser as any).role || (currentUser as any).papel || 'ADMIN'}
                   </span>
                 </div>
+
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/25 text-xs font-bold transition-all shadow-2xs"
+                  title="Painel Administrativo (Demo & Usuários)"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span className="hidden lg:inline">Painel Admin</span>
+                </Link>
 
                 <button
                   type="button"

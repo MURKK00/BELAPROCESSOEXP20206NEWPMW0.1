@@ -165,11 +165,11 @@ export function reloadMockStoreFromFile(): MockStore {
 }
 
 export function getMockStore(): MockStore {
-  if (globalStore.processos.length === 0 && fs.existsSync(STORAGE_FILE_PATH)) {
+  if (fs.existsSync(STORAGE_FILE_PATH)) {
     try {
       const raw = fs.readFileSync(STORAGE_FILE_PATH, 'utf-8');
       const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.processos) && parsed.processos.length > 0) {
+      if (parsed && Array.isArray(parsed.processos)) {
         Object.assign(globalStore, parsed);
       }
     } catch (e) {
@@ -179,8 +179,16 @@ export function getMockStore(): MockStore {
   return globalStore;
 }
 
+const DEMO_STORAGE_FILE_PATH = path.join(process.cwd(), 'prisma', 'demo-store.json');
+
+export function isSystemInDemoMode(): boolean {
+  const store = getMockStore();
+  return Boolean(store.isDemoMode || (store.processos && store.processos.length > 0));
+}
+
 export function resetMockStore(): void {
-  // Limpa os processos e dependências mantendo os catálogos base
+  // Limpa os processos e dependências mantendo os catálogos base e usuários
+  globalStore.isDemoMode = false;
   globalStore.processos = [];
   globalStore.processoEtapas = [];
   globalStore.containers = [];
@@ -191,4 +199,38 @@ export function resetMockStore(): void {
   globalStore.chatMessages = [];
   globalStore.auditLogs = [];
   saveMockStoreToFile(globalStore);
+}
+
+export function enableDemoMode(): void {
+  // 1. Tenta carregar os dados de exemplo pré-gravados em demo-store.json
+  if (fs.existsSync(DEMO_STORAGE_FILE_PATH)) {
+    try {
+      const raw = fs.readFileSync(DEMO_STORAGE_FILE_PATH, 'utf-8');
+      const demoData = JSON.parse(raw);
+      if (demoData && Array.isArray(demoData.processos)) {
+        globalStore.isDemoMode = true;
+        globalStore.processos = demoData.processos || [];
+        globalStore.processoEtapas = demoData.processoEtapas || [];
+        globalStore.containers = demoData.containers || [];
+        globalStore.financeiros = demoData.financeiros || [];
+        globalStore.custosItem = demoData.custosItem || [];
+        globalStore.cambiosTravados = demoData.cambiosTravados || [];
+        globalStore.documentos = demoData.documentos || [];
+        globalStore.chatMessages = demoData.chatMessages || [];
+        globalStore.auditLogs = demoData.auditLogs || [];
+        saveMockStoreToFile(globalStore);
+        return;
+      }
+    } catch (err) {
+      console.warn('[MockStore] Erro ao ler demo-store.json:', err);
+    }
+  }
+
+  // Se o arquivo não existir, recria base de demonstração
+  globalStore.isDemoMode = true;
+  saveMockStoreToFile(globalStore);
+}
+
+export function disableDemoMode(): void {
+  resetMockStore();
 }

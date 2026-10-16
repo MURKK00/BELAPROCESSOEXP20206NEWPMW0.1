@@ -205,6 +205,35 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* ESTADO QUANDO O SISTEMA ESTÁ ZERADO */}
+      {processosValidos.length === 0 && (
+        <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-8 sm:p-10 border border-slate-200/80 dark:border-slate-800 text-center shadow-xs animate-fadeIn">
+          <div className="w-14 h-14 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center mx-auto mb-3">
+            <Scale className="w-7 h-7" />
+          </div>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white">
+            Sistema Pronto para Operação Real (Zerado)
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1.5 leading-relaxed">
+            Nenhuma negociação ativa no momento. Cadastre sua primeira operação de exportação real ou ative o Modo Demonstração no Painel Admin para carregar os dados de exemplo.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+            <Link
+              href="/negociacoes/novo"
+              className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white text-xs font-bold transition-all shadow-md shadow-orange-500/20"
+            >
+              + Criar Nova Negociação
+            </Link>
+            <Link
+              href="/admin"
+              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all border border-slate-200 dark:border-slate-700"
+            >
+              Acessar Painel Admin (Demo &amp; Usuários)
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* PRÓXIMO DEADLINE */}
       {proximo && (
         <div className="bg-gradient-to-br from-[#1a365d] to-[#0f2444] text-white rounded-2xl p-7 relative overflow-hidden shadow-lg border border-blue-900/40">

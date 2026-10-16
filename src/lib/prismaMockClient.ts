@@ -152,13 +152,53 @@ export function createMockPrismaClient() {
     usuario: {
       findUnique: async ({ where }: any) => store.usuarios.find((u) => matchesWhere(u, where)) ?? null,
       findFirst: async ({ where }: any = {}) => store.usuarios.find((u) => matchesWhere(u, where)) ?? store.usuarios[0] ?? null,
+      findMany: async ({ where, orderBy }: any = {}) => {
+        let list = store.usuarios.filter((u) => matchesWhere(u, where));
+        if (orderBy?.criadoEm === 'desc') {
+          list = [...list].sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime());
+        } else if (orderBy?.nome === 'asc') {
+          list = [...list].sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+        }
+        return list;
+      },
+      create: async ({ data }: any) => {
+        const item = {
+          id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          ...data,
+          ativo: data.ativo !== undefined ? data.ativo : true,
+          criadoEm: new Date(),
+          atualizadoEm: new Date(),
+        };
+        store.usuarios.push(item);
+        return item;
+      },
+      update: async ({ where, data }: any) => {
+        const item = store.usuarios.find((u) => matchesWhere(u, where));
+        if (!item) throw new Error('Usuário não encontrado');
+        Object.assign(item, data, { atualizadoEm: new Date() });
+        return item;
+      },
+      delete: async ({ where }: any) => {
+        const idx = store.usuarios.findIndex((u) => matchesWhere(u, where));
+        if (idx !== -1) {
+          return store.usuarios.splice(idx, 1)[0];
+        }
+        throw new Error('Usuário não encontrado para exclusão');
+      },
+      count: async ({ where }: any = {}) => store.usuarios.filter((u) => matchesWhere(u, where)).length,
       upsert: async ({ where, create, update }: any) => {
         let item = store.usuarios.find((u) => matchesWhere(u, where));
         if (item) {
-          Object.assign(item, update);
+          Object.assign(item, update, { atualizadoEm: new Date() });
           return item;
         }
-        item = { id: `usr_${Date.now()}`, ...create, criadoEm: new Date(), atualizadoEm: new Date() };
+        item = {
+          id: `usr_${Date.now()}`,
+          ...create,
+          ativo: create.ativo !== undefined ? create.ativo : true,
+          criadoEm: new Date(),
+          atualizadoEm: new Date(),
+        };
         store.usuarios.push(item);
         return item;
       },
