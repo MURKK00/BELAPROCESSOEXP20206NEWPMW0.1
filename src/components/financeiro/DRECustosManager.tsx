@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { salvarTodosCustosAction } from '@/server/actions/financeiroActions';
 import { parseBRLToNumber, formatBRLInputString } from '@/lib/formatters';
 import { CategoriaCusto } from '@prisma/client';
-import { Save, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Save, CheckCircle2, AlertCircle, Lock } from 'lucide-react';
+import { canEditFinanceiro } from '@/lib/permissions';
 
 export interface CustoItemConfig {
   categoria: CategoriaCusto;
@@ -25,6 +26,17 @@ export function DRECustosManager({
   custosIniciais,
   receitaLiquidaBRL,
 }: DRECustosManagerProps) {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bela_user');
+      if (saved) setCurrentUser(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const podeEditar = !currentUser || canEditFinanceiro(currentUser);
+
   // Inicializa mapa de valores como string formatada para digitação natural
   const [valoresStr, setValoresStr] = useState<Record<string, string>>(() => {
     const inicial: Record<string, string> = {};
@@ -137,18 +149,23 @@ export function DRECustosManager({
                   type="text"
                   inputMode="decimal"
                   value={valorString}
-                  onChange={(e) => handleInputChange(c.categoria, e.target.value)}
-                  onPaste={(e) => handlePaste(c.categoria, e)}
-                  onBlur={() => handleBlur(c.categoria)}
+                  readOnly={!podeEditar}
+                  onChange={(e) => podeEditar && handleInputChange(c.categoria, e.target.value)}
+                  onPaste={(e) => podeEditar && handlePaste(c.categoria, e)}
+                  onBlur={() => podeEditar && handleBlur(c.categoria)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === 'Enter' && podeEditar) {
                       e.preventDefault();
                       handleSalvarTodos();
                     }
                   }}
                   placeholder="0,00"
-                  className="w-40 sm:w-48 border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm font-bold text-right bg-white text-gray-900 outline-none focus:border-[#f58220] focus:ring-2 focus:ring-[#f58220]/20 transition-all shadow-2xs"
-                  title="Digite ou cole do Excel. Pressione Enter ou use o botão Salvar abaixo."
+                  className={`w-40 sm:w-48 border rounded-lg pl-8 pr-3 py-2 text-sm font-bold text-right outline-none transition-all shadow-2xs ${
+                    podeEditar
+                      ? 'border-gray-300 bg-white text-gray-900 focus:border-[#f58220] focus:ring-2 focus:ring-[#f58220]/20'
+                      : 'border-gray-200 bg-gray-100/70 text-gray-500 cursor-not-allowed'
+                  }`}
+                  title={podeEditar ? "Digite ou cole do Excel. Pressione Enter ou use o botão Salvar abaixo." : "Apenas visualização"}
                 />
               </div>
             </div>
@@ -179,29 +196,36 @@ export function DRECustosManager({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={handleSalvarTodos}
-          disabled={isPending}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#1a365d] hover:bg-blue-900 disabled:opacity-50 text-white font-bold text-sm px-6 py-2.5 rounded-lg shadow-sm transition-all cursor-pointer"
-        >
-          {isPending ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Salvando todos os custos...</span>
-            </>
-          ) : salvoComSucesso ? (
-            <>
-              <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-              <span>Custos Salvos!</span>
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4 text-[#f58220]" />
-              <span>Salvar Todos os Custos</span>
-            </>
-          )}
-        </button>
+        {podeEditar ? (
+          <button
+            type="button"
+            onClick={handleSalvarTodos}
+            disabled={isPending}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#1a365d] hover:bg-blue-900 disabled:opacity-50 text-white font-bold text-sm px-6 py-2.5 rounded-lg shadow-sm transition-all cursor-pointer"
+          >
+            {isPending ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Salvando todos os custos...</span>
+              </>
+            ) : salvoComSucesso ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                <span>Custos Salvos!</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 text-[#f58220]" />
+                <span>Salvar Todos os Custos</span>
+              </>
+            )}
+          </button>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-200/80 text-slate-600 text-xs font-semibold">
+            <Lock className="w-3.5 h-3.5" />
+            <span>Modo Visualização (Edição restrita a Financeiro, Diretoria e Admin)</span>
+          </div>
+        )}
       </div>
     </div>
   );

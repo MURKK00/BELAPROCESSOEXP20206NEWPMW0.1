@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { adicionarTravamentoAction } from '@/server/actions/financeiroActions';
-import { Calendar, DollarSign, CheckCircle, ChevronDown, ChevronUp, ShieldCheck, AlertCircle, Info } from 'lucide-react';
+import { Calendar, DollarSign, CheckCircle, ChevronDown, ChevronUp, ShieldCheck, AlertCircle, Info, Lock } from 'lucide-react';
 import { parseBRLToNumber, formatPTAX } from '@/lib/formatters';
+import { canEditFinanceiro } from '@/lib/permissions';
 
 interface Props {
   processoId: string;
@@ -12,8 +13,19 @@ interface Props {
 }
 
 export function FormLancarTrava({ processoId, financeiroId, saldoUsdParaTravar }: Props) {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bela_user');
+      if (saved) setCurrentUser(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const podeEditar = !currentUser || canEditFinanceiro(currentUser);
+
   const esta100Travado = saldoUsdParaTravar <= 0.001;
-  const [aberto, setAberto] = useState<boolean>(!esta100Travado);
+  const [aberto, setAberto] = useState<boolean>(!esta100Travado && podeEditar);
 
   const [dataTrava, setDataTrava] = useState<string>(new Date().toISOString().split('T')[0]);
   const [valorUsd, setValorUsd] = useState<string>(saldoUsdParaTravar > 0 ? saldoUsdParaTravar.toFixed(2) : '');
@@ -96,6 +108,7 @@ export function FormLancarTrava({ processoId, financeiroId, saldoUsdParaTravar }
 
       {/* FORMULÁRIO COMPLETO QUANDO EXPANDIDO */}
       {aberto && (
+        podeEditar ? (
         <form
           action={async (formData: FormData) => {
             setEnviando(true);
@@ -226,6 +239,12 @@ export function FormLancarTrava({ processoId, financeiroId, saldoUsdParaTravar }
             </button>
           </div>
         </form>
+        ) : (
+          <div className="p-4 sm:p-5 border-t border-slate-200 bg-white flex items-center gap-3 text-xs text-slate-600">
+            <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+            <span>O lançamento de novas travas de câmbio é restrito aos perfis <strong>Financeiro</strong>, <strong>Diretoria</strong> e <strong>ADMIN</strong>. Seu perfil possui acesso de visualização.</span>
+          </div>
+        )
       )}
     </div>
   );

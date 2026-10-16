@@ -20,6 +20,7 @@ import {
   User,
   ShieldCheck
 } from 'lucide-react';
+import { getUserPapeis, canAccessAdmin } from '@/lib/permissions';
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -315,19 +316,38 @@ export function DashboardShell({ children }: DashboardShellProps) {
                   <span className="font-bold text-slate-700 dark:text-slate-200 max-w-[120px] truncate">
                     {currentUser.name || currentUser.email}
                   </span>
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black tracking-wider bg-orange-500/15 text-orange-600 dark:text-orange-400 uppercase">
-                    {(currentUser as any).role || (currentUser as any).papel || 'ADMIN'}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    {getUserPapeis(currentUser).map((p) => (
+                      <span
+                        key={p}
+                        className={`px-1.5 py-0.2 rounded text-[9px] font-black tracking-wider uppercase ${
+                          p === 'ADMIN'
+                            ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400'
+                            : p === 'FINANCEIRO'
+                            ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                            : p === 'COMERCIAL'
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                            : p === 'DIRETORIA'
+                            ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400'
+                            : 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
+                        }`}
+                      >
+                        {p}
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
-                <Link
-                  href="/admin"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/25 text-xs font-bold transition-all shadow-2xs"
-                  title="Painel Administrativo (Demo & Usuários)"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span className="hidden lg:inline">Painel Admin</span>
-                </Link>
+                {canAccessAdmin(currentUser) && (
+                  <Link
+                    href="/admin"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/25 text-xs font-bold transition-all shadow-2xs"
+                    title="Painel Administrativo (Demo & Usuários)"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span className="hidden lg:inline">Painel Admin</span>
+                  </Link>
+                )}
 
                 <button
                   type="button"

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { atualizarStatusAction } from '@/server/actions/editarProcessoAction';
 import { STATUS_NEGOCIACAO_MAP } from '@/lib/formatters';
+import { getUserPapeis } from '@/lib/permissions';
 import { ChevronDown, Loader2 } from 'lucide-react';
 
 interface StatusTheme {
@@ -78,12 +79,43 @@ const DEFAULT_THEME: StatusTheme = {
 export function StatusSelect({ processoId, status }: { processoId: string; status: string }) {
   const router = useRouter();
   const [salvando, setSalvando] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bela_user');
+      if (saved) setCurrentUser(JSON.parse(saved));
+    } catch {}
+  }, []);
 
   const theme = STATUS_THEMES[status] || DEFAULT_THEME;
 
+  // Calcula os status permitidos para o perfil do usuário
+  const papeis = currentUser ? getUserPapeis(currentUser) : ['ADMIN'];
+  const hasFullStatusAccess = papeis.some((p) => p === 'ADMIN' || p === 'DIRETORIA' || p === 'ADMINISTRATIVO');
+  const isComercialOnly = papeis.includes('COMERCIAL') && !hasFullStatusAccess;
+  const isFinanceiroOnly = papeis.includes('FINANCEIRO') && !hasFullStatusAccess && !papeis.includes('COMERCIAL');
+
+  // Determina lista de status elegíveis para troca
+  let statusDisponiveis: string[] = [];
+  if (hasFullStatusAccess) {
+    statusDisponiveis = Object.keys(STATUS_NEGOCIACAO_MAP);
+  } else if (isComercialOnly) {
+    statusDisponiveis = ['PENDENTE', 'EM_NEGOCIACAO', 'CANCELADO'];
+  } else {
+    statusDisponiveis = [status]; // Apenas leitura
+  }
+
+  // Garante que o status atual sempre apareça na lista para visualização
+  if (!statusDisponiveis.includes(status)) {
+    statusDisponiveis = [status, ...statusDisponiveis];
+  }
+
+  const podeAlterar = !isFinanceiroOnly && statusDisponiveis.length > 1;
+
   const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const novoStatus = e.target.value;
-    if (novoStatus === status) return;
+    if (novoStatus === status || !podeAlterar) return;
 
     setSalvando(true);
     try {
@@ -101,7 +133,16 @@ export function StatusSelect({ processoId, status }: { processoId: string; statu
   return (
     <div className="relative inline-flex items-center">
       <div
-        className={`flex items-center gap-2 pl-3 pr-8 py-2 rounded-xl border text-xs sm:text-sm font-black transition-all shadow-xs cursor-pointer ${theme.bg} ${theme.border} ${theme.text}`}
+        className={`flex items-center gap-2 pl-3 pr-8 py-2 rounded-xl border text-xs sm:text-sm font-black transition-all shadow-xs ${
+          podeAlterar ? 'cursor-pointer' : 'cursor-default opacity-90'
+        } ${theme.bg} ${theme.border} ${theme.text}`}
+        title={
+          podeAlterar
+            ? isComercialOnly
+              ? 'Perfil Comercial: permitido alterar para Pendente, Em Negociação ou Cancelado'
+              : 'Gerenciar status da negociação'
+            : 'Seu perfil possui acesso de visualização para este status'
+        }
       >
         <span className="text-sm select-none" aria-hidden="true">
           {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : theme.icon}
@@ -111,25 +152,27 @@ export function StatusSelect({ processoId, status }: { processoId: string; statu
           {STATUS_NEGOCIACAO_MAP[status] || status}
         </span>
 
-        {/* SELECT INVISÍVEL COBRINDO O CONTAINER PARA NAVEGAÇÃO NATIVA PERFEITA */}
-        <select
-          value={status}
-          onChange={handleChange}
-          disabled={salvando}
-          aria-label="Alterar status da negociação"
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-        >
-          {Object.entries(STATUS_NEGOCIACAO_MAP).map(([val, label]) => (
-            <option key={val} value={val} className="text-slate-900 bg-white font-semibold py-1">
-              {STATUS_THEMES[val]?.icon ? `${STATUS_THEMES[val].icon} ` : ''}
-              {label}
-            </option>
-          ))}
-        </select>
+        {/* SELECT NATIVO INVISÍVEL (ATIVO APENAS SE TIVER PERMISSÃO DE ALTERAÇÃO) */}
+        {podeAlterar ? (
+          <select
+            value={status}
+            onChange={handleChange}
+            disabled={salvando}
+            aria-label="Alterar status da negociação"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+          >
+            {statusDisponiveis.map((val) => (
+              <option key={val} value={val} className="text-slate-900 bg-white font-semibold py-1">
+                {STATUS_THEMES[val]?.icon ? `${STATUS_THEMES[val].icon} ` : ''}
+                {STATUS_NEGOCIACAO_MAP[val] || val}
+              </option>
+            ))}
+          </select>
+        ) : null}
 
-        {/* ÍCONE DE SETINHA DE SELEÇÃO */}
+        {/* ÍCONE DE SETINHA DE SELEÇÃO OU CADEADO */}
         <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center opacity-70">
-          <ChevronDown className="w-4 h-4" />
+          {podeAlterar ? <ChevronDown className="w-4 h-4" /> : null}
         </div>
       </div>
     </div>

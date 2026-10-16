@@ -2,10 +2,11 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ClipboardPaste } from 'lucide-react';
 import { salvarContainersAction } from '@/server/actions/containerActions';
+import { canEditContainers } from '@/lib/permissions';
 import { ImportarLoteModal } from './ImportarLoteModal';
 
 type ContainerRow = {
@@ -30,10 +31,20 @@ export function ContainersTable({
   containers: ContainerRow[];
 }) {
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [editando, setEditando] = useState(false);
   const [modalLoteAberto, setModalLoteAberto] = useState(false);
   const [linhas, setLinhas] = useState<ContainerRow[]>(containers);
   const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bela_user');
+      if (saved) setCurrentUser(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const podeEditarContainers = !currentUser || canEditContainers(currentUser);
 
   const somaBruto = linhas.reduce((soma, l) => soma + (l.pesoBruto ?? 0), 0);
   const somaLiquido = linhas.reduce((soma, l) => soma + (l.pesoLiquido ?? 0), 0);
@@ -105,31 +116,39 @@ export function ContainersTable({
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold">Contêineres</h3>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setModalLoteAberto(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-secondary bg-amber-50 hover:bg-amber-100 border border-secondary/30 rounded-lg shadow-2xs transition-colors"
-            title="Colar linhas copiadas do Excel diretamente"
-          >
-            <ClipboardPaste className="w-3.5 h-3.5" />
-            <span>Colar do Excel (Lote)</span>
-          </button>
+          {podeEditarContainers ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setModalLoteAberto(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-secondary bg-amber-50 hover:bg-amber-100 border border-secondary/30 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                title="Colar linhas copiadas do Excel diretamente"
+              >
+                <ClipboardPaste className="w-3.5 h-3.5" />
+                <span>Colar do Excel (Lote)</span>
+              </button>
 
-          {editando ? (
-            <button
-              onClick={salvar}
-              disabled={salvando}
-              className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-100 disabled:opacity-50"
-            >
-              {salvando ? 'Salvando...' : '💾 Salvar'}
-            </button>
+              {editando ? (
+                <button
+                  onClick={salvar}
+                  disabled={salvando}
+                  className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-100 disabled:opacity-50 cursor-pointer"
+                >
+                  {salvando ? 'Salvando...' : '💾 Salvar'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setEditando(true)}
+                  className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50 cursor-pointer"
+                >
+                  ✏️ Editar
+                </button>
+              )}
+            </>
           ) : (
-            <button
-              onClick={() => setEditando(true)}
-              className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50"
-            >
-              ✏️ Editar
-            </button>
+            <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+              Modo Visualização (Edição restrita a Administrativo, Diretoria e Admin)
+            </span>
           )}
         </div>
       </div>

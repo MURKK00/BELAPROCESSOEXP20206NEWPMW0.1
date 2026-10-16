@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/passwordUtils';
+import { getUserPapeis } from '@/lib/permissions';
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -84,11 +85,15 @@ export const authOptions: NextAuthOptions = {
           throw new Error('E-mail ou senha incorretos.');
         }
 
+        const papeis = getUserPapeis(usuario);
+
         return {
           id: usuario.id,
           name: usuario.nome,
           email: usuario.email,
-          role: usuario.papel,
+          role: usuario.papel || papeis[0],
+          papel: usuario.papel || papeis[0],
+          papeis,
         };
       },
     }),
@@ -98,6 +103,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = (user as any).role || 'ADMIN';
+        token.papeis = (user as any).papeis || ['ADMIN'];
         token.name = user.name;
         token.email = user.email;
       }
@@ -108,6 +114,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.id as string;
         (session.user as any).papel = (token.role as string) || 'ADMIN';
         (session.user as any).role = (token.role as string) || 'ADMIN';
+        (session.user as any).papeis = (token as any).papeis || [(token.role as string) || 'ADMIN'];
         if (token.name) session.user.name = token.name as string;
         if (token.email) session.user.email = token.email as string;
       }

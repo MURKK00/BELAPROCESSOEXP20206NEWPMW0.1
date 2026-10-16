@@ -4,6 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Handshake, DollarSign, TrendingUp, ShieldCheck } from 'lucide-react';
 
+import { useState, useEffect } from 'react';
+import { 
+  canAccessAdmin, 
+  canAccessCotacoes, 
+  canAccessFinanceiro 
+} from '@/lib/permissions';
+
 export interface SidebarProps {
   collapsed?: boolean;
   onItemClick?: () => void;
@@ -11,6 +18,14 @@ export interface SidebarProps {
 
 export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
   const pathname = usePathname();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bela_user');
+      if (saved) setCurrentUser(JSON.parse(saved));
+    } catch {}
+  }, []);
 
   const isVisaoGeral = pathname === '/';
   const isNegociacoes = pathname.startsWith('/negociacoes');
@@ -18,24 +33,28 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
   const isCotacoes = pathname.startsWith('/cotacoes');
   const isAdmin = pathname.startsWith('/admin');
 
+  // Filtragem de links por permissão (suporta múltiplos perfis por usuário)
   const links = [
     {
       href: '/',
       label: 'Visão Geral',
       active: isVisaoGeral,
       icon: LayoutDashboard,
+      visivel: true, // Todos têm acesso
     },
     {
       href: '/negociacoes',
       label: 'Negociações',
       active: isNegociacoes,
       icon: Handshake,
+      visivel: true, // Todos têm acesso completo
     },
     {
       href: '/financeiro',
       label: 'Financeiro',
       active: isFinanceiro,
       icon: DollarSign,
+      visivel: currentUser ? canAccessFinanceiro(currentUser) : true,
     },
     {
       href: '/cotacoes',
@@ -43,6 +62,7 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       active: isCotacoes,
       icon: TrendingUp,
       badge: 'LIVE',
+      visivel: currentUser ? canAccessCotacoes(currentUser) : true,
     },
     {
       href: '/admin',
@@ -50,8 +70,9 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       active: isAdmin,
       icon: ShieldCheck,
       badge: 'GESTAO',
+      visivel: currentUser ? canAccessAdmin(currentUser) : true,
     },
-  ];
+  ].filter((l) => l.visivel);
 
   return (
     <nav className={`flex flex-col gap-1.5 mt-4 ${collapsed ? 'px-2' : 'px-3'}`}>

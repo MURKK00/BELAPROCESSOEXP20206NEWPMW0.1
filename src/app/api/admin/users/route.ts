@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/passwordUtils';
 import { Papel } from '@prisma/client';
+import { getUserPapeis } from '@/lib/permissions';
 
 export async function GET() {
   try {
@@ -9,12 +10,13 @@ export async function GET() {
       orderBy: { criadoEm: 'desc' },
     });
 
-    // Sanitiza removendo senhaHash da resposta
+    // Sanitiza removendo senhaHash da resposta e inclui múltiplos papéis
     const sanitized = usuarios.map((u: any) => ({
       id: u.id,
       nome: u.nome,
       email: u.email,
       papel: u.papel || 'ADMIN',
+      papeis: getUserPapeis(u),
       ativo: u.ativo !== false,
       criadoEm: u.criadoEm,
       atualizadoEm: u.atualizadoEm,
@@ -33,7 +35,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { nome, email, password, papel } = body;
+    const { nome, email, password, papel, papeis } = body;
 
     if (!nome || !email || !password) {
       return NextResponse.json(
@@ -63,15 +65,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const senhaHash = await hashPassword(password);
-    const cargoValido = Object.values(Papel).includes(papel) ? papel : Papel.ADMIN;
+    // Normaliza os múltiplos papéis selecionados
+    const papeisLista: string[] = Array.isArray(papeis) && papeis.length > 0
+      ? papeis
+      : papel
+      ? String(papel).split(',').map((p) => p.trim())
+      : ['ADMIN'];
 
-    const novoUsuario = await prisma.usuario.create({
+    const papeisValidos = papeisLista.filter((p) =>
+      ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
+    );
+
+    const papeisFinal = papeisValidos.length > 0 ? papeisValidos : ['ADMIN'];
+    const cargoPrimario = (papeisFinal[0] as Papel) || Papel.ADMIN;
+
+    const senhaHash = await hashPassword(password);
+
+    const novoUsuario = await (prisma.usuario as any).create({
       data: {
         nome: String(nome).trim(),
         email: emailNormalizado,
         senhaHash,
-        papel: cargoValido,
+        papel: cargoPrimario,
+        papeis: papeisFinal,
         ativo: true,
       },
     });
@@ -83,6 +99,7 @@ export async function POST(req: NextRequest) {
         nome: novoUsuario.nome,
         email: novoUsuario.email,
         papel: novoUsuario.papel,
+        papeis: papeisFinal,
         ativo: novoUsuario.ativo,
       },
       message: 'Usuário cadastrado com sucesso!',
@@ -96,7 +113,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, ativo, novaSenha, papel, nome } = body;
+    const { id, ativo, novaSenha, papel, papeis, nome } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'ID do usuário é obrigatório.' }, { status: 400 });
@@ -104,8 +121,23 @@ export async function PATCH(req: NextRequest) {
 
     const updateData: any = {};
     if (typeof ativo === 'boolean') updateData.ativo = ativo;
-    if (papel && Object.values(Papel).includes(papel)) updateData.papel = papel;
     if (nome) updateData.nome = String(nome).trim();
+
+    if (Array.isArray(papeis) && papeis.length > 0) {
+      const papeisValidos = papeis.filter((p) =>
+        ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
+      );
+      if (papeisValidos.length > 0) {
+        updateData.papeis = papeisValidos;
+        updateData.papel = papeisValidos[0] as Papel;
+      }
+    } else if (papel) {
+      const pArr = String(papel).split(',').map((p) => p.trim());
+      updateData.papeis = pArr;
+      if (Object.values(Papel).includes(pArr[0] as any)) {
+        updateData.papel = pArr[0] as Papel;
+      }
+    }
 
     if (novaSenha) {
       if (novaSenha.length < 6) {
@@ -114,7 +146,7 @@ export async function PATCH(req: NextRequest) {
       updateData.senhaHash = await hashPassword(novaSenha);
     }
 
-    const usuarioAtualizado = await prisma.usuario.update({
+    const usuarioAtualizado = await (prisma.usuario as any).update({
       where: { id },
       data: updateData,
     });
@@ -126,6 +158,7 @@ export async function PATCH(req: NextRequest) {
         nome: usuarioAtualizado.nome,
         email: usuarioAtualizado.email,
         papel: usuarioAtualizado.papel,
+        papeis: getUserPapeis(usuarioAtualizado),
         ativo: usuarioAtualizado.ativo,
       },
       message: 'Usuário atualizado com sucesso!',

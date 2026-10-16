@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   COTACOES_INICIAIS,
   CotacoesMercadoState,
@@ -33,7 +34,9 @@ import {
   CheckCircle2,
   Copy,
   ShieldCheck,
+  Lock,
 } from 'lucide-react';
+import { canAccessCotacoes } from '@/lib/permissions';
 import {
   LineChart,
   Line,
@@ -49,6 +52,15 @@ import {
 type TabView = 'GERAL' | 'FEIJOES_ASIA' | 'GRAOS' | 'CAMBIO_CURVA' | 'PARIDADE';
 
 export function WallStreetTerminalClient() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bela_user');
+      if (saved) setCurrentUser(JSON.parse(saved));
+    } catch {}
+  }, []);
+
   const [mercado, setMercado] = useState<CotacoesMercadoState>(() =>
     JSON.parse(JSON.stringify(COTACOES_INICIAIS))
   );
@@ -334,6 +346,28 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
   const fareloContratoAtivo = mercado.fareloChicago.contratos[0];
   const usd = mercado.cambio.dolarComercial;
   const eur = mercado.cambio.euroComercial;
+
+  if (currentUser && !canAccessCotacoes(currentUser)) {
+    return (
+      <div className="max-w-2xl mx-auto my-16 p-8 bg-white dark:bg-[#0f172a] rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-lg">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4">
+          <Lock className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2">
+          Módulo de Cotações Mercado Restrito
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
+          O terminal de cotações agro e financeiras em tempo real (CBOT, B3, PTAX) é de acesso exclusivo para os perfis <strong>Comercial</strong>, <strong>Diretoria</strong> e <strong>ADMIN</strong>.
+        </p>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-all shadow-md shadow-orange-500/20"
+        >
+          Voltar para Visão Geral
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12 select-none">

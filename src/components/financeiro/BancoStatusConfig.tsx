@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { atualizarFinanceiroConfigAction } from '@/server/actions/financeiroActions';
 import { parseRecebimentoProformaInfo, formatBancoDestinoWithProforma } from '@/lib/proformaHelper';
 import { 
@@ -16,9 +16,11 @@ import {
   AlertCircle,
   Percent,
   MinusCircle,
-  Info
+  Info,
+  Lock
 } from 'lucide-react';
 import { formatUSD } from '@/lib/formatters';
+import { canEditFinanceiro } from '@/lib/permissions';
 
 interface Props {
   processoId: string;
@@ -35,6 +37,17 @@ export function BancoStatusConfig({
   dataRecebimentoInicial,
   valorTotalUsd = 0,
 }: Props) {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bela_user');
+      if (saved) setCurrentUser(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const podeEditar = !currentUser || canEditFinanceiro(currentUser);
+
   // Extrai informações persistidas de pro-forma, taxas e banco
   const infoInicial = parseRecebimentoProformaInfo(
     bancoInicial,
@@ -101,6 +114,7 @@ export function BancoStatusConfig({
     stUnico: 'A_RECEBER' | 'RECEBIDO';
     dtUnico: string | null;
   }>) {
+    if (!podeEditar) return;
     setSalvando(true);
     setSalvoFeedback(false);
 
@@ -205,6 +219,12 @@ export function BancoStatusConfig({
 
   return (
     <div className="mt-6 pt-6 border-t border-gray-200 space-y-6">
+      {!podeEditar && (
+        <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-2">
+          <Lock className="w-4 h-4 text-slate-500 shrink-0" />
+          <span>Modo Visualização: Alterações de conta bancária, parcelamento pro-forma e recebimentos são restritas aos perfis <strong>Financeiro</strong>, <strong>Diretoria</strong> e <strong>ADMIN</strong>.</span>
+        </div>
+      )}
       
       {/* LINHA SUPERIOR: BANCO DE DESTINO E MODALIDADE DE RECEBIMENTO */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
@@ -218,12 +238,16 @@ export function BancoStatusConfig({
 
           <select 
             value={bancoDestino}
+            disabled={!podeEditar}
             onChange={(e) => {
+              if (!podeEditar) return;
               const val = e.target.value;
               setBancoDestino(val);
               handleSalvar({ banco: val });
             }}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold bg-white outline-none focus:border-[#f58220] transition-colors cursor-pointer shadow-2xs"
+            className={`w-full border rounded-lg px-3 py-2 text-sm font-semibold outline-none transition-colors shadow-2xs ${
+              podeEditar ? 'border-gray-300 bg-white cursor-pointer focus:border-[#f58220]' : 'border-gray-200 bg-gray-100/70 text-gray-500 cursor-not-allowed'
+            }`}
           >
             <option value="BB BRASIL">Banco do Brasil</option>
             <option value="BB AMERICA">BB América</option>

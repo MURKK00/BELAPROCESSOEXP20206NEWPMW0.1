@@ -49,12 +49,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const papeis = [
+      ...(Array.isArray((usuario as any).papeis) ? (usuario as any).papeis : []),
+      ...((usuario as any).papel ? String((usuario as any).papel).split(',') : []),
+    ]
+      .map((p: string) => p.trim().toUpperCase())
+      .filter((p: string) => ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p));
+
+    const papeisFinal = papeis.length > 0 ? Array.from(new Set(papeis)) : ['ADMIN'];
+
     const userData = {
       id: usuario.id,
       name: usuario.nome,
       email: usuario.email,
-      role: usuario.papel || 'ADMIN',
-      papel: usuario.papel || 'ADMIN',
+      role: usuario.papel || papeisFinal[0] || 'ADMIN',
+      papel: usuario.papel || papeisFinal[0] || 'ADMIN',
+      papeis: papeisFinal,
     };
 
     // Cria a resposta e injeta cookies compatíveis com cross-origin iframe (SameSite=None; Secure)

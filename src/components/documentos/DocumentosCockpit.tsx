@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useEffect, useTransition, useMemo } from 'react';
+import { canDeleteDocumentos } from '@/lib/permissions';
 import { 
   FileText, 
   FileCheck2, 
@@ -85,6 +86,14 @@ export function DocumentosCockpit({
   const [nomeOutro, setNomeOutro] = useState<string>('');
   const [isPending, startTransition] = useTransition();
   const [menuAcoesAberto, setMenuAcoesAberto] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bela_user');
+      if (saved) setCurrentUser(JSON.parse(saved));
+    } catch {}
+  }, []);
 
   // Mapeia os documentos com os grupos decodificados
   const documentos = useMemo(() => {
@@ -859,16 +868,18 @@ export function DocumentosCockpit({
                               )}
                             </div>
 
-                            {/* Excluir */}
-                            <button
-                              type="button"
-                              onClick={() => handleExcluir(d.id, d.nomeArquivo)}
-                              disabled={isPending}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors"
-                              title="Excluir documento permanentemente"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {/* Excluir - Restrito aos perfis Administrativo, Diretoria e Admin */}
+                            {(!currentUser || canDeleteDocumentos(currentUser)) && (
+                              <button
+                                type="button"
+                                onClick={() => handleExcluir(d.id, d.nomeArquivo)}
+                                disabled={isPending}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Excluir documento permanentemente"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
 
                           </div>
                         </td>

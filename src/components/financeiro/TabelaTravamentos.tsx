@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   deletarTravamentoAction, 
   editarTravamentoAction 
 } from '@/server/actions/financeiroActions';
 import { formatBRL, formatUSD, formatPTAX, parseBRLToNumber } from '@/lib/formatters';
-import { Edit3, Trash2, Calendar, DollarSign, X, Check, Info } from 'lucide-react';
+import { Edit3, Trash2, Calendar, DollarSign, X, Check, Info, Lock } from 'lucide-react';
+import { canEditFinanceiro } from '@/lib/permissions';
 
 export interface TravamentoItemData {
   id: string;
@@ -37,6 +38,17 @@ export function TabelaTravamentos({
   ptaxMedia,
   receitaBrutaBRL,
 }: TabelaTravamentosProps) {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bela_user');
+      if (saved) setCurrentUser(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const podeEditar = !currentUser || canEditFinanceiro(currentUser);
+
   // Estado para o modal de edição
   const [travaEmEdicao, setTravaEmEdicao] = useState<TravamentoItemData | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -111,42 +123,46 @@ export function TabelaTravamentos({
                     {t.observacaoLimpa || '-'}
                   </td>
                   <td className="p-3 text-center whitespace-nowrap">
-                    <div className="flex items-center justify-center gap-1">
-                      {/* BOTÃO EDITAR */}
-                      <button
-                        type="button"
-                        onClick={() => abrirModalEdicao(t)}
-                        title="Editar trava"
-                        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors cursor-pointer"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-
-                      {/* BOTÃO EXCLUIR */}
-                      <form
-                        action={async (formData: FormData) => {
-                          if (confirm('Tem certeza que deseja excluir esta trava de câmbio?')) {
-                            setExcluindoId(t.id);
-                            try {
-                              await deletarTravamentoAction(formData);
-                            } finally {
-                              setExcluindoId(null);
-                            }
-                          }
-                        }}
-                      >
-                        <input type="hidden" name="travamentoId" value={t.id} />
-                        <input type="hidden" name="processoId" value={processoId} />
+                    {podeEditar ? (
+                      <div className="flex items-center justify-center gap-1">
+                        {/* BOTÃO EDITAR */}
                         <button
-                          type="submit"
-                          disabled={excluindoId === t.id}
-                          title="Excluir trava"
-                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer disabled:opacity-50"
+                          type="button"
+                          onClick={() => abrirModalEdicao(t)}
+                          title="Editar trava"
+                          className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors cursor-pointer"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Edit3 className="w-4 h-4" />
                         </button>
-                      </form>
-                    </div>
+
+                        {/* BOTÃO EXCLUIR */}
+                        <form
+                          action={async (formData: FormData) => {
+                            if (confirm('Tem certeza que deseja excluir esta trava de câmbio?')) {
+                              setExcluindoId(t.id);
+                              try {
+                                await deletarTravamentoAction(formData);
+                              } finally {
+                                setExcluindoId(null);
+                              }
+                            }
+                          }}
+                        >
+                          <input type="hidden" name="travamentoId" value={t.id} />
+                          <input type="hidden" name="processoId" value={processoId} />
+                          <button
+                            type="submit"
+                            disabled={excluindoId === t.id}
+                            title="Excluir trava"
+                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </form>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
                   </td>
                 </tr>
               );

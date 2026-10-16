@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { canAccessFinanceiro } from '@/lib/permissions';
 import { 
   Scale, 
   DollarSign, 
@@ -88,6 +89,15 @@ interface FinanceiroDashboardClientProps {
 }
 
 export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClientProps) {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bela_user');
+      if (saved) setCurrentUser(JSON.parse(saved));
+    } catch {}
+  }, []);
+
   // Filtros
   const [busca, setBusca] = useState('');
   const [filtroEmpresa, setFiltroEmpresa] = useState('TODOS');
@@ -362,6 +372,28 @@ export function FinanceiroDashboardClient({ processos }: FinanceiroDashboardClie
     link.click();
     document.body.removeChild(link);
   };
+
+  if (currentUser && !canAccessFinanceiro(currentUser)) {
+    return (
+      <div className="max-w-2xl mx-auto my-16 p-8 bg-white dark:bg-[#0f172a] rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-lg">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4">
+          <Lock className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2">
+          Módulo Financeiro Restrito
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
+          O módulo financeiro consolidado é de acesso exclusivo para os perfis <strong>Financeiro</strong>, <strong>Diretoria</strong> e <strong>ADMIN</strong>.
+        </p>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-all shadow-md shadow-orange-500/20"
+        >
+          Voltar para Visão Geral
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

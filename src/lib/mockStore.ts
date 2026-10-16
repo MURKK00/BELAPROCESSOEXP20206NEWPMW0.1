@@ -4,6 +4,7 @@ import { Fase, TipoParceiro, CategoriaDocumento, Papel, CategoriaCusto, StatusNe
 import { CHECKLIST_ETAPAS, TIPOS_DOCUMENTO_CHECKLIST } from '../../prisma/checklistData';
 
 export interface MockStore {
+  isDemoMode?: boolean;
   usuarios: any[];
   parceiros: any[];
   tiposDocumento: any[];
