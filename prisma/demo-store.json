@@ -3776,8 +3776,62 @@
       "processoId": "proc_bc26_001",
       "usuarioId": "usr_dev_admin",
       "acao": "PROCESSO_CRIADO",
-      "detalhe": "Processo BC26-001 criado com sucesso no sistema.",
+      "detalhe": "Processo BC26-001 criado com sucesso no sistema com workflow de 21 etapas.",
       "criadoEm": "2026-09-02T10:15:00.000Z"
+    },
+    {
+      "id": "log_proc_bc26_001_edit1",
+      "processoId": "proc_bc26_001",
+      "usuarioId": "usr_dev_admin",
+      "acao": "PROCESSO_EDITADO",
+      "detalhe": "Informações da operação atualizadas (3 campo(s): Nº do Booking, Navio Transportador, Deadline de Carga).",
+      "alteracoes": {
+        "Nº do Booking": {
+          "de": "Vazio",
+          "para": "BKG-BRSSZ-2026-0901"
+        },
+        "Navio Transportador": {
+          "de": "Vazio",
+          "para": "MSC ALTAIR / V.2409"
+        },
+        "Deadline de Carga (Gate)": {
+          "de": "Vazio",
+          "para": "15/10/2026"
+        }
+      },
+      "criadoEm": "2026-09-08T14:32:00.000Z"
+    },
+    {
+      "id": "log_proc_bc26_001_edit2",
+      "processoId": "proc_bc26_001",
+      "usuarioId": "usr_admin_principal",
+      "acao": "STATUS_ALTERADO",
+      "detalhe": "Status da operação alterado de \"PENDENTE\" para \"EM_ANDAMENTO\".",
+      "alteracoes": {
+        "Status da Operação": {
+          "de": "PENDENTE",
+          "para": "EM_ANDAMENTO"
+        }
+      },
+      "criadoEm": "2026-09-10T16:45:00.000Z"
+    },
+    {
+      "id": "log_proc_bc26_001_edit3",
+      "processoId": "proc_bc26_001",
+      "usuarioId": "usr_dev_admin",
+      "acao": "IMPORTADOR_EDITADO",
+      "detalhe": "Dados do importador/comprador atualizados (2 campo(s): Endereço do Importador, Cidade do Importador).",
+      "alteracoes": {
+        "Endereço do Importador": {
+          "de": "Vazio",
+          "para": "Industrial Area Phase 2, Complex 44"
+        },
+        "Cidade do Importador": {
+          "de": "Vazio",
+          "para": "Mumbai"
+        }
+      },
+      "criadoEm": "2026-09-15T11:20:00.000Z"
     },
     {
       "id": "log_proc_bc26_002_create",

@@ -37,6 +37,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { canAccessCotacoes } from '@/lib/permissions';
+import { calcularStatusMercados, StatusMercadoGeral } from '@/lib/mercadoStatus';
 import {
   LineChart,
   Line,
@@ -65,6 +66,7 @@ export function WallStreetTerminalClient() {
     JSON.parse(JSON.stringify(COTACOES_INICIAIS))
   );
   const [tabAtiva, setTabAtiva] = useState<TabView>('GERAL');
+  const [statusMercado, setStatusMercado] = useState<StatusMercadoGeral>(() => calcularStatusMercados());
   const [tickCounter, setTickCounter] = useState(0);
   const [mounted, setMounted] = useState(false);
 
@@ -109,6 +111,7 @@ export function WallStreetTerminalClient() {
       if (!data.sucesso) return;
 
       if (data.fonte) setFonteOficial(data.fonte);
+      if (data.statusMercados) setStatusMercado(data.statusMercados);
       if (data.atualizadoEm) {
         setUltimaAtualizacaoOficial(
           new Date(data.atualizadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -261,6 +264,7 @@ export function WallStreetTerminalClient() {
     carregarCotacoesOficiais();
 
     const countdownInterval = setInterval(() => {
+      setStatusMercado(calcularStatusMercados());
       setSegundosAteAtualizacao((prev) => {
         if (prev <= 1) {
           carregarCotacoesOficiais();
@@ -374,7 +378,9 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
       {/* ========================================================================= */}
       {/* 0. RELÓGIOS MUNDIAIS DOS CENTROS DE PREGÃO (CENTRALIZADOS E COM BANDEIRAS) */}
       {/* ========================================================================= */}
-      <div className="w-full">
+      {/* 0. RELÓGIOS MUNDIAIS DOS CENTROS DE PREGÃO COM STATUS DINÂMICO ABERTO/FECHADO */}
+      {/* ========================================================================= */}
+      <div className="w-full space-y-2.5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
           {/* 1. BRASIL / B3 (SP) */}
           <div className="bg-gradient-to-b from-slate-900/95 via-[#0c1322] to-slate-950 border border-slate-800/90 hover:border-emerald-500/40 rounded-2xl p-3 sm:p-3.5 shadow-lg flex items-center justify-between gap-3 transition-all group">
@@ -382,22 +388,22 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
               <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="Brasil">🇧🇷</span>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${statusMercado.b3.aberto ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
                   <span className="text-xs font-mono font-black text-slate-200 tracking-wider uppercase truncate">
                     B3 · SÃO PAULO
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-slate-400 block truncate mt-0.5">
-                  BM&amp;F · Futuros Agro (BRT)
+                  {statusMercado.b3.detalheSessao}
                 </span>
               </div>
             </div>
             <div className="text-right shrink-0">
-              <span className="font-mono font-black text-sm sm:text-base text-emerald-400 tracking-wider block">
-                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              <span className={`font-mono font-black text-sm sm:text-base tracking-wider block ${statusMercado.b3.aberto ? 'text-emerald-400' : 'text-slate-300'}`}>
+                {mounted ? (statusMercado.b3.horarioLocalStr || '--:--:--') : '--:--:--'}
               </span>
-              <span className="text-[9px] font-mono font-bold text-emerald-500/90 uppercase tracking-widest block">
-                PREGÃO ATIVO
+              <span className={`text-[9px] font-mono font-bold uppercase tracking-widest block ${statusMercado.b3.aberto ? 'text-emerald-400' : 'text-slate-400'}`}>
+                {statusMercado.b3.aberto ? 'PREGÃO ATIVO' : 'MERCADO FECHADO'}
               </span>
             </div>
           </div>
@@ -408,22 +414,32 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
               <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="Estados Unidos">🇺🇸</span>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${statusMercado.cbot.aberto ? 'bg-emerald-400 animate-pulse' : statusMercado.cbot.tipoPregao === 'PAUSA' ? 'bg-amber-400' : 'bg-slate-500'}`}></span>
                   <span className="text-xs font-mono font-black text-slate-200 tracking-wider uppercase truncate">
                     CBOT · CHICAGO
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-slate-400 block truncate mt-0.5">
-                  CME · Soja &amp; Milho (CT)
+                  {statusMercado.cbot.detalheSessao}
                 </span>
               </div>
             </div>
             <div className="text-right shrink-0">
-              <span className="font-mono font-black text-sm sm:text-base text-amber-300 tracking-wider block">
-                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              <span className={`font-mono font-black text-sm sm:text-base tracking-wider block ${statusMercado.cbot.aberto ? 'text-amber-300' : 'text-slate-300'}`}>
+                {mounted ? (statusMercado.cbot.horarioLocalStr || '--:--:--') : '--:--:--'}
               </span>
-              <span className="text-[9px] font-mono font-bold text-amber-400/90 uppercase tracking-widest block">
-                MERCADO CME
+              <span className={`text-[9px] font-mono font-bold uppercase tracking-widest block ${
+                statusMercado.cbot.aberto
+                  ? 'text-emerald-400'
+                  : statusMercado.cbot.tipoPregao === 'PAUSA'
+                    ? 'text-amber-400'
+                    : 'text-slate-400'
+              }`}>
+                {statusMercado.cbot.aberto
+                  ? (statusMercado.cbot.tipoPregao === 'NOTURNO' ? 'PREGÃO NOTURNO' : 'PREGÃO DIURNO')
+                  : statusMercado.cbot.tipoPregao === 'PAUSA'
+                    ? 'INTERVALO TÉCNICO'
+                    : 'MERCADO FECHADO'}
               </span>
             </div>
           </div>
@@ -434,22 +450,22 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
               <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="Índia">🇮🇳</span>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0"></span>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${statusMercado.ncdex.aberto ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
                   <span className="text-xs font-mono font-black text-slate-200 tracking-wider uppercase truncate">
                     NCDEX · MUMBAI
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-slate-400 block truncate mt-0.5">
-                  Pulses &amp; Feijão Mungo (IST)
+                  {statusMercado.ncdex.detalheSessao}
                 </span>
               </div>
             </div>
             <div className="text-right shrink-0">
-              <span className="font-mono font-black text-sm sm:text-base text-cyan-300 tracking-wider block">
-                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              <span className={`font-mono font-black text-sm sm:text-base tracking-wider block ${statusMercado.ncdex.aberto ? 'text-cyan-300' : 'text-slate-300'}`}>
+                {mounted ? (statusMercado.ncdex.horarioLocalStr || '--:--:--') : '--:--:--'}
               </span>
-              <span className="text-[9px] font-mono font-bold text-blue-400/90 uppercase tracking-widest block">
-                ÁSIA MERIDIONAL
+              <span className={`text-[9px] font-mono font-bold uppercase tracking-widest block ${statusMercado.ncdex.aberto ? 'text-emerald-400' : 'text-slate-400'}`}>
+                {statusMercado.ncdex.aberto ? 'PREGÃO ATIVO' : 'MERCADO FECHADO'}
               </span>
             </div>
           </div>
@@ -460,24 +476,68 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
               <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="China">🇨🇳</span>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0"></span>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${statusMercado.dce.aberto ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
                   <span className="text-xs font-mono font-black text-slate-200 tracking-wider uppercase truncate">
                     DCE · XANGAI
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-slate-400 block truncate mt-0.5">
-                  Complexo Soja &amp; Grãos (CST)
+                  {statusMercado.dce.detalheSessao}
                 </span>
               </div>
             </div>
             <div className="text-right shrink-0">
-              <span className="font-mono font-black text-sm sm:text-base text-rose-300 tracking-wider block">
-                {mounted ? new Date().toLocaleTimeString('pt-BR', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              <span className={`font-mono font-black text-sm sm:text-base tracking-wider block ${statusMercado.dce.aberto ? 'text-rose-300' : 'text-slate-300'}`}>
+                {mounted ? (statusMercado.dce.horarioLocalStr || '--:--:--') : '--:--:--'}
               </span>
-              <span className="text-[9px] font-mono font-bold text-rose-400/90 uppercase tracking-widest block">
-                MERCADO ASIÁTICO
+              <span className={`text-[9px] font-mono font-bold uppercase tracking-widest block ${statusMercado.dce.aberto ? 'text-emerald-400' : 'text-slate-400'}`}>
+                {statusMercado.dce.aberto ? 'PREGÃO ATIVO' : 'MERCADO FECHADO'}
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* REGISTRO OPERACIONAL DE STATUS POR PRAÇA (FITA ELETRÔNICA) */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-4 py-2 bg-slate-900/90 border border-slate-800/90 rounded-xl font-mono text-[11px] text-slate-300 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Activity className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Status Operacional por Praça:
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4.5">
+            {/* B3 */}
+            <span className="inline-flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${statusMercado.b3.aberto ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
+              <span className="text-slate-400">B3 Agro:</span>
+              <strong className={statusMercado.b3.aberto ? 'text-emerald-400' : 'text-slate-400'}>
+                {statusMercado.b3.aberto ? 'Aberto' : 'Fechado'}
+              </strong>
+            </span>
+            {/* CBOT */}
+            <span className="inline-flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${statusMercado.cbot.aberto ? 'bg-emerald-400 animate-pulse' : statusMercado.cbot.tipoPregao === 'PAUSA' ? 'bg-amber-400' : 'bg-slate-500'}`}></span>
+              <span className="text-slate-400">CBOT Chicago:</span>
+              <strong className={statusMercado.cbot.aberto ? 'text-emerald-400' : statusMercado.cbot.tipoPregao === 'PAUSA' ? 'text-amber-400' : 'text-slate-400'}>
+                {statusMercado.cbot.aberto ? 'Aberto' : statusMercado.cbot.tipoPregao === 'PAUSA' ? 'Pausa Técnica' : 'Fechado'}
+              </strong>
+            </span>
+            {/* CÂMBIO */}
+            <span className="inline-flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${statusMercado.cambio.aberto ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
+              <span className="text-slate-400">Câmbio Spot/PTAX:</span>
+              <strong className={statusMercado.cambio.aberto ? 'text-emerald-400' : 'text-slate-400'}>
+                {statusMercado.cambio.aberto ? 'Aberto' : 'Fechado'}
+              </strong>
+            </span>
+            {/* BOLSAS ÁSIA */}
+            <span className="inline-flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${statusMercado.ncdex.aberto || statusMercado.dce.aberto ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
+              <span className="text-slate-400">Ásia (NCDEX/DCE):</span>
+              <strong className={statusMercado.ncdex.aberto || statusMercado.dce.aberto ? 'text-emerald-400' : 'text-slate-400'}>
+                {statusMercado.ncdex.aberto || statusMercado.dce.aberto ? 'Aberto' : 'Fechado'}
+              </strong>
+            </span>
           </div>
         </div>
       </div>
@@ -490,15 +550,42 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
         {/* BARRA SUPERIOR DE STATUS DE MERCADO E CONTROLES DE SINCRONIZAÇÃO */}
         <div className="px-5 py-3.5 border-b border-slate-800/80 bg-slate-900/95 flex flex-col md:flex-row md:items-center justify-between gap-4">
           
-          {/* LADO ESQUERDO: IDENTIFICAÇÃO E CERTIFICADO DE DADOS OFICIAIS */}
+          {/* LADO ESQUERDO: IDENTIFICAÇÃO E INDICADOR DE MERCADO ABERTO/FECHADO */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2.5">
               <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${statusMercado.geralAberto ? 'bg-emerald-400' : 'bg-rose-400'} opacity-75`}></span>
+                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${statusMercado.geralAberto ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
               </span>
               <span className="font-mono font-black tracking-wider text-sm text-white">
                 PREGÃO &amp; COTAÇÕES OFICIAIS
+              </span>
+            </div>
+
+            {/* INDICADOR MERCADO ABERTO OU FECHADO (DESTAQUE VISUAL SOLICITADO) */}
+            <div
+              className={`flex items-center gap-2 px-3 py-1 rounded-xl border font-mono text-xs font-black shadow-md transition-all ${
+                statusMercado.geralAberto
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 shadow-emerald-950/30'
+                  : 'bg-rose-500/15 border-rose-500/40 text-rose-300 shadow-rose-950/30'
+              }`}
+              title={`${statusMercado.resumoPracas} (${statusMercado.descricaoCurta})`}
+            >
+              <span className="relative flex h-2 w-2 shrink-0">
+                {statusMercado.geralAberto && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                )}
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    statusMercado.geralAberto ? 'bg-emerald-400' : 'bg-rose-500'
+                  }`}
+                ></span>
+              </span>
+              <span className="tracking-wider uppercase font-black">
+                {statusMercado.badgeLabel}
+              </span>
+              <span className="text-[10px] opacity-75 hidden xl:inline font-semibold border-l border-current/25 pl-1.5">
+                {statusMercado.geralAberto ? 'Pregão Ativo' : 'Fora de Horário'}
               </span>
             </div>
 

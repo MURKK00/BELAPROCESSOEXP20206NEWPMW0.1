@@ -133,10 +133,26 @@ function resolveProcessoIncludes(processo: any, include?: Record<string, any>) {
 
   if (include.logs) {
     let logs = store.auditLogs.filter((l) => l.processoId === processo.id);
+    if (include.logs.orderBy?.criadoEm === 'asc') {
+      logs = [...logs].sort((a, b) => new Date(a.criadoEm).getTime() - new Date(b.criadoEm).getTime());
+    } else {
+      logs = [...logs].sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime());
+    }
     if (include.logs.include?.usuario) {
       logs = logs.map((l) => ({
         ...l,
-        usuario: store.usuarios.find((u) => u.id === l.usuarioId) ?? null,
+        criadoEm: l.criadoEm ? new Date(l.criadoEm) : new Date(),
+        usuario: store.usuarios.find((u) => u.id === l.usuarioId) ?? store.usuarios[0] ?? {
+          id: l.usuarioId || 'usr_dev_admin',
+          nome: 'Administrador Bela Cereais',
+          email: 'admin@belacereais.com.br',
+          papel: 'ADMIN',
+        },
+      }));
+    } else {
+      logs = logs.map((l) => ({
+        ...l,
+        criadoEm: l.criadoEm ? new Date(l.criadoEm) : new Date(),
       }));
     }
     copy.logs = logs;
@@ -569,11 +585,55 @@ export function createMockPrismaClient() {
     },
 
     auditLog: {
+      findMany: async ({ where, include, orderBy }: any = {}) => {
+        let list = store.auditLogs.filter((l) => matchesWhere(l, where));
+        if (orderBy?.criadoEm === 'asc') {
+          list = [...list].sort((a, b) => new Date(a.criadoEm).getTime() - new Date(b.criadoEm).getTime());
+        } else {
+          list = [...list].sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime());
+        }
+        return list.map((l) => {
+          const item = { ...l, criadoEm: l.criadoEm ? new Date(l.criadoEm) : new Date() };
+          if (include?.usuario) {
+            item.usuario = store.usuarios.find((u) => u.id === l.usuarioId) ?? store.usuarios[0] ?? {
+              id: l.usuarioId || 'usr_dev_admin',
+              nome: 'Administrador Bela Cereais',
+              email: 'admin@belacereais.com.br',
+              papel: 'ADMIN',
+            };
+          }
+          if (include?.processo) {
+            item.processo = store.processos.find((p) => p.id === l.processoId) ?? null;
+          }
+          return item;
+        });
+      },
+      findFirst: async ({ where, include }: any = {}) => {
+        const l = store.auditLogs.find((item) => matchesWhere(item, where));
+        if (!l) return null;
+        const item = { ...l, criadoEm: l.criadoEm ? new Date(l.criadoEm) : new Date() };
+        if (include?.usuario) {
+          item.usuario = store.usuarios.find((u) => u.id === l.usuarioId) ?? store.usuarios[0] ?? null;
+        }
+        return item;
+      },
+      findUnique: async ({ where, include }: any = {}) => {
+        const l = store.auditLogs.find((item) => matchesWhere(item, where));
+        if (!l) return null;
+        const item = { ...l, criadoEm: l.criadoEm ? new Date(l.criadoEm) : new Date() };
+        if (include?.usuario) {
+          item.usuario = store.usuarios.find((u) => u.id === l.usuarioId) ?? store.usuarios[0] ?? null;
+        }
+        return item;
+      },
+      count: async ({ where }: any = {}) => {
+        return store.auditLogs.filter((l) => matchesWhere(l, where)).length;
+      },
       create: async ({ data }: any) => {
         const item = {
-          id: `audit_${Date.now()}`,
+          id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           ...data,
-          criadoEm: new Date(),
+          criadoEm: data.criadoEm ? new Date(data.criadoEm) : new Date(),
         };
         store.auditLogs.unshift(item);
         return item;

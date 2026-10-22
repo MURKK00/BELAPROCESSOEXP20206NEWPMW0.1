@@ -42,12 +42,14 @@ export function Field({
 }
 
 export function SelectField({
-  label, name, options, required = false, placeholder, defaultValue = '', onChange,
+  label, name, options = [], required = false, placeholder, defaultValue = '', onChange,
 }: {
-  label: string; name: string; options: { value: string; label: string }[];
+  label: string; name: string; options?: { value: string; label: string }[];
   required?: boolean; placeholder?: string; defaultValue?: string;
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }) {
+  const safeOptions = Array.isArray(options) ? options : [];
+
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-sm font-semibold" htmlFor={name}>
@@ -62,7 +64,7 @@ export function SelectField({
         className="border border-border rounded-lg px-3 py-2.5 text-sm outline-none focus:border-secondary focus:ring-2 focus:ring-blue-100 bg-white"
       >
         <option value="" disabled>{placeholder ?? 'Selecione...'}</option>
-        {options.map((o) => (
+        {safeOptions.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
@@ -84,4 +86,18 @@ export const PRODUTOS_FEIJAO = [
 export const TIPOS_FUMIGACAO = [
   { value: 'Brometo', label: 'Brometo' },
   { value: 'Fosfina', label: 'Fosfina' },
+];
+
+// Lista padrão de portos de origem
+export const PORTOS_ORIGEM_OPTIONS = [
+  { value: 'SANTOS (Santos - BRSSZ)', label: 'SANTOS (Santos - BRSSZ)' },
+  { value: 'PARANAGUA (Paranaguá - BRPNG)', label: 'PARANAGUA (Paranaguá - BRPNG)' },
+];
+
+// Lista padrão de embalagens
+export const EMBALAGENS_OPTIONS = [
+  { value: 'Sacaria 30kg', label: 'Sacaria 30kg (Padrão 30 KG / Bag)' },
+  { value: 'Sacaria 25kg', label: 'Sacaria 25kg (25 KG / Bag)' },
+  { value: 'Sacaria 50kg', label: 'Sacaria 50kg (50 KG / Bag)' },
+  { value: 'Big Bag 1000kg', label: 'Big Bag 1000kg (1 TON / Big Bag)' },
 ];

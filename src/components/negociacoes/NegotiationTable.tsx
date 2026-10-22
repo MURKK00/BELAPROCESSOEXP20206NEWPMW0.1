@@ -202,20 +202,6 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
     setPrazoFiltro('TODOS');
   };
 
-  const handleStatusChange = async (id: string, novoStatus: string, numeroProcesso: string) => {
-    const confirmacao = window.confirm(
-      `Tem certeza que deseja alterar o status do processo ${numeroProcesso} para ${
-        STATUS_NEGOCIACAO_MAP[novoStatus] || novoStatus
-      }?`
-    );
-    if (confirmacao) {
-      const formData = new FormData();
-      formData.set('processoId', id);
-      formData.set('status', novoStatus);
-      await atualizarStatusAction(formData);
-      router.refresh();
-    }
-  };
 
   const handleCancelar = async (id: string) => {
     if (window.confirm('Tem certeza que deseja cancelar esta negociação?')) {
@@ -754,33 +740,18 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
                     </div>
                   </td>
 
-                  {/* Select de status */}
+                  {/* Status travado na listagem (alteração permitida apenas dentro da negociação) */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="relative inline-block">
-                      <select
-                        value={p.status}
-                        onChange={(e) => handleStatusChange(p.id, e.target.value, p.numeroProcesso)}
-                        className={`pl-3 pr-6 py-1 rounded-full text-xs font-bold border uppercase tracking-wider outline-none cursor-pointer appearance-none ${getStatusColor(
-                          p.status
-                        )}`}
-                      >
-                        {STATUS_OPTIONS.filter((o) => o.value !== 'TODOS').map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center opacity-60">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2.5"
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </div>
-                    </div>
+                    <Link
+                      href={`/negociacoes/${p.id}`}
+                      title="Status da operação (travado nesta listagem). Clique para abrir a negociação e alterar o status pelo cabeçalho operacional."
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider transition-opacity hover:opacity-85 ${getStatusColor(
+                        p.status
+                      )}`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 shrink-0" />
+                      <span>{STATUS_NEGOCIACAO_MAP[p.status] || p.status}</span>
+                    </Link>
                   </td>
 
                   <td className="px-6 py-4 text-sm font-semibold text-slate-800 dark:text-slate-200">

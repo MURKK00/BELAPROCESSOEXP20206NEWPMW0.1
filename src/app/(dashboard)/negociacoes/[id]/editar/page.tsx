@@ -1,8 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { atualizarProcessoAction } from '@/server/actions/editarProcessoAction';
-import { Section, Field, SelectField, PRODUTOS_FEIJAO, TIPOS_FUMIGACAO } from '@/components/negociacoes/FormFields';
-import { PORTOS_ORIGEM_OPTIONS } from '@/app/(dashboard)/negociacoes/nova/page';
+import { Section, Field, SelectField, PRODUTOS_FEIJAO, TIPOS_FUMIGACAO, PORTOS_ORIGEM_OPTIONS } from '@/components/negociacoes/FormFields';
 
 export default async function EditarNegociacaoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

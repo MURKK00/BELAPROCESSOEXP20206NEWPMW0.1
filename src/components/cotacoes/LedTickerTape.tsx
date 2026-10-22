@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { calcularStatusMercados, StatusMercadoGeral } from '@/lib/mercadoStatus';
 
 interface TickerItem {
   id: string;
@@ -14,6 +15,7 @@ interface TickerItem {
 }
 
 export function LedTickerTape() {
+  const [statusMercado, setStatusMercado] = useState<StatusMercadoGeral>(() => calcularStatusMercados());
   const [items, setItems] = useState<TickerItem[]>([
     {
       id: 'soja',
@@ -179,6 +181,8 @@ export function LedTickerTape() {
       if (data.sucesso) {
         setIsLiveOfficial(true);
         setFonteInfo(data.fonte || 'CBOT · B3 · BACEN');
+        if (data.statusMercados) setStatusMercado(data.statusMercados);
+        else setStatusMercado(calcularStatusMercados());
 
         if (data.atualizadoEm) {
           const d = new Date(data.atualizadoEm);
@@ -367,14 +371,25 @@ export function LedTickerTape() {
     <div className="w-full relative overflow-hidden bg-[#070b12] border-y border-slate-800 shadow-inner group">
       {/* Moldura de LED com efeito de painel eletrônico de bolsa */}
       <div className="flex items-center">
-        {/* BLOCO FIXO ESQUERDA: APENAS COTAÇÕES */}
+        {/* BLOCO FIXO ESQUERDA: COTAÇÕES & STATUS DO MERCADO */}
         <div className="shrink-0 z-20 flex items-center gap-2 bg-[#05080e] px-2.5 sm:px-3 py-2 border-r border-slate-800/90 shadow-md">
           <span className="relative flex h-2 w-2 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            {statusMercado.geralAberto && (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            )}
+            <span className={`relative inline-flex rounded-full h-2 w-2 ${statusMercado.geralAberto ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
           </span>
           <span className="text-[11px] font-black tracking-wider text-emerald-400 font-mono uppercase whitespace-nowrap">
             COTAÇÕES
+          </span>
+          <span
+            className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase font-mono tracking-wider hidden sm:inline ${
+              statusMercado.geralAberto
+                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+            }`}
+          >
+            {statusMercado.geralAberto ? 'ABERTO' : 'FECHADO'}
           </span>
         </div>
 

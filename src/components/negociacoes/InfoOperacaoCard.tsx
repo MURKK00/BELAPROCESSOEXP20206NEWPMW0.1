@@ -3,7 +3,20 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { atualizarInfoOperacaoAction } from '@/server/actions/blocoActions';
-import { IncotermHelpBadge, INCOTERMS_OPTIONS } from './IncotermSelectField';
+import { IncotermHelpBadge } from './IncotermSelectField';
+import { 
+  Briefcase, 
+  MapPin, 
+  Package, 
+  Edit3, 
+  Globe2, 
+  FileText, 
+  Clock, 
+  Box, 
+  Check, 
+  X,
+  Scale
+} from 'lucide-react';
 
 type Props = {
   processoId: string;
@@ -40,53 +53,174 @@ export function InfoOperacaoCard(props: Props) {
     }
   }
 
+  const volumeTon = props.volumeKg ? (props.volumeKg / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '0';
+
   if (!editando) {
     return (
-      <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-6 shadow-2xs relative transition-colors">
-        <button
-          onClick={() => setEditando(true)}
-          title="Editar informações"
-          className="absolute top-5 right-5 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors"
-        >
-          ✏️
-        </button>
-        <h2 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">Informações da Operação</h2>
-
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <Info label="Cliente Final" value={props.clienteFinal} />
-          <Info label="Produto" value={props.produto} />
-          <Info label="Volume" value={`${props.volumeKg / 1000} Toneladas`} />
-
-          {/* INCOTERM COM TOOLTIP DE AJUDA */}
-          <div>
-            <label className="block text-xs uppercase text-slate-400 dark:text-slate-500 font-bold mb-1">
-              Incoterm
-            </label>
-            <div className="font-bold text-slate-900 dark:text-white flex items-center">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                {props.incoterm || 'FOB'}
-              </span>
-              <IncotermHelpBadge incoterm={props.incoterm || 'FOB'} />
+      <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-6 shadow-sm relative transition-all">
+        {/* Header do Card com Botão de Edição */}
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <Briefcase className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                Ficha Técnica da Operação
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Parâmetros comerciais, rota marítima e especificações da carga.
+              </p>
             </div>
           </div>
 
-          <Info label="Porto de Origem → Destino" value={`${props.portoOrigem || '-'} → ${props.portoDestino || '-'}`} />
-          <Info label="Local de Estufagem / REDEX" value={props.redex || '-'} />
-          <Info
-            label="Valor Declarado"
-            value={props.valorDeclaradoUsd ? `$ ${Number(props.valorDeclaradoUsd).toFixed(2)}` : '-'}
-          />
-          <Info
-            label="Contêineres (Qtd)"
-            value={props.containerQtd ? `${props.containerQtd}x ${props.containerTipo}` : '-'}
-          />
-          <Info
-            label="Sacas por contêiner"
-            value={props.sacasPorContainer ? `${props.sacasPorContainer} sacas` : '-'}
-          />
-          <Info label="Free time (Destino)" value={props.freeTimeDestino || '-'} />
-          <Info label="RUC" value={props.ruc || '-'} />
-          <Info label="Contrato Interno" value={props.contratoInterno || '-'} />
+          <button
+            onClick={() => setEditando(true)}
+            title="Editar informações da operação"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-orange-500" />
+            <span>Editar Ficha</span>
+          </button>
+        </div>
+
+        {/* 3 SEÇÕES ESTRUTURADAS E VISUALMENTE DISTINTAS */}
+        <div className="space-y-6">
+          
+          {/* SEÇÃO 1: DADOS COMERCIAIS */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                1. Comercial & Contrato
+              </span>
+              <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
+              <FieldBox 
+                label="Cliente Final" 
+                value={props.clienteFinal} 
+                highlight 
+              />
+              <FieldBox 
+                label="Produto / Mercadoria" 
+                value={props.produto} 
+              />
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 mb-1">
+                  Incoterm
+                </label>
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                    {props.incoterm || 'FOB'}
+                  </span>
+                  <IncotermHelpBadge incoterm={props.incoterm || 'FOB'} />
+                </div>
+              </div>
+
+              <FieldBox 
+                label="Preço Declarado (USD/t)" 
+                value={props.valorDeclaradoUsd ? `US$ ${Number(props.valorDeclaradoUsd).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'} 
+              />
+              <FieldBox 
+                label="RUC (DUE)" 
+                value={props.ruc || 'Pendente de emissão'} 
+                mono 
+              />
+              <FieldBox 
+                label="Contrato Interno" 
+                value={props.contratoInterno || 'N/A'} 
+                mono 
+              />
+            </div>
+          </div>
+
+          {/* SEÇÃO 2: ROTA & LOGÍSTICA */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                2. Rota Marítima & Armazém
+              </span>
+              <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/70 dark:border-slate-800">
+                <span className="block text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 mb-1">
+                  Porto de Origem (Saída)
+                </span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <span className="truncate">{props.portoOrigem || '-'}</span>
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/70 dark:border-slate-800">
+                <span className="block text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 mb-1">
+                  Porto de Destino (Descarga)
+                </span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <Globe2 className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                  <span className="truncate">{props.portoDestino || '-'}</span>
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/70 dark:border-slate-800">
+                <span className="block text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 mb-1">
+                  Free Time no Destino
+                </span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{props.freeTimeDestino || 'Padrão armador'}</span>
+                </span>
+              </div>
+
+              <div className="sm:col-span-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">
+                    Terminal REDEX / Local de Estufagem
+                  </span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    {props.redex || 'Não informado'}
+                  </span>
+                </div>
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                  Estufagem Terceirizada
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* SEÇÃO 3: CARGA & ESPECIFICAÇÃO DE EMBALAGEM */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                3. Volume, Contêineres & Embalagem
+              </span>
+              <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              <FieldBox 
+                label="Volume Total" 
+                value={`${volumeTon} t (${props.volumeKg.toLocaleString('pt-BR')} kg)`} 
+                highlight 
+              />
+              <FieldBox 
+                label="Qtd. Contêineres" 
+                value={props.containerQtd ? `${props.containerQtd}x ${props.containerTipo}` : '-'} 
+              />
+              <FieldBox 
+                label="Sacas por Contêiner" 
+                value={props.sacasPorContainer ? `${props.sacasPorContainer} sacas` : '-'} 
+              />
+              <FieldBox 
+                label="Tipo de Contêiner" 
+                value={props.containerTipo || "20' DRY"} 
+              />
+            </div>
+          </div>
+
         </div>
       </div>
     );
@@ -95,120 +229,117 @@ export function InfoOperacaoCard(props: Props) {
   return (
     <form
       action={handleSubmit}
-      className="lg:col-span-2 bg-white dark:bg-slate-900 border border-orange-500/40 dark:border-orange-500/30 rounded-2xl p-6 shadow-sm transition-colors"
+      className="lg:col-span-2 bg-white dark:bg-slate-900 border-2 border-orange-500/50 rounded-3xl p-6 shadow-md transition-all"
     >
-      <h2 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">Editar Informações da Operação</h2>
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <EditField label="Cliente Final" name="clienteFinal" defaultValue={props.clienteFinal} />
-        <EditField label="Produto" name="produto" defaultValue={props.produto} />
-        <EditField label="Volume (KG)" name="volumeKg" type="number" defaultValue={props.volumeKg} />
-
-        {/* SELECT DE INCOTERM NA EDIÇÃO COM TOOLTIP */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center">
-            <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Incoterm</label>
-            <IncotermHelpBadge incoterm={props.incoterm} />
-          </div>
-          <select
-            name="incoterm"
-            defaultValue={props.incoterm || 'FOB'}
-            className="border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
-          >
-            {INCOTERMS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+      <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">
+            Editar Ficha Técnica da Operação
+          </h2>
+          <p className="text-xs text-slate-400">
+            Atualize dados comerciais, porto de origem/destino e carga contratada.
+          </p>
         </div>
-        
-        <EditField 
-          label="Porto de Origem (Saída)" 
-          name="portoOrigem" 
-          defaultValue={props.portoOrigem ?? ''} 
-          placeholder="Ex: Santos - SSZDPW" 
-        />
-
-        <EditField label="Porto de destino" name="portoDestino" defaultValue={props.portoDestino} />
-        <EditField label="Local de Estufagem / REDEX" name="redex" defaultValue={props.redex} />
-        <EditField
-          label="Valor Declarado (USD)"
-          name="valorDeclaradoUsd"
-          type="number"
-          defaultValue={props.valorDeclaradoUsd ?? ''}
-        />
-        <EditField
-          label="Contêineres (Qtd)"
-          name="containerQtd"
-          type="number"
-          defaultValue={props.containerQtd ?? ''}
-        />
-        <EditField
-          label="Sacas por contêiner"
-          name="sacasPorContainer"
-          type="number"
-          defaultValue={props.sacasPorContainer ?? ''}
-        />
-        <EditField
-          label="Free time (Destino)"
-          name="freeTimeDestino"
-          defaultValue={props.freeTimeDestino}
-          placeholder="Ex: 14 dias corridos"
-        />
-        <EditField label="RUC" name="ruc" defaultValue={props.ruc} />
-        <EditField label="Contrato Interno" name="contratoInterno" defaultValue={props.contratoInterno} />
-      </div>
-      <div className="flex gap-3 mt-5">
-        <button
-          type="submit"
-          disabled={salvando}
-          className="bg-[#f58220] hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer shadow-2xs"
-        >
-          {salvando ? 'Salvando...' : 'Salvar'}
-        </button>
         <button
           type="button"
           onClick={() => setEditando(false)}
-          className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
+          className="text-xs text-slate-400 hover:text-slate-600 font-semibold"
         >
           Cancelar
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        <EditInput label="Cliente Final" name="clienteFinal" defaultValue={props.clienteFinal} required />
+        <EditInput label="Produto" name="produto" defaultValue={props.produto} required />
+        <EditInput label="Volume (KG)" name="volumeKg" type="number" defaultValue={String(props.volumeKg)} required />
+        
+        <EditInput label="Incoterm" name="incoterm" defaultValue={props.incoterm} required />
+        <EditInput label="Porto de Origem" name="portoOrigem" defaultValue={props.portoOrigem} required />
+        <EditInput label="Porto de Destino" name="portoDestino" defaultValue={props.portoDestino} required />
+        
+        <EditInput label="Local de Estufagem / REDEX" name="redex" defaultValue={props.redex} />
+        <EditInput label="Preço Declarado (USD/t)" name="valorDeclaradoUsd" type="number" defaultValue={props.valorDeclaradoUsd ? String(props.valorDeclaradoUsd) : ''} />
+        <EditInput label="Qtd. Contêineres" name="containerQtd" type="number" defaultValue={props.containerQtd ? String(props.containerQtd) : ''} />
+        
+        <EditInput label="Sacas por Contêiner" name="sacasPorContainer" type="number" defaultValue={props.sacasPorContainer ? String(props.sacasPorContainer) : ''} />
+        <EditInput label="Free time (Destino)" name="freeTimeDestino" defaultValue={props.freeTimeDestino} />
+        <EditInput label="RUC (DUE)" name="ruc" defaultValue={props.ruc} />
+        <EditInput label="Contrato Interno" name="contratoInterno" defaultValue={props.contratoInterno} />
+      </div>
+
+      <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+        <button
+          type="button"
+          onClick={() => setEditando(false)}
+          className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={salvando}
+          className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-colors shadow-xs disabled:opacity-50"
+        >
+          {salvando ? 'Salvando...' : 'Salvar Alterações'}
         </button>
       </div>
     </form>
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function FieldBox({
+  label,
+  value,
+  highlight = false,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  mono?: boolean;
+}) {
   return (
-    <div>
-      <label className="block text-xs uppercase text-slate-400 dark:text-slate-500 font-bold mb-1">{label}</label>
-      <div className="font-bold text-slate-900 dark:text-white">{value}</div>
+    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/70 dark:border-slate-800">
+      <span className="block text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 mb-0.5 truncate">
+        {label}
+      </span>
+      <span className={`block text-xs font-bold truncate ${
+        highlight 
+          ? 'text-slate-950 dark:text-white' 
+          : 'text-slate-800 dark:text-slate-200'
+      } ${mono ? 'font-mono' : ''}`}>
+        {value}
+      </span>
     </div>
   );
 }
 
-function EditField({
+function EditInput({
   label,
   name,
   defaultValue,
   type = 'text',
-  placeholder,
+  required = false,
 }: {
   label: string;
   name: string;
-  defaultValue: any;
+  defaultValue?: string;
   type?: string;
-  placeholder?: string;
+  required?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">{label}</label>
+      <label className="text-xs font-bold text-slate-700 dark:text-slate-300" htmlFor={name}>
+        {label}{required && <span className="text-red-500"> *</span>}
+      </label>
       <input
+        id={name}
         name={name}
         type={type}
-        defaultValue={defaultValue}
-        placeholder={placeholder}
-        className="border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm outline-none focus:border-orange-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
+        defaultValue={defaultValue ?? ''}
+        required={required}
+        className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-orange-500/40"
       />
     </div>
   );

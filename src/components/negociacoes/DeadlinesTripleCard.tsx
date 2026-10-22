@@ -104,7 +104,7 @@ export function DeadlinesTripleCard({
   const temCritico = items.some((i) => i.status === 'CRITICO');
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xs transition-colors">
+    <div className="bg-slate-50/70 dark:bg-slate-850/60 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl p-4 transition-all">
       <div className="flex items-center justify-between mb-3 border-b border-slate-100 dark:border-slate-800 pb-2.5">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-slate-500 dark:text-slate-400" />

@@ -4,20 +4,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Users, CheckCircle2, Clock } from 'lucide-react';
 import { criarProcessoAction } from '@/server/actions/criarProcessoAction';
-import { Section, Field, SelectField, PRODUTOS_FEIJAO, TIPOS_FUMIGACAO } from '@/components/negociacoes/FormFields';
+import { 
+  Section, 
+  Field, 
+  SelectField, 
+  PRODUTOS_FEIJAO, 
+  TIPOS_FUMIGACAO, 
+  PORTOS_ORIGEM_OPTIONS, 
+  EMBALAGENS_OPTIONS 
+} from '@/components/negociacoes/FormFields';
 import { IncotermSelectField } from '@/components/negociacoes/IncotermSelectField';
-
-export const PORTOS_ORIGEM_OPTIONS = [
-  { value: 'SANTOS (Santos - BRSSZ)', label: 'SANTOS (Santos - BRSSZ)' },
-  { value: 'PARANAGUA (Paranaguá - BRPNG)', label: 'PARANAGUA (Paranaguá - BRPNG)' },
-];
-
-export const EMBALAGENS_OPTIONS = [
-  { value: 'Sacaria 30kg', label: 'Sacaria 30kg (Padrão 30 KG / Bag)' },
-  { value: 'Sacaria 25kg', label: 'Sacaria 25kg (25 KG / Bag)' },
-  { value: 'Sacaria 50kg', label: 'Sacaria 50kg (50 KG / Bag)' },
-  { value: 'Big Bag 1000kg', label: 'Big Bag 1000kg (1 TON / Big Bag)' },
-];
 
 export default function NovaNegociacaoPage() {
   const router = useRouter();

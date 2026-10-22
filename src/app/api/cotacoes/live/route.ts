@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { calcularStatusMercados } from '@/lib/mercadoStatus';
 
 interface LiveCotacao {
   simbolo: string;
@@ -52,6 +53,7 @@ interface LiveMarketResponse {
     precoReaisSaca: number;
     fonte?: string;
   }>;
+  statusMercados?: ReturnType<typeof calcularStatusMercados>;
 }
 
 // Cache em memória para evitar sobrecarregar as APIs externas
@@ -362,6 +364,7 @@ export async function GET() {
         fonte: 'Ibrafe / Brokers Internacionais Ásia (FOB Santos/Paranaguá)',
       },
     ],
+    statusMercados: calcularStatusMercados(new Date()),
   };
 
   cache = { data: payload, timestamp: agora };

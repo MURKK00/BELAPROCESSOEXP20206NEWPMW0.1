@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
+import { calcularAlteracoesCampos, registrarLogAuditoria } from '@/lib/audit';
 
 function parseSimNao(value: FormDataEntryValue | null): boolean | undefined {
   if (value === 'sim') return true;
@@ -103,34 +104,7 @@ export async function atualizarProcessoAction(formData: FormData) {
   };
 
   // 3. MOTOR DE COMPARAÇÃO (DE -> PARA)
-  const alteracoes: Record<string, { de: any; para: any }> = {};
-
-  for (const [chave, valorNovo] of Object.entries(dadosNovos)) {
-    let valorAntigo = (processoAntigo as any)[chave];
-
-    // Formatações para igualar tipos e evitar falso-positivos
-    if (valorAntigo && typeof valorAntigo === 'object' && 'toNumber' in valorAntigo) {
-      valorAntigo = valorAntigo.toNumber(); // Prisma Decimal para Number
-    }
-
-    const strAntigo = valorAntigo instanceof Date ? valorAntigo.toISOString() : String(valorAntigo ?? '');
-    const strNovo = valorNovo instanceof Date ? valorNovo.toISOString() : String(valorNovo ?? '');
-
-    // Se mudou de verdade, registra a alteração
-    if (strAntigo !== strNovo) {
-      let printAntigo = valorAntigo;
-      let printNovo = valorNovo;
-
-      // Tratamentos visuais para o log ficar legível na tela
-      if (valorAntigo instanceof Date) printAntigo = valorAntigo.toLocaleDateString('pt-BR');
-      if (valorNovo instanceof Date) printNovo = valorNovo.toLocaleDateString('pt-BR');
-      if (typeof valorAntigo === 'boolean') printAntigo = valorAntigo ? 'Sim' : 'Não';
-      if (typeof valorNovo === 'boolean') printNovo = valorNovo ? 'Sim' : 'Não';
-
-      const nomeCampo = labelsCampos[chave] || chave;
-      alteracoes[nomeCampo] = { de: printAntigo, para: printNovo };
-    }
-  }
+  const alteracoes = calcularAlteracoesCampos(processoAntigo, dadosNovos);
 
   // 4. Salva a atualização no banco de dados
   await prisma.processo.update({
@@ -152,18 +126,18 @@ export async function atualizarProcessoAction(formData: FormData) {
 
   // 5. Salva a Auditoria (Somente se teve alterações reais)
   if (Object.keys(alteracoes).length > 0) {
-    await prisma.auditLog.create({
-      data: {
-        processoId,
-        usuarioId: user.id,
-        acao: 'PROCESSO_EDITADO',
-        detalhe: 'Informações da operação atualizadas.',
-        alteracoes: alteracoes // Nosso JSON mágico vai aqui!
-      },
+    const nomesAlterados = Object.keys(alteracoes).slice(0, 3).join(', ') + (Object.keys(alteracoes).length > 3 ? '...' : '');
+    await registrarLogAuditoria({
+      processoId,
+      usuarioId: user.id,
+      acao: 'PROCESSO_EDITADO',
+      detalhe: `Informações da operação atualizadas (${Object.keys(alteracoes).length} campo(s): ${nomesAlterados}).`,
+      alteracoes,
     });
   }
 
   revalidatePath(`/negociacoes/${processoId}`);
+  revalidatePath(`/negociacoes/${processoId}/auditoria`);
   revalidatePath(`/negociacoes/${processoId}/containers`);
   revalidatePath('/negociacoes');
   revalidatePath('/');
@@ -184,23 +158,21 @@ export async function atualizarStatusAction(formData: FormData) {
     data: { status: novoStatus as any },
   });
 
-  // Aproveitando a onda, adicionei o JSON no status também!
-  await prisma.auditLog.create({
-    data: {
-      processoId,
-      usuarioId: user.id,
-      acao: 'STATUS_ALTERADO',
-      detalhe: 'Status da operação alterado.',
-      alteracoes: {
-        "Status do Processo": {
-          de: anterior?.status || 'Vazio',
-          para: novoStatus
-        }
-      }
+  await registrarLogAuditoria({
+    processoId,
+    usuarioId: user.id,
+    acao: 'STATUS_ALTERADO',
+    detalhe: `Status da operação alterado de "${anterior?.status || 'Não definido'}" para "${novoStatus}".`,
+    alteracoes: {
+      "Status da Operação": {
+        de: anterior?.status || 'Vazio',
+        para: novoStatus,
+      },
     },
   });
 
   revalidatePath(`/negociacoes/${processoId}`);
+  revalidatePath(`/negociacoes/${processoId}/auditoria`);
   revalidatePath('/negociacoes');
   revalidatePath('/');
 }

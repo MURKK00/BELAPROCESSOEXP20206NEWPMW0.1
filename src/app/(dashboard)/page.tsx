@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getDaysLeft } from '@/lib/workflow';
 import { formatNum, formatDateBR } from '@/lib/formatters';
-import { Scale, DollarSign, Clock, Ship, TrendingUp, ArrowRight, Activity, Globe } from 'lucide-react';
+import { Scale, DollarSign, Clock, Ship, TrendingUp, ArrowRight, Activity, Globe, Container } from 'lucide-react';
 import { LedTickerTape } from '@/components/cotacoes/LedTickerTape';
 
 export default async function DashboardPage() {
@@ -33,6 +33,9 @@ export default async function DashboardPage() {
 
   let volumeTotalTon = 0;
   let valorEmOperacaoUsd = 0;
+  let totalContainersMovimentados = 0;
+  let containersEmbarcados = 0;
+  let containersEmExecucao = 0;
 
   for (const p of processosValidos) {
     const fin = p.financeiro;
@@ -47,6 +50,18 @@ export default async function DashboardPage() {
 
     const precoUnitario = fin?.precoUsd ? Number(fin.precoUsd.toString()) : Number(p.valorDeclaradoUsd) || 0;
     valorEmOperacaoUsd += (pesoTon * precoUnitario);
+
+    // Contagem de contêineres movimentados no processo
+    const qtdContainers = (p.containers && p.containers.length > 0)
+      ? p.containers.length
+      : (p.containerQtd || 0);
+
+    totalContainersMovimentados += qtdContainers;
+    if (p.status === 'EMBARCADO' || p.status === 'FINALIZADO') {
+      containersEmbarcados += qtdContainers;
+    } else {
+      containersEmExecucao += qtdContainers;
+    }
   }
 
   // CÁLCULO FINANCEIRO CONSOLIDADO (RECEBIMENTO BANCÁRIO VS. TRAVAS CAMBIAIS)
@@ -120,7 +135,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* CARDS SUPERIORES ESTILIZADOS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4.5">
         {/* 1. VOLUME TOTAL */}
         <div className="flex items-center gap-3.5 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 dark:border-amber-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-amber-500/40">
           <div className="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
@@ -162,7 +177,30 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* 3. EM EXECUÇÃO */}
+        {/* 3. CONTÊINERES MOVIMENTADOS (SOLICITADO) */}
+        <div className="flex items-center gap-3.5 bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border border-indigo-500/20 dark:border-indigo-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-indigo-500/40">
+          <div className="w-11 h-11 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+            <Container className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              Contêineres Movimentados
+            </span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                {totalContainersMovimentados}
+              </span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {totalContainersMovimentados === 1 ? 'contêiner' : 'contêineres'}
+              </span>
+            </div>
+            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 block mt-0.5 font-medium">
+              {containersEmbarcados} embarcados · {containersEmExecucao} em pátio/estufagem
+            </span>
+          </div>
+        </div>
+
+        {/* 4. EM EXECUÇÃO */}
         <div className="flex items-center gap-3.5 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 dark:border-blue-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-blue-500/40">
           <div className="w-11 h-11 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
             <Clock className="w-5 h-5" />
@@ -183,7 +221,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* 4. EMBARCADOS */}
+        {/* 5. EMBARCADOS */}
         <div className="flex items-center gap-3.5 bg-gradient-to-br from-cyan-500/10 via-cyan-500/5 to-transparent border border-cyan-500/20 dark:border-cyan-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-cyan-500/40">
           <div className="w-11 h-11 rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shrink-0">
             <Ship className="w-5 h-5" />

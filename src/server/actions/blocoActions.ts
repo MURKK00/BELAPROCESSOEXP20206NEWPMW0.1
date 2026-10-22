@@ -3,62 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
-
-// Dicionário atualizado: no log vai aparecer "Porto de Origem", mas no banco ele grava na coluna incoterm
-const labelsCampos: Record<string, string> = {
-  clienteFinal: 'Cliente Final',
-  produto: 'Produto',
-  volumeKg: 'Volume (KG)',
-  incoterm: 'Incoterm',
-  portoOrigem: 'Porto de Origem',
-  portoDestino: 'Porto de Destino',
-  redex: 'REDEX',
-  valorDeclaradoUsd: 'Valor Declarado (USD)',
-  containerQtd: 'Qtd. de Contêineres',
-  sacasPorContainer: 'Sacas por Contêiner',
-  freeTimeDestino: 'Free Time (Destino)',
-  ruc: 'RUC',
-  contratoInterno: 'Contrato Interno',
-  bookingNumero: 'Nº do Booking',
-  navio: 'Navio',
-  estufagemInicio: 'Início da Estufagem',
-  estufagemFim: 'Fim da Estufagem',
-  deadlineEmbarque: 'Deadline de Embarque',
-  deadlineDraftBl: 'Deadline Draft BL',
-  deadlineDraftVgm: 'Deadline Draft VGM',
-  deadlineCarga: 'Deadline Draft Carga (Gate)',
-};
-
-// Função auxiliar para comparar e gerar as alterações
-function gerarAlteracoes(dadosAntigos: any, dadosNovos: any) {
-  const alteracoes: Record<string, { de: any; para: any }> = {};
-
-  for (const [chave, valorNovo] of Object.entries(dadosNovos)) {
-    let valorAntigo = dadosAntigos[chave];
-
-    // Converte Decimal do Prisma para número normal
-    if (valorAntigo && typeof valorAntigo === 'object' && 'toNumber' in valorAntigo) {
-      valorAntigo = valorAntigo.toNumber();
-    }
-
-    // Compara datas e textos de forma segura
-    const strAntigo = valorAntigo instanceof Date ? valorAntigo.toISOString() : String(valorAntigo ?? '');
-    const strNovo = valorNovo instanceof Date ? valorNovo.toISOString() : String(valorNovo ?? '');
-
-    if (strAntigo !== strNovo) {
-      const nomeCampo = labelsCampos[chave] || chave;
-      
-      // Formata datas para o visual ficar bonito no Log (DD/MM/AAAA)
-      let printAntigo = valorAntigo;
-      let printNovo = valorNovo;
-      if (valorAntigo instanceof Date) printAntigo = valorAntigo.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-      if (valorNovo instanceof Date) printNovo = valorNovo.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-
-      alteracoes[nomeCampo] = { de: printAntigo, para: printNovo };
-    }
-  }
-  return alteracoes;
-}
+import { calcularAlteracoesCampos, registrarLogAuditoria } from '@/lib/audit';
 
 export async function atualizarInfoOperacaoAction(formData: FormData) {
   const user = await getSessionUser();
@@ -89,21 +34,20 @@ export async function atualizarInfoOperacaoAction(formData: FormData) {
   };
 
   // 3. Compara
-  const alteracoes = gerarAlteracoes(processoAntigo, dados);
+  const alteracoes = calcularAlteracoesCampos(processoAntigo, dados);
 
   // 4. Salva no banco
   await prisma.processo.update({ where: { id: processoId }, data: dados });
 
   // 5. Salva a Auditoria só se teve mudança
   if (Object.keys(alteracoes).length > 0) {
-    await prisma.auditLog.create({
-      data: {
-        processoId,
-        usuarioId: user.id,
-        acao: 'INFO_OPERACAO_EDITADA',
-        detalhe: 'Informações da operação atualizadas.',
-        alteracoes,
-      },
+    const nomes = Object.keys(alteracoes).slice(0, 3).join(', ') + (Object.keys(alteracoes).length > 3 ? '...' : '');
+    await registrarLogAuditoria({
+      processoId,
+      usuarioId: user.id,
+      acao: 'INFO_OPERACAO_EDITADA',
+      detalhe: `Informações da operação atualizadas (${Object.keys(alteracoes).length} campo(s): ${nomes}).`,
+      alteracoes,
     });
   }
 
@@ -145,21 +89,20 @@ export async function atualizarResumoTopoAction(formData: FormData) {
   };
 
   // 3. Compara
-  const alteracoes = gerarAlteracoes(processoAntigo, dados);
+  const alteracoes = calcularAlteracoesCampos(processoAntigo, dados);
 
   // 4. Salva no banco
   await prisma.processo.update({ where: { id: processoId }, data: dados });
 
   // 5. Salva a Auditoria só se teve mudança
   if (Object.keys(alteracoes).length > 0) {
-    await prisma.auditLog.create({
-      data: {
-        processoId,
-        usuarioId: user.id,
-        acao: 'RESUMO_TOPO_EDITADO',
-        detalhe: 'Booking, navio, estufagem ou deadline atualizados.',
-        alteracoes,
-      },
+    const nomes = Object.keys(alteracoes).slice(0, 3).join(', ') + (Object.keys(alteracoes).length > 3 ? '...' : '');
+    await registrarLogAuditoria({
+      processoId,
+      usuarioId: user.id,
+      acao: 'RESUMO_TOPO_EDITADO',
+      detalhe: `Deadlines e dados de embarque atualizados (${Object.keys(alteracoes).length} campo(s): ${nomes}).`,
+      alteracoes,
     });
   }
 

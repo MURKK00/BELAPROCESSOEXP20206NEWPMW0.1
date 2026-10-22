@@ -105,6 +105,11 @@ export async function avancarMarcoStatusAction(formData: FormData) {
   const novoStatus = String(formData.get('novoStatus'));
   const nomeMarco = String(formData.get('nomeMarco'));
 
+  const anterior = await prisma.processo.findUnique({
+    where: { id: processoId },
+    select: { status: true },
+  });
+
   await prisma.processo.update({
     where: { id: processoId },
     data: { status: novoStatus as any },
@@ -116,11 +121,18 @@ export async function avancarMarcoStatusAction(formData: FormData) {
       usuarioId: user.id,
       acao: 'STATUS_ALTERADO',
       detalhe: `Marco operacional alterado para "${nomeMarco}" (Status: ${novoStatus}).`,
+      alteracoes: {
+        'Status do Processo': {
+          de: anterior?.status || 'Não definido',
+          para: novoStatus,
+        },
+      },
     },
   });
 
   revalidatePath(`/negociacoes/${processoId}`);
   revalidatePath(`/negociacoes/${processoId}/checklist`);
+  revalidatePath(`/negociacoes/${processoId}/auditoria`);
   revalidatePath('/negociacoes');
   revalidatePath('/');
 }
