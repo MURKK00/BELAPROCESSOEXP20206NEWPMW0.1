@@ -20,7 +20,9 @@ import {
   ArrowRight,
   ExternalLink,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Landmark,
+  FileSpreadsheet
 } from 'lucide-react';
 
 interface ImportadorCardProps {
@@ -34,8 +36,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
   const [salvandoToggle, setSalvandoToggle] = useState(false);
   const [toggleMsg, setToggleMsg] = useState<string | null>(null);
 
-  // Extrai informações salvas de Comprador caso sejam entidades diferentes
-  const { complementoLimpo, comprador } = parseCompradorInfo(processo.complementoBuyer);
+  // Extrai informações salvas de Comprador e Banco de Destino
+  const { complementoLimpo, comprador, bancoComprador } = parseCompradorInfo(processo.complementoBuyer);
 
   // Controle se o comprador é diferente do importador
   const [compradorDiferente, setCompradorDiferente] = useState<boolean>(comprador.diferente);
@@ -49,6 +51,20 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
   const [compradorTaxId, setCompradorTaxId] = useState(comprador.taxId || '');
   const [compradorEmail, setCompradorEmail] = useState(comprador.email || '');
   const [compradorTelefone, setCompradorTelefone] = useState(comprador.telefone || '');
+
+  // Estado dos Dados do Banco de Destino (Comprador)
+  const [bancoNome, setBancoNome] = useState(bancoComprador.nomeBanco || '');
+  const [bancoEndereco, setBancoEndereco] = useState(bancoComprador.enderecoBanco || '');
+  const [bancoConta, setBancoConta] = useState(bancoComprador.conta || '');
+  const [bancoSwift, setBancoSwift] = useState(bancoComprador.swift || '');
+  const [bancoTelefone, setBancoTelefone] = useState(bancoComprador.telefone || '');
+  const [bancoEmail, setBancoEmail] = useState(bancoComprador.email || '');
+
+  // Regras de Cobrança / Carta Borderô
+  const [temProforma, setTemProforma] = useState<boolean>(Boolean(bancoComprador.temProforma));
+  const [diasLiquidacao, setDiasLiquidacao] = useState<number>(bancoComprador.diasLiquidacao ?? (bancoComprador.temProforma ? 10 : 20));
+  const [multaAtrasoPerc, setMultaAtrasoPerc] = useState<number>(bancoComprador.multaAtrasoPerc ?? 5);
+  const [adiantamentoPerc, setAdiantamentoPerc] = useState<number>(bancoComprador.adiantamentoPerc ?? 10);
 
   // Nome do Importador (se diferente, pode ser editável)
   const [importadorNome, setImportadorNome] = useState(comprador.importadorNome || processo.clienteFinal);
@@ -850,6 +866,276 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
             </div>
           </div>
         )}
+
+        {/* ============================================================== */}
+        {/* BLOCO 3: DADOS DO BANCO DE DESTINO (COMPRADOR / CARTA BORDERÔ) */}
+        {/* ============================================================== */}
+        <div className="space-y-5 pt-6 border-t border-gray-200">
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600">
+                <Landmark className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                  3. Dados do Banco de Destino (Comprador / Cobrança CAD)
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Dados bancários no exterior utilizados para a remessa de documentos e emissão da <strong>Carta Borderô</strong>.
+                </p>
+              </div>
+            </div>
+
+            <a
+              href={`/carta-bordero/${processo.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-orange-400" />
+              <span>Gerar Carta Borderô ↗</span>
+            </a>
+          </div>
+
+          {/* CAMPOS DO BANCO DE DESTINO */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* NOME DO BANCO */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+                Nome do Banco no Destino (Comprador)
+              </label>
+              <input
+                type="text"
+                name="bancoNome"
+                value={bancoNome}
+                onChange={(e) => setBancoNome(e.target.value)}
+                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none uppercase font-semibold"
+                placeholder="Ex: TAMILNAD MERCANTILE BANK / STATE BANK OF INDIA"
+              />
+            </div>
+
+            {/* ENDEREÇO DO BANCO */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+                Endereço Completo da Agência do Banco
+              </label>
+              <input
+                type="text"
+                name="bancoEndereco"
+                value={bancoEndereco}
+                onChange={(e) => setBancoEndereco(e.target.value)}
+                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none"
+                placeholder="Ex: 20, GOLAWAR AGRAHARAM ROAD, OLD WASHERMANPET, CHENNAI - 600021, TAMILNADU, INDIA"
+              />
+            </div>
+
+            {/* CONTA */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+                Conta Corrente / Account No.
+              </label>
+              <input
+                type="text"
+                name="bancoConta"
+                value={bancoConta}
+                onChange={(e) => setBancoConta(e.target.value)}
+                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none"
+                placeholder="Ex: 008700150950284"
+              />
+            </div>
+
+            {/* SWIFT / BIC */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+                Código SWIFT / BIC
+              </label>
+              <input
+                type="text"
+                name="bancoSwift"
+                value={bancoSwift}
+                onChange={(e) => setBancoSwift(e.target.value.toUpperCase())}
+                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none uppercase font-bold"
+                placeholder="Ex: TMBLINBB / SBININBB"
+              />
+            </div>
+
+            {/* TELEFONE / CONTATO NO BANCO */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+                Telefone / Contato no Banco
+              </label>
+              <input
+                type="text"
+                name="bancoTelefone"
+                value={bancoTelefone}
+                onChange={(e) => setBancoTelefone(e.target.value)}
+                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none"
+                placeholder="Ex: (+91) 9444426126 Mr MATHAN"
+              />
+            </div>
+
+            {/* E-MAIL DO BANCO */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+                E-mail do Banco / Trade Finance
+              </label>
+              <input
+                type="email"
+                name="bancoEmail"
+                value={bancoEmail}
+                onChange={(e) => setBancoEmail(e.target.value)}
+                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none"
+                placeholder="tradefinance@bank.com / collection@bank.com"
+              />
+            </div>
+          </div>
+
+          {/* PARÂMETROS DE COBRANÇA DA CARTA BORDERÔ (COM/SEM PRO-FORMA) */}
+          <div className="bg-slate-50 dark:bg-slate-850 p-4.5 rounded-2xl border border-slate-200 dark:border-slate-750 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                Condição de Cobrança & Cláusula de Atraso (Carta Borderô)
+              </span>
+              <span className="text-[11px] font-semibold text-slate-500">
+                Configura o campo &quot;Cobrar juros por atraso&quot;
+              </span>
+            </div>
+
+            {/* SELETOR DE MODALIDADE */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label
+                onClick={() => {
+                  setTemProforma(false);
+                  if (diasLiquidacao === 10) setDiasLiquidacao(20);
+                }}
+                className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  !temProforma
+                    ? 'bg-white dark:bg-slate-800 border-orange-500 ring-2 ring-orange-500/20 shadow-xs'
+                    : 'bg-white/60 dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="modalidadeProformaRadio"
+                  checked={!temProforma}
+                  onChange={() => {}}
+                  className="mt-1 text-orange-500 focus:ring-orange-500"
+                />
+                <div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white">
+                    Sem Pro-forma (100% CAD à vista)
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Liquidação integral contra apresentação de documentos no banco (padrão: 20 dias).
+                  </p>
+                </div>
+              </label>
+
+              <label
+                onClick={() => {
+                  setTemProforma(true);
+                  if (diasLiquidacao === 20) setDiasLiquidacao(10);
+                }}
+                className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  temProforma
+                    ? 'bg-white dark:bg-slate-800 border-orange-500 ring-2 ring-orange-500/20 shadow-xs'
+                    : 'bg-white/60 dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="modalidadeProformaRadio"
+                  checked={temProforma}
+                  onChange={() => {}}
+                  className="mt-1 text-orange-500 focus:ring-orange-500"
+                />
+                <div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white">
+                    Com Pro-forma (Adiantamento + Saldo CAD)
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Houve adiantamento no carregamento e saldo CAD contra documentos (padrão: 10 dias).
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* CAMPOS OCULTOS PARA O FORMULÁRIO */}
+            <input type="hidden" name="temProforma" value={temProforma ? 'true' : 'false'} />
+
+            {/* VARIÁVEIS DA CLÁUSULA */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2">
+              {temProforma && (
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">
+                    % Adiantamento no Carregamento
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      name="adiantamentoPerc"
+                      value={adiantamentoPerc}
+                      onChange={(e) => setAdiantamentoPerc(Number(e.target.value))}
+                      className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold pr-7 outline-none focus:border-orange-500"
+                      min={1}
+                      max={99}
+                    />
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">
+                  Prazo Máximo de Liquidação
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    name="diasLiquidacao"
+                    value={diasLiquidacao}
+                    onChange={(e) => setDiasLiquidacao(Number(e.target.value))}
+                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold pr-12 outline-none focus:border-orange-500"
+                    min={1}
+                    max={120}
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">dias</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">
+                  Multa por Atraso
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    name="multaAtrasoPerc"
+                    value={multaAtrasoPerc}
+                    onChange={(e) => setMultaAtrasoPerc(Number(e.target.value))}
+                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold pr-7 outline-none focus:border-orange-500"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* PRÉVIA DO TEXTO OFICIAL */}
+            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                Prévia do campo &quot;Cobrar juros por atraso&quot; na Carta Borderô:
+              </span>
+              <p className="text-slate-700 dark:text-slate-300 leading-relaxed italic">
+                {temProforma
+                  ? `Houve o adiantamento de ${adiantamentoPerc}% no momento do carregamento e saldo CAD (liquidação contra apresentação de documentos) a vista com prazo máximo de liquidação de ${diasLiquidacao} dias corridos após entrega dos documentos no banco do comprador. Caso a liquidação aconteça após os ${diasLiquidacao} dias corridos de prazo da data de entrega dos documentos no banco do comprador o valor da Invoice a ser paga deve ser acrescentado de ${multaAtrasoPerc}% de multa pelo atraso.`
+                  : `100% CAD (liquidação contra apresentação de documentos) a vista com prazo máximo de liquidação de ${diasLiquidacao} dias corridos após entrega dos documentos no banco do comprador. Caso a liquidação aconteça após os ${diasLiquidacao} dias corridos de prazo da data de entrega dos documentos no banco do comprador o valor da Invoice a ser paga deve ser acrescentado de ${multaAtrasoPerc}% de multa pelo atraso.`}
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* NOTA EXPLICATIVA UNIVERSAL */}
         <div className="bg-blue-50/70 border border-blue-200/80 rounded-lg p-3.5 text-xs text-blue-900 flex items-start gap-2.5">

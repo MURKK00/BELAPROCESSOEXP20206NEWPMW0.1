@@ -41,13 +41,14 @@ interface QuickActionsHeaderProps {
   etapasConcluidas: number;
 }
 
-// 5 Grandes Marcos do Ciclo de Exportação
+// 6 Grandes Marcos do Ciclo de Exportação
 const MARCOS_EXPORTACAO = [
   { chave: 'CONTRATO', num: '01', label: 'Contrato Comercial' },
   { chave: 'BOOKING', num: '02', label: 'Booking & Armador' },
   { chave: 'ESTUFAGEM', num: '03', label: 'Estufagem & Gate' },
   { chave: 'EMBARQUE', num: '04', label: 'Embarque Marítimo' },
   { chave: 'CAMBIO', num: '05', label: 'Dossiê & Câmbio' },
+  { chave: 'FINALIZADO', num: '06', label: 'Finalizado' },
 ];
 
 export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: QuickActionsHeaderProps) {
@@ -73,6 +74,7 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
 
   const isEmbarcadoOuFinalizado =
     processo.status === 'EMBARCADO' || processo.status === 'FINALIZADO' || processo.status === 'CONCLUIDO';
+  const isFinalizado = processo.status === 'FINALIZADO' || processo.status === 'CONCLUIDO';
   const isEmExecucaoOuNegociacao =
     processo.status === 'EM_NEGOCIACAO' || processo.status === 'EM_EXECUCAO';
 
@@ -80,18 +82,18 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
 
   // Inferência do marco ativo baseado no status
   let marcoAtivoIndex = 0;
-  if (processo.status === 'EM_NEGOCIACAO' || processo.status === 'PENDENTE') {
-    marcoAtivoIndex = 0;
-  } else if (!processo.bookingNumero) {
-    marcoAtivoIndex = 1;
-  } else if (!processo.estufagemFim && processo.status !== 'EMBARCADO' && processo.status !== 'FINALIZADO') {
-    marcoAtivoIndex = 2;
+  if (isFinalizado) {
+    marcoAtivoIndex = 5;
   } else if (processo.status === 'EMBARCADO') {
-    marcoAtivoIndex = 3;
-  } else if (processo.status === 'FINALIZADO') {
-    marcoAtivoIndex = 4;
+    marcoAtivoIndex = 4; // Em Dossiê & Câmbio
+  } else if (processo.estufagemFim || processo.deadlineCarga) {
+    marcoAtivoIndex = 3; // Em Embarque Marítimo
+  } else if (processo.bookingNumero) {
+    marcoAtivoIndex = 2; // Em Estufagem & Gate
+  } else if (processo.status === 'EM_EXECUCAO') {
+    marcoAtivoIndex = 1; // Em Booking
   } else {
-    marcoAtivoIndex = 2;
+    marcoAtivoIndex = 0; // Em Contrato
   }
 
   return (
@@ -183,16 +185,19 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 sm:gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
           {MARCOS_EXPORTACAO.map((m, idx) => {
             const isCompleted = idx < marcoAtivoIndex;
             const isCurrent = idx === marcoAtivoIndex;
+            const isFinishedCard = m.chave === 'FINALIZADO' && isFinalizado;
 
             return (
               <div
                 key={m.chave}
                 className={`relative overflow-hidden rounded-xl p-3 border transition-all flex flex-col justify-between ${
-                  isCurrent
+                  isFinishedCard
+                    ? 'bg-emerald-600 dark:bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                    : isCurrent
                     ? 'bg-orange-50/70 dark:bg-orange-950/30 border-orange-400/80 dark:border-orange-600/80 shadow-xs'
                     : isCompleted
                     ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300/70 dark:border-emerald-800/60'
@@ -201,11 +206,19 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className={`text-[10px] font-mono font-black ${
-                    isCurrent ? 'text-orange-600 dark:text-orange-400' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+                    isFinishedCard 
+                      ? 'text-white' 
+                      : isCurrent 
+                      ? 'text-orange-600 dark:text-orange-400' 
+                      : isCompleted 
+                      ? 'text-emerald-600 dark:text-emerald-400' 
+                      : 'text-slate-400'
                   }`}>
                     {m.num}
                   </span>
-                  {isCompleted ? (
+                  {isFinishedCard ? (
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                  ) : isCompleted ? (
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   ) : isCurrent ? (
                     <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
@@ -215,9 +228,15 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
                 </div>
 
                 <div className={`text-xs font-bold truncate ${
-                  isCurrent ? 'text-orange-950 dark:text-orange-200' : isCompleted ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'
+                  isFinishedCard
+                    ? 'text-white font-black'
+                    : isCurrent 
+                    ? 'text-orange-950 dark:text-orange-200' 
+                    : isCompleted 
+                    ? 'text-slate-800 dark:text-slate-200' 
+                    : 'text-slate-400 dark:text-slate-500'
                 }`}>
-                  {m.label}
+                  {isFinishedCard ? 'Operação Finalizada' : m.label}
                 </div>
               </div>
             );

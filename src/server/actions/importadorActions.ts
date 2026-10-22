@@ -93,18 +93,44 @@ export async function atualizarImportadorAction(formData: FormData) {
   const compradorDiferente = formData.get('compradorDiferente') === 'true';
   const complementoBase = (formData.get('complementoBuyer') as string) || '';
 
-  const complementoFinal = formatComplementoWithComprador(complementoBase, {
-    diferente: compradorDiferente,
-    nome: (formData.get('compradorNome') as string) || '',
-    endereco: (formData.get('compradorEndereco') as string) || '',
-    complemento: (formData.get('compradorComplemento') as string) || '',
-    cidade: (formData.get('compradorCidade') as string) || '',
-    pais: (formData.get('compradorPais') as string) || '',
-    taxId: (formData.get('compradorTaxId') as string) || '',
-    email: (formData.get('compradorEmail') as string) || '',
-    telefone: (formData.get('compradorTelefone') as string) || '',
-    importadorNome: (formData.get('importadorNome') as string) || '',
-  });
+  const bancoNome = (formData.get('bancoNome') as string) || '';
+  const bancoEndereco = (formData.get('bancoEndereco') as string) || '';
+  const bancoConta = (formData.get('bancoConta') as string) || '';
+  const bancoSwift = (formData.get('bancoSwift') as string) || '';
+  const bancoTelefone = (formData.get('bancoTelefone') as string) || '';
+  const bancoEmail = (formData.get('bancoEmail') as string) || '';
+  const temProforma = formData.get('temProforma') === 'true' || formData.get('temProforma') === 'on';
+  const diasLiquidacao = Number(formData.get('diasLiquidacao')) || (temProforma ? 10 : 20);
+  const multaAtrasoPerc = Number(formData.get('multaAtrasoPerc')) || 5;
+  const adiantamentoPerc = Number(formData.get('adiantamentoPerc')) || 10;
+
+  const complementoFinal = formatComplementoWithComprador(
+    complementoBase,
+    {
+      diferente: compradorDiferente,
+      nome: (formData.get('compradorNome') as string) || '',
+      endereco: (formData.get('compradorEndereco') as string) || '',
+      complemento: (formData.get('compradorComplemento') as string) || '',
+      cidade: (formData.get('compradorCidade') as string) || '',
+      pais: (formData.get('compradorPais') as string) || '',
+      taxId: (formData.get('compradorTaxId') as string) || '',
+      email: (formData.get('compradorEmail') as string) || '',
+      telefone: (formData.get('compradorTelefone') as string) || '',
+      importadorNome: (formData.get('importadorNome') as string) || '',
+    },
+    {
+      nomeBanco: bancoNome,
+      enderecoBanco: bancoEndereco,
+      conta: bancoConta,
+      swift: bancoSwift,
+      telefone: bancoTelefone,
+      email: bancoEmail,
+      temProforma,
+      diasLiquidacao,
+      multaAtrasoPerc,
+      adiantamentoPerc,
+    }
+  );
 
   const novosDados = {
     enderecoBuyer: (formData.get('enderecoBuyer') as string) || null,
@@ -132,7 +158,7 @@ export async function atualizarImportadorAction(formData: FormData) {
       processoId,
       usuarioId: user?.id,
       acao: 'IMPORTADOR_EDITADO',
-      detalhe: `Dados do importador/comprador atualizados (${Object.keys(alteracoes).length} campo(s)).`,
+      detalhe: `Dados do importador/comprador e banco de destino atualizados (${Object.keys(alteracoes).length} campo(s)).`,
       alteracoes,
     });
   }
@@ -145,6 +171,7 @@ export async function atualizarImportadorAction(formData: FormData) {
     revalidatePath(`/negociacoes/${processoId}/documentos`);
     revalidatePath(`/instrucao-embarque/${processoId}`);
     revalidatePath(`/etiquetas/${processoId}`);
+    revalidatePath(`/carta-bordero/${processoId}`);
     revalidatePath('/negociacoes');
   } catch (err) {
     // Graceful fallback outside Next.js request context

@@ -23,12 +23,34 @@ export async function criarProcessoAction(formData: FormData) {
   const compradorDiferente = formData.get('compradorDiferente') === 'sim';
   const clienteFinal = String(formData.get('clienteFinal') ?? '').trim();
 
-  // Se o comprador for diferente, salva a marcação como diferente e deixa os campos cadastrais pendentes para a aba Importador (buyer)
-  const complementoBuyer = formatComplementoWithComprador('', {
-    diferente: compradorDiferente,
-    nome: '',
-    importadorNome: clienteFinal,
-  });
+  const temProforma = formData.get('temProforma') === 'sim' || formData.get('temProforma') === 'true';
+  const diasLiquidacao = Number(formData.get('diasLiquidacao')) || (temProforma ? 10 : 20);
+  const multaAtrasoPerc = Number(formData.get('multaAtrasoPerc')) || 5;
+  const adiantamentoPerc = Number(formData.get('adiantamentoPerc')) || 10;
+  const bancoNome = String(formData.get('bancoNome') ?? '').trim();
+  const bancoEndereco = String(formData.get('bancoEndereco') ?? '').trim();
+  const bancoConta = String(formData.get('bancoConta') ?? '').trim();
+  const bancoSwift = String(formData.get('bancoSwift') ?? '').trim();
+
+  // Salva a marcação de comprador diferente e as regras de cobrança CAD / Carta Borderô
+  const complementoBuyer = formatComplementoWithComprador(
+    '',
+    {
+      diferente: compradorDiferente,
+      nome: '',
+      importadorNome: clienteFinal,
+    },
+    {
+      nomeBanco: bancoNome,
+      enderecoBanco: bancoEndereco,
+      conta: bancoConta,
+      swift: bancoSwift,
+      temProforma,
+      diasLiquidacao,
+      multaAtrasoPerc,
+      adiantamentoPerc,
+    }
+  );
 
   const processo = await criarProcesso({
     clienteFinal,

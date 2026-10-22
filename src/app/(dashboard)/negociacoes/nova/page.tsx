@@ -2,7 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Users, CheckCircle2, Clock } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Users, 
+  CheckCircle2, 
+  Clock, 
+  Landmark, 
+  DollarSign, 
+  Percent, 
+  FileText 
+} from 'lucide-react';
 import { criarProcessoAction } from '@/server/actions/criarProcessoAction';
 import { 
   Section, 
@@ -32,6 +41,32 @@ export default function NovaNegociacaoPage() {
   const [sacasPorContainer, setSacasPorContainer] = useState<string>('');
   const [calculoExplicacao, setCalculoExplicacao] = useState<string>('');
 
+  // Preço unitário declarado
+  const [valorDeclaradoUsd, setValorDeclaradoUsd] = useState<string>('');
+
+  // Estados para Condição de Pagamento e Cobrança CAD (Carta Borderô)
+  const [temProforma, setTemProforma] = useState<boolean>(false);
+  const [diasLiquidacao, setDiasLiquidacao] = useState<string>('20');
+  const [multaAtrasoPerc, setMultaAtrasoPerc] = useState<string>('5');
+  const [adiantamentoPerc, setAdiantamentoPerc] = useState<string>('10');
+  
+  // Dados bancários opcionais na criação (podem ser preenchidos ou finalizados na aba Importador)
+  const [mostrarDadosBanco, setMostrarDadosBanco] = useState<boolean>(false);
+  const [bancoNome, setBancoNome] = useState<string>('');
+  const [bancoEndereco, setBancoEndereco] = useState<string>('');
+  const [bancoConta, setBancoConta] = useState<string>('');
+  const [bancoSwift, setBancoSwift] = useState<string>('');
+
+  // Quando alterna pro-forma, ajusta os dias de liquidação padrão (20 para sem pro-forma, 10 para com pro-forma)
+  const handleToggleProforma = (comProforma: boolean) => {
+    setTemProforma(comProforma);
+    if (comProforma) {
+      setDiasLiquidacao('10');
+    } else {
+      setDiasLiquidacao('20');
+    }
+  };
+
   // Efeito para cálculo automático: volumeKg / containerQtd / pesoSaca
   useEffect(() => {
     const vol = parseFloat(volumeKg);
@@ -53,6 +88,22 @@ export default function NovaNegociacaoPage() {
       setCalculoExplicacao('');
     }
   }, [volumeKg, containerQtd, embalagemTipo]);
+
+  // Cálculo estimativo de saldo para a cláusula de juros com pro-forma
+  const volNum = parseFloat(volumeKg || '0');
+  const valNum = parseFloat(valorDeclaradoUsd || '0');
+  let totalUsdEstimado = 0;
+  if (valNum > 0) {
+    totalUsdEstimado = valNum < 5000 && volNum > 0 ? (volNum / 1000) * valNum : valNum;
+  }
+  const adiantNum = parseFloat(adiantamentoPerc || '10');
+  const saldoEstimado = totalUsdEstimado > 0 
+    ? totalUsdEstimado - (totalUsdEstimado * adiantNum / 100) 
+    : 0;
+
+  const textoClausulaPreview = !temProforma
+    ? `100% CAD (liquidação contra apresentação de documentos) a vista com prazo máximo de liquidação de ${diasLiquidacao || '20'} dias corridos após entrega dos documentos no banco do comprador. Caso a liquidação aconteça após os ${diasLiquidacao || '20'} dias corridos de prazo da data de entrega dos documentos no banco do comprador o valor da Invoice a ser paga deve ser acrescentado de ${multaAtrasoPerc || '5'}% de multa pelo atraso.`
+    : `Houve o adiantamento de ${adiantamentoPerc || '10'}% no momento do carregamento e saldo U$ ${saldoEstimado > 0 ? saldoEstimado.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '[saldo calculado]'} CAD (liquidação contra apresentação de documentos) a vista com prazo máximo de liquidação de ${diasLiquidacao || '10'} dias corridos após entrega dos documentos no banco do comprador. Caso a liquidação aconteça após os ${diasLiquidacao || '10'} dias corridos de prazo da data de entrega dos documentos no banco do comprador o valor da Invoice a ser paga deve ser acrescentado de ${multaAtrasoPerc || '5'}% de multa pelo atraso.`;
 
   return (
     <div className="max-w-3xl">
@@ -153,7 +204,7 @@ export default function NovaNegociacaoPage() {
               value={compradorDiferente ? 'sim' : 'nao'}
             />
 
-            {/* QUANDO MARCADO SIM: NÃO EXIBE CAMPOS AGORA, SÓ DEIXA MARCADO E PENDENTE NA NEGOCIAÇÃO */}
+            {/* QUANDO MARCADO SIM */}
             {compradorDiferente && (
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800 animate-fadeIn">
                 <div className="p-3 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 text-[11px] font-medium text-orange-900 dark:text-orange-200 flex items-start gap-2.5">
@@ -163,7 +214,7 @@ export default function NovaNegociacaoPage() {
                       ✓ Definição registrada: Comprador e Importador separados
                     </span>
                     <span className="text-[11px] text-orange-800 dark:text-orange-300 block mt-0.5">
-                      Nenhum dado cadastral precisa ser preenchido agora. A negociação será criada com a separação já ativada e os campos de cada empresa ficarão <strong>pendentes para preenchimento na aba &quot;Importador (buyer)&quot;</strong> dentro do processo.
+                      A negociação será criada com a separação já ativada e os campos de cada empresa ficarão <strong>pendentes para preenchimento na aba &quot;Importador (buyer)&quot;</strong> dentro do processo.
                     </span>
                   </div>
                 </div>
@@ -184,7 +235,219 @@ export default function NovaNegociacaoPage() {
 
           <Field label="Porto de destino" name="portoDestino" placeholder="Ex: Rotterdam (NL) ou Mundra (IN)" required />
           <Field label="Free time (Destino)" name="freeTimeDestino" placeholder="Ex: 14 dias corridos" />
-          <Field label="Preço unitário declarado (USD/TON)" name="valorDeclaradoUsd" type="number" placeholder="Ex: 880" />
+          
+          <Field 
+            label="Preço unitário declarado (USD/TON)" 
+            name="valorDeclaradoUsd" 
+            type="number" 
+            placeholder="Ex: 880"
+            value={valorDeclaradoUsd}
+            onChange={(e) => setValorDeclaradoUsd(e.target.value)}
+          />
+        </Section>
+
+        {/* NOVA SEÇÃO: CONDIÇÃO DE PAGAMENTO & COBRANÇA CAD (CARTA BORDERÔ) */}
+        <Section title="Condição de Pagamento & Cobrança Bancária (Carta Borderô)">
+          <div className="col-span-full space-y-4">
+            
+            {/* SELEÇÃO DO TIPO DE NEGOCIAÇÃO: SEM PRO-FORMA VS COM PRO-FORMA */}
+            <div>
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider block mb-1.5">
+                Modalidade de Pagamento / Pro-forma
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleToggleProforma(false)}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    !temProforma
+                      ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-500/80 ring-2 ring-blue-500/20 shadow-xs'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900 dark:text-white">
+                      Sem Pro-forma (100% CAD à vista)
+                    </span>
+                    {!temProforma && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
+                  </div>
+                  <span className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
+                    100% liquidação contra apresentação de documentos no banco do comprador (prazo padrão: 20 dias).
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleProforma(true)}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    temProforma
+                      ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-500/80 ring-2 ring-blue-500/20 shadow-xs'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900 dark:text-white">
+                      Com Pro-forma (Adiantamento + Saldo CAD)
+                    </span>
+                    {temProforma && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
+                  </div>
+                  <span className="text-[11px] text-slate-600 dark:text-slate-400 mt-1">
+                    Adiantamento no carregamento (ex: 10%) e saldo em CAD no banco (prazo padrão: 10 dias).
+                  </span>
+                </button>
+              </div>
+
+              {/* INPUTS OCULTOS / ENVIADOS NO FORMDATA */}
+              <input type="hidden" name="temProforma" value={temProforma ? 'sim' : 'nao'} />
+            </div>
+
+            {/* PARÂMETROS DE LIQUIDAÇÃO E MULTA */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Prazo de Liquidação (dias)
+                </label>
+                <input
+                  type="number"
+                  name="diasLiquidacao"
+                  value={diasLiquidacao}
+                  onChange={(e) => setDiasLiquidacao(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-semibold focus:border-blue-500 outline-none"
+                  placeholder={temProforma ? '10' : '20'}
+                  required
+                />
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  Padrão: {temProforma ? '10 dias' : '20 dias'}
+                </span>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Multa por Atraso (%)
+                </label>
+                <input
+                  type="number"
+                  name="multaAtrasoPerc"
+                  value={multaAtrasoPerc}
+                  onChange={(e) => setMultaAtrasoPerc(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-semibold focus:border-blue-500 outline-none"
+                  placeholder="5"
+                  required
+                />
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  Padrão: 5% sobre a invoice
+                </span>
+              </div>
+
+              {temProforma && (
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    % Adiantamento
+                  </label>
+                  <input
+                    type="number"
+                    name="adiantamentoPerc"
+                    value={adiantamentoPerc}
+                    onChange={(e) => setAdiantamentoPerc(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-semibold focus:border-blue-500 outline-none"
+                    placeholder="10"
+                    required
+                  />
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">
+                    Padrão: 10% no carregamento
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* PREVIEW DA CLÁUSULA DA CARTA BORDERÔ */}
+            <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl text-xs space-y-1">
+              <div className="flex items-center gap-1.5 text-amber-900 dark:text-amber-300 font-bold">
+                <FileText className="w-3.5 h-3.5" />
+                <span>Texto Oficial da Cláusula no Borderô (Cobrar juros por atraso):</span>
+              </div>
+              <p className="text-[11px] text-slate-700 dark:text-slate-300 italic bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-amber-100 dark:border-amber-900/30 leading-relaxed">
+                &ldquo;{textoClausulaPreview}&rdquo;
+              </p>
+            </div>
+
+            {/* OPÇÃO DE INFORMAR DADOS BANCÁRIOS DO COMPRADOR AGORA OU DEPOIS */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setMostrarDadosBanco(!mostrarDadosBanco)}
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 cursor-pointer"
+              >
+                <Landmark className="w-3.5 h-3.5" />
+                <span>
+                  {mostrarDadosBanco
+                    ? '▲ Ocultar dados do Banco do Comprador'
+                    : '▼ Deseja preencher agora os dados do Banco do Comprador? (Opcional)'}
+                </span>
+              </button>
+
+              {mostrarDadosBanco && (
+                <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-850/50 border border-slate-200 dark:border-slate-800 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fadeIn">
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Nome do Banco de Destino
+                    </label>
+                    <input
+                      type="text"
+                      name="bancoNome"
+                      value={bancoNome}
+                      onChange={(e) => setBancoNome(e.target.value)}
+                      placeholder="Ex: TAMILNAD MERCANTILE BANK / STATE BANK OF INDIA"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs uppercase focus:border-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Endereço da Agência do Banco
+                    </label>
+                    <input
+                      type="text"
+                      name="bancoEndereco"
+                      value={bancoEndereco}
+                      onChange={(e) => setBancoEndereco(e.target.value)}
+                      placeholder="Ex: 20, GOLAWAR AGRAHARAM ROAD, CHENNAI - 600021, INDIA"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs focus:border-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Conta Corrente / Account No.
+                    </label>
+                    <input
+                      type="text"
+                      name="bancoConta"
+                      value={bancoConta}
+                      onChange={(e) => setBancoConta(e.target.value)}
+                      placeholder="Ex: 008700150950284"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-mono focus:border-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      SWIFT / BIC
+                    </label>
+                    <input
+                      type="text"
+                      name="bancoSwift"
+                      value={bancoSwift}
+                      onChange={(e) => setBancoSwift(e.target.value)}
+                      placeholder="Ex: TMBLINBB008"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-mono uppercase focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
         </Section>
 
         <Section title="Informações de Carga & Contêineres">
