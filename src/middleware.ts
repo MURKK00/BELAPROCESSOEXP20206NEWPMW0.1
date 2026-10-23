@@ -6,10 +6,11 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const secret = process.env.NEXTAUTH_SECRET || 'bela-cereais-export-secret-chaves-2026-seguro';
 
-  // Rotas de autenticação (NextAuth), cotações ao vivo e webhooks externos não devem ser bloqueados
+  // Rotas de autenticação (NextAuth), cotações ao vivo, bancos e webhooks externos não devem ser bloqueados
   if (
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/cotacoes') ||
+    pathname.startsWith('/api/bancos') ||
     pathname.startsWith('/api/webhooks')
   ) {
     return NextResponse.next();

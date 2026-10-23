@@ -23,8 +23,12 @@ import {
   AlertTriangle,
   AlertCircle,
   Landmark,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Search,
+  Sparkles,
+  X
 } from 'lucide-react';
+import { buscarBancos, DIRETORIO_BANCOS, type BancoInfo } from '@/lib/bancosDiretorio';
 
 interface ImportadorCardProps {
   processo: Processo;
@@ -70,6 +74,47 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
   const isSwiftFormatoValido = /^[A-Z0-9]+$/.test(swiftTrim);
   const isSwiftCompleto = (swiftLen === 8 || swiftLen === 11) && isSwiftFormatoValido;
   const isSwiftInvalido = swiftLen > 0 && !isSwiftCompleto;
+
+  // Estados para busca automática no diretório bancário
+  const [bancosSugeridos, setBancosSugeridos] = useState<BancoInfo[]>([]);
+  const [mostrarModalBancos, setMostrarModalBancos] = useState(false);
+  const [feedbackBanco, setFeedbackBanco] = useState<string | null>(null);
+
+  function handleBuscarDadosBanco(termoBusca?: string) {
+    const q = termoBusca !== undefined ? termoBusca : bancoNome;
+    const resultados = buscarBancos(q);
+
+    if (resultados.length === 1) {
+      const b = resultados[0];
+      setBancoNome(b.nome);
+      setBancoEndereco(b.endereco);
+      setBancoSwift(b.swift);
+      setBancosSugeridos([]);
+      setMostrarModalBancos(false);
+      setFeedbackBanco(`Dados preenchidos com sucesso para ${b.nome}!`);
+    } else if (resultados.length > 1) {
+      setBancosSugeridos(resultados);
+      setMostrarModalBancos(true);
+      setFeedbackBanco(null);
+    } else {
+      setBancosSugeridos(DIRETORIO_BANCOS.slice(0, 8));
+      setMostrarModalBancos(true);
+      setFeedbackBanco(
+        q.trim()
+          ? `Nenhum banco encontrado para "${q}". Escolha um dos bancos internacionais abaixo:`
+          : 'Selecione um banco internacional abaixo para preencher automaticamente:'
+      );
+    }
+  }
+
+  function handleSelecionarBanco(banco: BancoInfo) {
+    setBancoNome(banco.nome);
+    setBancoEndereco(banco.endereco);
+    setBancoSwift(banco.swift);
+    setBancosSugeridos([]);
+    setMostrarModalBancos(false);
+    setFeedbackBanco(`Dados preenchidos com sucesso: ${banco.nome}!`);
+  }
 
   // Regras de Cobrança / Carta Borderô
   const [temProforma, setTemProforma] = useState<boolean>(Boolean(bancoComprador.temProforma));
@@ -281,41 +326,40 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
       </div>
 
       {/* BOX DE SEPARAÇÃO: COMPRADOR É DIFERENTE DO IMPORTADOR? */}
-      <div className={`p-4 rounded-xl border transition-all ${
+      <div className={`p-3.5 sm:p-4 rounded-xl border transition-all duration-300 ease-in-out ${
         compradorDiferente 
-          ? 'bg-orange-50/80 border-orange-200 text-orange-950 shadow-xs' 
-          : 'bg-slate-50 border-slate-200 text-slate-800'
+          ? 'bg-orange-50/70 dark:bg-orange-950/20 border-orange-400/80 dark:border-orange-600/80 ring-2 ring-orange-500/15 shadow-sm' 
+          : 'bg-slate-50/80 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-700'
       }`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className={`p-2 rounded-lg ${compradorDiferente ? 'bg-orange-200 text-[#f58220]' : 'bg-slate-200 text-slate-600'}`}>
-              <Users className="w-5 h-5" />
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-300 ${
+              compradorDiferente 
+                ? 'bg-orange-500 text-white shadow-xs shadow-orange-500/30' 
+                : 'bg-slate-200/80 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+            }`}>
+              <Users className="w-4 h-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-bold text-slate-900">
-                  O Comprador (Buyer) é diferente do Importador (Consignee)?
-                </span>
-                <span className={`text-[10px] uppercase font-extrabold px-2 py-0.5 rounded ${
-                  compradorDiferente ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-700'
-                }`}>
-                  {compradorDiferente ? 'Duas Entidades Separadas' : 'Mesma Empresa'}
+                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight">
+                  Comprador (Buyer) diferente do Importador (Consignee)
                 </span>
                 {salvandoToggle && (
-                  <span className="flex items-center gap-1 text-[11px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded font-bold animate-pulse">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Salvando no sistema...
+                  <span className="flex items-center gap-1 text-[10px] text-amber-700 bg-amber-100 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded font-bold animate-pulse">
+                    <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                    Salvando...
                   </span>
                 )}
                 {toggleMsg && (
-                  <span className="flex items-center gap-1 text-[11px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded font-bold animate-fadeIn">
-                    <Check className="w-3 h-3 text-emerald-600" />
+                  <span className="flex items-center gap-1 text-[10px] text-emerald-800 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold animate-fadeIn">
+                    <Check className="w-2.5 h-2.5 text-emerald-600" />
                     {toggleMsg}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-600 mt-0.5 max-w-2xl">
-                Marque esta opção quando o faturamento comercial for emitido para uma Trading/Comprador diferente da empresa que desembaraça e recebe a carga no porto de destino. Esta informação reflete automaticamente no documento de <strong>Instrução de Embarque</strong>.
+              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                Ative se o faturamento comercial for para trading ou entidade distinta da que recebe a carga no destino.
               </p>
             </div>
           </div>
@@ -325,23 +369,41 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
               href={`/instrucao-embarque/${processo.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs"
+              className="text-[11px] text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white flex items-center gap-1 font-medium transition-colors"
               title="Abrir a Instrução de Embarque em nova aba para conferência"
             >
-              <span>📄 Ver Instrução de Embarque</span>
-              <ExternalLink className="w-3 h-3" />
+              <span>Ver Instrução</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
             </a>
 
-            <label className="relative inline-flex items-center cursor-pointer shrink-0">
-              <input
-                type="checkbox"
-                checked={compradorDiferente}
-                disabled={salvandoToggle}
-                onChange={(e) => handleToggleDiferente(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-12 h-6.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#f58220]"></div>
-            </label>
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+
+            <div className="flex items-center gap-2">
+              <span className={`text-[11px] font-bold transition-colors ${
+                compradorDiferente 
+                  ? 'text-orange-600 dark:text-orange-400' 
+                  : 'text-slate-400'
+              }`}>
+                {compradorDiferente ? 'Sim' : 'Não'}
+              </span>
+
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={compradorDiferente}
+                  disabled={salvandoToggle}
+                  onChange={(e) => handleToggleDiferente(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className={`w-11 h-6 rounded-full transition-all duration-300 ease-in-out p-0.5 relative peer-focus:outline-none ${
+                  compradorDiferente ? 'bg-orange-500 shadow-sm shadow-orange-500/40' : 'bg-slate-300 dark:bg-slate-700'
+                }`}>
+                  <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${
+                    compradorDiferente ? 'translate-x-5' : 'translate-x-0'
+                  }`} />
+                </div>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -912,17 +974,101 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* NOME DO BANCO */}
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
-                Nome do Banco no Destino (Comprador)
-              </label>
+              <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                  Nome do Banco no Destino (Comprador)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleBuscarDadosBanco()}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-orange-50 hover:bg-orange-100 text-[#f58220] dark:bg-orange-950/60 dark:hover:bg-orange-900/60 dark:text-orange-300 border border-orange-200 dark:border-orange-800 transition-all shadow-2xs cursor-pointer active:scale-98"
+                  title="Buscar endereço e código SWIFT automaticamente com base no nome do banco"
+                >
+                  <Search className="w-3.5 h-3.5 text-[#f58220]" />
+                  <span>Buscar dados do banco</span>
+                </button>
+              </div>
+
               <input
                 type="text"
                 name="bancoNome"
                 value={bancoNome}
-                onChange={(e) => setBancoNome(e.target.value)}
+                onChange={(e) => {
+                  setBancoNome(e.target.value);
+                  if (feedbackBanco) setFeedbackBanco(null);
+                }}
                 className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none uppercase font-semibold"
                 placeholder="Ex: TAMILNAD MERCANTILE BANK / STATE BANK OF INDIA"
               />
+
+              {/* Feedback inline caso preenchido */}
+              {feedbackBanco && (
+                <div className="mt-1.5 flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 animate-fadeIn">
+                  <span className="flex items-center gap-1 font-medium">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    {feedbackBanco}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFeedbackBanco(null)}
+                    className="text-emerald-600 hover:text-emerald-800 text-xs font-bold ml-2 px-1 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              {/* Dropdown de seleção de bancos sugeridos / encontrados */}
+              {mostrarModalBancos && (
+                <div className="mt-2 p-3 bg-white dark:bg-slate-900 border border-orange-200 dark:border-orange-900 rounded-xl shadow-lg animate-fadeIn z-10 relative">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+                      <span>Diretório Bancário ({bancosSugeridos.length} opções disponíveis)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarModalBancos(false)}
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-1 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {bancosSugeridos.map((banco) => (
+                      <button
+                        key={banco.id}
+                        type="button"
+                        onClick={() => handleSelecionarBanco(banco)}
+                        className="w-full text-left p-2 rounded-lg hover:bg-orange-50/70 dark:hover:bg-slate-800/80 transition-colors flex items-start justify-between gap-2 group cursor-pointer"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 truncate">
+                              {banco.nome}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-normal shrink-0">
+                              • {banco.cidade}, {banco.pais}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                            {banco.endereco}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <span className="inline-block px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-bold text-orange-600 dark:text-orange-400">
+                            {banco.swift}
+                          </span>
+                          <span className="text-[9px] text-orange-600 dark:text-orange-400 block font-semibold mt-0.5">
+                            Preencher ↵
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ENDEREÇO DO BANCO */}

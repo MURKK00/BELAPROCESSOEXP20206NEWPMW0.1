@@ -11,8 +11,12 @@ import {
   DollarSign, 
   Percent,
   Check,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Sparkles,
+  X
 } from 'lucide-react';
+import { buscarBancos, DIRETORIO_BANCOS, type BancoInfo } from '@/lib/bancosDiretorio';
 import { criarProcessoAction } from '@/server/actions/criarProcessoAction';
 import { 
   Section, 
@@ -67,6 +71,48 @@ export default function NovaNegociacaoPage() {
   const isSwiftFormatoValido = /^[A-Z0-9]+$/.test(swiftTrim);
   const isSwiftCompleto = (swiftLen === 8 || swiftLen === 11) && isSwiftFormatoValido;
   const isSwiftInvalido = swiftLen > 0 && !isSwiftCompleto;
+
+  // Estados para busca automática no diretório bancário
+  const [bancosSugeridos, setBancosSugeridos] = useState<BancoInfo[]>([]);
+  const [mostrarModalBancos, setMostrarModalBancos] = useState(false);
+  const [feedbackBanco, setFeedbackBanco] = useState<string | null>(null);
+
+  function handleBuscarDadosBanco(termoBusca?: string) {
+    const q = termoBusca !== undefined ? termoBusca : bancoNome;
+    const resultados = buscarBancos(q);
+
+    if (resultados.length === 1) {
+      const b = resultados[0];
+      setBancoNome(b.nome);
+      setBancoEndereco(b.endereco);
+      setBancoSwift(b.swift);
+      setBancosSugeridos([]);
+      setMostrarModalBancos(false);
+      setFeedbackBanco(`Dados preenchidos com sucesso para ${b.nome}!`);
+    } else if (resultados.length > 1) {
+      setBancosSugeridos(resultados);
+      setMostrarModalBancos(true);
+      setFeedbackBanco(null);
+    } else {
+      // Se não encontrou ou termo vazio, exibe sugestões de bancos populares de comércio exterior
+      setBancosSugeridos(DIRETORIO_BANCOS.slice(0, 8));
+      setMostrarModalBancos(true);
+      setFeedbackBanco(
+        q.trim()
+          ? `Nenhum banco encontrado para "${q}". Escolha um dos bancos internacionais abaixo:`
+          : 'Selecione um banco internacional abaixo para preencher automaticamente:'
+      );
+    }
+  }
+
+  function handleSelecionarBanco(banco: BancoInfo) {
+    setBancoNome(banco.nome);
+    setBancoEndereco(banco.endereco);
+    setBancoSwift(banco.swift);
+    setBancosSugeridos([]);
+    setMostrarModalBancos(false);
+    setFeedbackBanco(`Dados preenchidos com sucesso: ${banco.nome}!`);
+  }
 
   // Quando alterna pro-forma, ajusta os dias de liquidação padrão (20 para sem pro-forma, 10 para com pro-forma)
   const handleToggleProforma = (comProforma: boolean) => {
@@ -134,62 +180,52 @@ export default function NovaNegociacaoPage() {
           <Field label="Trader / Intermédio" name="traderIntermedio" placeholder="Ex: AgriTrading Partners SA" />
 
           {/* PERGUNTA: O COMPRADOR (BUYER) É DIFERENTE DO IMPORTADOR (CONSIGNEE)? */}
-          <div className="col-span-full bg-slate-50 dark:bg-slate-850/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4.5 space-y-3.5 shadow-2xs">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400">
-                <Users className="w-4 h-4" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
-                  O Comprador (Buyer) é diferente do Importador (Consignee)?
-                </label>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Indique se o faturamento comercial e o desembaraço no destino são para entidades separadas. Esta definição já ficará marcada na aba Importador (buyer).
-                </p>
-              </div>
-            </div>
-
-            {/* SELETOR EM BOTÕES RADIO ESTILIZADOS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => setCompradorDiferente(false)}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                  !compradorDiferente
-                    ? 'bg-white dark:bg-slate-900 border-orange-500/80 ring-2 ring-orange-500/20 shadow-xs'
-                    : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
-                    Não — Mesma empresa
-                  </span>
-                  {!compradorDiferente && <CheckCircle2 className="w-4 h-4 text-orange-500" />}
+          <div className={`col-span-full rounded-xl border p-3.5 sm:p-4 transition-all duration-300 ease-in-out ${
+            compradorDiferente 
+              ? 'bg-orange-50/70 dark:bg-orange-950/20 border-orange-400/80 dark:border-orange-600/80 ring-2 ring-orange-500/15 shadow-sm' 
+              : 'bg-slate-50/80 dark:bg-slate-850/60 border-slate-200 dark:border-slate-800'
+          }`}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                  compradorDiferente 
+                    ? 'bg-orange-500 text-white shadow-xs shadow-orange-500/30' 
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                }`}>
+                  <Users className="w-4 h-4" />
                 </div>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  Cliente Final é simultaneamente o Comprador e o Importador (Consignee).
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCompradorDiferente(true)}
-                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                  compradorDiferente
-                    ? 'bg-white dark:bg-slate-900 border-orange-500/80 ring-2 ring-orange-500/20 shadow-xs'
-                    : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
-                    Sim — Entidades diferentes
-                  </span>
-                  {compradorDiferente && <CheckCircle2 className="w-4 h-4 text-orange-500" />}
+                <div className="min-w-0">
+                  <label className="text-xs font-bold text-slate-900 dark:text-slate-100 block tracking-tight">
+                    Comprador (Buyer) diferente do Importador (Consignee)
+                  </label>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    Ative se o faturamento for para trading ou empresa distinta da que recebe no destino.
+                  </p>
                 </div>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  Faturamento para o Comprador (Buyer) e Entrega/BL para o Importador (Consignee).
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`text-[11px] font-bold transition-colors ${
+                  compradorDiferente ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400'
+                }`}>
+                  {compradorDiferente ? 'Sim' : 'Não'}
                 </span>
-              </button>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={compradorDiferente}
+                  onClick={() => setCompradorDiferente(!compradorDiferente)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-300 ease-in-out focus:outline-none ${
+                    compradorDiferente ? 'bg-orange-500 shadow-sm shadow-orange-500/40' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-300 ease-in-out ${
+                      compradorDiferente ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
 
             {/* CAMPO OCULTO ENVIADO NO FORMDATA */}
@@ -198,23 +234,6 @@ export default function NovaNegociacaoPage() {
               name="compradorDiferente"
               value={compradorDiferente ? 'sim' : 'nao'}
             />
-
-            {/* QUANDO MARCADO SIM */}
-            {compradorDiferente && (
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 animate-fadeIn">
-                <div className="p-3 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 text-[11px] font-medium text-orange-900 dark:text-orange-200 flex items-start gap-2.5">
-                  <Clock className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold block text-xs">
-                      ✓ Definição registrada: Comprador e Importador separados
-                    </span>
-                    <span className="text-[11px] text-orange-800 dark:text-orange-300 block mt-0.5">
-                      A negociação será criada com a separação já ativada e os campos de cada empresa ficarão <strong>pendentes para preenchimento na aba &quot;Importador (buyer)&quot;</strong> dentro do processo.
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           <IncotermSelectField defaultValue="CFR" required />
@@ -373,17 +392,103 @@ export default function NovaNegociacaoPage() {
               {mostrarDadosBanco && (
                 <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-850/50 border border-slate-200 dark:border-slate-800 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fadeIn">
                   <div className="sm:col-span-2">
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                      Nome do Banco de Destino
-                    </label>
-                    <input
-                      type="text"
-                      name="bancoNome"
-                      value={bancoNome}
-                      onChange={(e) => setBancoNome(e.target.value)}
-                      placeholder="Ex: TAMILNAD MERCANTILE BANK / STATE BANK OF INDIA"
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs uppercase focus:border-blue-500 outline-none"
-                    />
+                    <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                        Nome do Banco de Destino
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleBuscarDadosBanco()}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-all shadow-2xs cursor-pointer active:scale-98"
+                        title="Buscar endereço e código SWIFT automaticamente com base no nome do banco"
+                      >
+                        <Search className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        <span>Buscar dados do banco</span>
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="bancoNome"
+                        value={bancoNome}
+                        onChange={(e) => {
+                          setBancoNome(e.target.value);
+                          if (feedbackBanco) setFeedbackBanco(null);
+                        }}
+                        placeholder="Ex: TAMILNAD MERCANTILE BANK / STATE BANK OF INDIA / HDFC"
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs uppercase focus:border-blue-500 outline-none"
+                      />
+                    </div>
+
+                    {/* Feedback inline caso preenchido */}
+                    {feedbackBanco && (
+                      <div className="mt-1.5 flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 animate-fadeIn">
+                        <span className="flex items-center gap-1 font-medium">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          {feedbackBanco}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setFeedbackBanco(null)}
+                          className="text-emerald-600 hover:text-emerald-800 text-xs font-bold ml-2 px-1 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Dropdown de seleção de bancos sugeridos / encontrados */}
+                    {mostrarModalBancos && (
+                      <div className="mt-2 p-3 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-900 rounded-xl shadow-lg animate-fadeIn z-10 relative">
+                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Diretório Bancário ({bancosSugeridos.length} opções disponíveis)</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setMostrarModalBancos(false)}
+                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-1 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100 dark:divide-slate-800/60">
+                          {bancosSugeridos.map((banco) => (
+                            <button
+                              key={banco.id}
+                              type="button"
+                              onClick={() => handleSelecionarBanco(banco)}
+                              className="w-full text-left p-2 rounded-lg hover:bg-blue-50/70 dark:hover:bg-slate-800/80 transition-colors flex items-start justify-between gap-2 group cursor-pointer"
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
+                                    {banco.nome}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-normal shrink-0">
+                                    • {banco.cidade}, {banco.pais}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                                  {banco.endereco}
+                                </p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <span className="inline-block px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-bold text-blue-700 dark:text-blue-400">
+                                  {banco.swift}
+                                </span>
+                                <span className="text-[9px] text-blue-600 dark:text-blue-400 block font-semibold mt-0.5">
+                                  Preencher ↵
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">
