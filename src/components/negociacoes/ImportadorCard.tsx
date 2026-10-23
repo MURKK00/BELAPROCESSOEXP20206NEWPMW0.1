@@ -21,6 +21,7 @@ import {
   ExternalLink,
   Loader2,
   AlertTriangle,
+  AlertCircle,
   Landmark,
   FileSpreadsheet
 } from 'lucide-react';
@@ -59,6 +60,16 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
   const [bancoSwift, setBancoSwift] = useState(bancoComprador.swift || '');
   const [bancoTelefone, setBancoTelefone] = useState(bancoComprador.telefone || '');
   const [bancoEmail, setBancoEmail] = useState(bancoComprador.email || '');
+
+  // Máscara e sanitização para o código SWIFT (apenas letras maiúsculas e números, máx 11 caracteres)
+  const maskSwift = (val: string) => (val || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
+
+  // Validação em tempo real do SWIFT/BIC (ISO 9362: 8 ou 11 caracteres alfanuméricos)
+  const swiftTrim = (bancoSwift || '').trim().toUpperCase();
+  const swiftLen = swiftTrim.length;
+  const isSwiftFormatoValido = /^[A-Z0-9]+$/.test(swiftTrim);
+  const isSwiftCompleto = (swiftLen === 8 || swiftLen === 11) && isSwiftFormatoValido;
+  const isSwiftInvalido = swiftLen > 0 && !isSwiftCompleto;
 
   // Regras de Cobrança / Carta Borderô
   const [temProforma, setTemProforma] = useState<boolean>(Boolean(bancoComprador.temProforma));
@@ -946,17 +957,62 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
 
             {/* SWIFT / BIC */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
-                Código SWIFT / BIC
-              </label>
-              <input
-                type="text"
-                name="bancoSwift"
-                value={bancoSwift}
-                onChange={(e) => setBancoSwift(e.target.value.toUpperCase())}
-                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none uppercase font-bold"
-                placeholder="Ex: TMBLINBB / SBININBB"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                  Código SWIFT / BIC
+                </label>
+                <span className="text-[10px] font-mono text-slate-400">
+                  {swiftLen > 0 ? `${swiftLen}/11` : '8 ou 11 alfanuméricos'}
+                </span>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="bancoSwift"
+                  value={bancoSwift}
+                  maxLength={11}
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  onChange={(e) => setBancoSwift(maskSwift(e.target.value))}
+                  onInput={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    target.value = maskSwift(target.value);
+                  }}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const text = e.clipboardData.getData('text');
+                    setBancoSwift(maskSwift(text));
+                  }}
+                  className={`w-full bg-white dark:bg-slate-800 border rounded-lg px-3 py-2 text-sm font-mono uppercase font-bold outline-none transition-all pr-8 ${
+                    isSwiftCompleto
+                      ? 'border-emerald-500 ring-1 ring-emerald-500/20'
+                      : isSwiftInvalido
+                      ? 'border-amber-500 ring-1 ring-amber-500/20'
+                      : 'border-gray-300 dark:border-slate-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20'
+                  }`}
+                  placeholder="Ex: TMBLINBB / TMBLINBB008"
+                />
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  {isSwiftCompleto && <Check className="w-4 h-4 text-emerald-500" />}
+                  {isSwiftInvalido && <AlertCircle className="w-4 h-4 text-amber-500" />}
+                </div>
+              </div>
+              {isSwiftCompleto && (
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 mt-1">
+                  ✓ Padrão SWIFT internacional válido ({swiftLen} caracteres).
+                </span>
+              )}
+              {isSwiftInvalido && (
+                <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 mt-1">
+                  ⚠ O padrão SWIFT requer 8 ou 11 caracteres (faltam {swiftLen < 8 ? 8 - swiftLen : 11 - swiftLen} caractere{swiftLen < 8 && (8 - swiftLen) === 1 ? '' : 's'}).
+                </span>
+              )}
+              {!bancoSwift && (
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Padrão ISO 9362: 8 ou 11 dígitos alfanuméricos.
+                </span>
+              )}
             </div>
 
             {/* TELEFONE / CONTATO NO BANCO */}

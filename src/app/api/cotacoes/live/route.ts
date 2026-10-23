@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { calcularStatusMercados } from '@/lib/mercadoStatus';
 
+export const dynamic = 'force-dynamic';
+
 interface LiveCotacao {
   simbolo: string;
   nome: string;

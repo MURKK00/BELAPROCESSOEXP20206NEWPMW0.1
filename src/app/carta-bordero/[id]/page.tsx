@@ -320,7 +320,7 @@ export default async function CartaBorderoPrintPage({
                 Cobrar juros / multa por atraso (Instrução Obrigatória ao Banco Cobrador):
               </span>
               <p className="mt-1 font-serif text-[13px] italic bg-white p-2.5 rounded border border-amber-200 leading-normal text-slate-900 text-justify">
-                &ldquo;{clausulaJuros}&rdquo;
+                {clausulaJuros}
               </p>
             </div>
           </div>

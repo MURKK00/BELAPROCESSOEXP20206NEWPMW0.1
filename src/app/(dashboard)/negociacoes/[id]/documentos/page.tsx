@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { DocumentosCockpit } from '@/components/documentos/DocumentosCockpit';
 import { parseCompradorInfo } from '@/lib/compradorHelper';
-import Link from 'next/link';
 import { 
   FileText, 
   Tag, 
@@ -120,33 +119,34 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
           </div>
 
           {/* GRID COM OS 3 CARDS EM ALTA EVIDÊNCIA */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-5 items-stretch">
             
             {/* 1. INSTRUÇÃO DE EMBARQUE */}
-            <div className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/50 rounded-xl p-4.5 transition-all flex flex-col justify-between group">
+            <div className="bg-white/5 hover:bg-white/[0.08] border border-white/10 hover:border-emerald-500/50 rounded-xl p-4 transition-all flex flex-col justify-between h-full group">
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0">
                     <FileText className="w-5 h-5" />
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shrink-0">
                     Operacional
                   </span>
                 </div>
-                <h3 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
+
+                <h3 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
                   Instrução de Embarque
                 </h3>
-                <p className="text-[11px] text-slate-300 mt-1 line-clamp-2 leading-relaxed">
-                  Documento com dados de estufagem, armador ({processo.armador || 'ONE'}), contêineres, lacres, consignatário e exportador.
+                <p className="text-[11px] text-slate-300 mt-1 h-9 line-clamp-2 leading-relaxed">
+                  Dados de estufagem, armador ({processo.armador || 'ONE'}), contêineres, lacres, consignatário e exportador.
                 </p>
 
-                <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300">
-                  <span>Armador: <strong className="text-white">{processo.armador || 'N/D'}</strong></span>
-                  <span>Ctns: <strong className="text-white">{processo.containerQtd || 0}</strong></span>
+                <div className="mt-3 p-2 rounded-lg bg-black/25 border border-white/5 flex items-center justify-between text-[11px] text-slate-300">
+                  <span className="truncate">Armador: <strong className="text-white">{processo.armador || 'N/D'}</strong></span>
+                  <span className="shrink-0 pl-2">Ctns: <strong className="text-white">{processo.containerQtd || 0}</strong></span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-2">
+              <div className="mt-4 pt-2 border-t border-white/5">
                 <a
                   href={`/instrucao-embarque/${processo.id}`}
                   target="_blank"
@@ -161,30 +161,31 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
             </div>
 
             {/* 2. ETIQUETAS DE SACARIA */}
-            <div className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-500/50 rounded-xl p-4.5 transition-all flex flex-col justify-between group">
+            <div className="bg-white/5 hover:bg-white/[0.08] border border-white/10 hover:border-amber-500/50 rounded-xl p-4 transition-all flex flex-col justify-between h-full group">
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
                     <Tag className="w-5 h-5" />
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 shrink-0">
                     Identificação
                   </span>
                 </div>
-                <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+
+                <h3 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors truncate">
                   Etiquetas de Sacaria
                 </h3>
-                <p className="text-[11px] text-slate-300 mt-1 line-clamp-2 leading-relaxed">
-                  Etiquetas térmicas com padrão oficial: produto, safra, lote, tara, peso bruto/líquido e identificação do importador.
+                <p className="text-[11px] text-slate-300 mt-1 h-9 line-clamp-2 leading-relaxed">
+                  Etiquetas térmicas com padrão oficial: produto, safra, lote, tara, peso e comprador.
                 </p>
 
-                <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300">
-                  <span>Produto: <strong className="text-white truncate max-w-[100px]">{processo.produto || 'Feijão'}</strong></span>
-                  <span>Embalagem: <strong className="text-white">{processo.embalagemTipo || '30kg'}</strong></span>
+                <div className="mt-3 p-2 rounded-lg bg-black/25 border border-white/5 flex items-center justify-between text-[11px] text-slate-300">
+                  <span className="truncate">Produto: <strong className="text-white">{processo.produto || 'Feijão'}</strong></span>
+                  <span className="shrink-0 pl-2">Emb: <strong className="text-white">{processo.embalagemTipo || '30kg'}</strong></span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-2">
+              <div className="mt-4 pt-2 border-t border-white/5">
                 <a
                   href={`/etiquetas/${processo.id}`}
                   target="_blank"
@@ -198,40 +199,41 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
               </div>
             </div>
 
-            {/* 3. CARTA BORDERÔ (COBRANÇA CAD) - NOVO E DESTACADO */}
-            <div className="bg-white/5 hover:bg-white/10 border-2 border-orange-500/60 hover:border-orange-400 rounded-xl p-4.5 transition-all flex flex-col justify-between group shadow-md relative">
-              <span className="absolute -top-2.5 right-3 bg-orange-500 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs">
-                Novo Documento
-              </span>
-
+            {/* 3. CARTA BORDERÔ (COBRANÇA CAD) */}
+            <div className="bg-white/5 hover:bg-white/[0.08] border border-orange-500/60 hover:border-orange-400 rounded-xl p-4 transition-all flex flex-col justify-between h-full group">
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center border border-orange-500/30">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center border border-orange-500/30 shrink-0">
                     <Landmark className="w-5 h-5" />
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    bancoConfigurado 
-                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' 
-                      : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                  }`}>
-                    {bancoConfigurado ? 'Banco Configurado' : 'Banco Pendente'}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-500 text-slate-950">
+                      Novo
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      bancoConfigurado 
+                        ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' 
+                        : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                    }`}>
+                      {bancoConfigurado ? 'Banco OK' : 'Banco Pendente'}
+                    </span>
+                  </div>
                 </div>
 
-                <h3 className="text-sm font-bold text-white group-hover:text-orange-300 transition-colors">
+                <h3 className="text-sm font-bold text-white group-hover:text-orange-300 transition-colors truncate">
                   Carta Borderô (Cobrança CAD)
                 </h3>
-                <p className="text-[11px] text-slate-300 mt-1 line-clamp-2 leading-relaxed">
-                  Carta ao Banco do Brasil para abertura de saque CAD com 9 documentos anexos, courier e cláusula de juros.
+                <p className="text-[11px] text-slate-300 mt-1 h-9 line-clamp-2 leading-relaxed">
+                  Carta ao Banco do Brasil para abertura de saque CAD com 9 documentos, courier e juros.
                 </p>
 
-                <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300">
-                  <span>Modalidade: <strong className="text-white">{temProforma ? 'Com Pro-forma' : '100% CAD'}</strong></span>
-                  <span>Valor: <strong className="text-emerald-300 font-mono">U$ {formatUSD(valorTotalUsd)}</strong></span>
+                <div className="mt-3 p-2 rounded-lg bg-black/25 border border-white/5 flex items-center justify-between text-[11px] text-slate-300">
+                  <span className="truncate">Mod: <strong className="text-white">{temProforma ? 'Com Pro-forma' : '100% CAD'}</strong></span>
+                  <span className="shrink-0 pl-2">Total: <strong className="text-emerald-300 font-mono">U$ {formatUSD(valorTotalUsd)}</strong></span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-2 space-y-2">
+              <div className="mt-4 pt-2 border-t border-white/5">
                 <a
                   href={`/carta-bordero/${processo.id}`}
                   target="_blank"
@@ -242,15 +244,6 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
                   <span>Gerar Carta Borderô</span>
                   <ArrowUpRight className="w-3.5 h-3.5" />
                 </a>
-
-                {!bancoConfigurado && (
-                  <Link
-                    href={`/negociacoes/${processo.id}/importador`}
-                    className="block text-center text-[10px] text-amber-300 hover:underline"
-                  >
-                    ⚙ Preencher dados do banco do comprador na aba Importador
-                  </Link>
-                )}
               </div>
             </div>
 

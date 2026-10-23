@@ -9,8 +9,9 @@ import {
   Clock, 
   Landmark, 
   DollarSign, 
-  Percent, 
-  FileText 
+  Percent,
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import { criarProcessoAction } from '@/server/actions/criarProcessoAction';
 import { 
@@ -57,6 +58,16 @@ export default function NovaNegociacaoPage() {
   const [bancoConta, setBancoConta] = useState<string>('');
   const [bancoSwift, setBancoSwift] = useState<string>('');
 
+  // Máscara e sanitização para o código SWIFT (apenas letras maiúsculas e números, máx 11 caracteres)
+  const maskSwift = (val: string) => val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
+
+  // Validação em tempo real do SWIFT/BIC (ISO 9362: 8 ou 11 caracteres alfanuméricos)
+  const swiftTrim = bancoSwift.trim().toUpperCase();
+  const swiftLen = swiftTrim.length;
+  const isSwiftFormatoValido = /^[A-Z0-9]+$/.test(swiftTrim);
+  const isSwiftCompleto = (swiftLen === 8 || swiftLen === 11) && isSwiftFormatoValido;
+  const isSwiftInvalido = swiftLen > 0 && !isSwiftCompleto;
+
   // Quando alterna pro-forma, ajusta os dias de liquidação padrão (20 para sem pro-forma, 10 para com pro-forma)
   const handleToggleProforma = (comProforma: boolean) => {
     setTemProforma(comProforma);
@@ -88,22 +99,6 @@ export default function NovaNegociacaoPage() {
       setCalculoExplicacao('');
     }
   }, [volumeKg, containerQtd, embalagemTipo]);
-
-  // Cálculo estimativo de saldo para a cláusula de juros com pro-forma
-  const volNum = parseFloat(volumeKg || '0');
-  const valNum = parseFloat(valorDeclaradoUsd || '0');
-  let totalUsdEstimado = 0;
-  if (valNum > 0) {
-    totalUsdEstimado = valNum < 5000 && volNum > 0 ? (volNum / 1000) * valNum : valNum;
-  }
-  const adiantNum = parseFloat(adiantamentoPerc || '10');
-  const saldoEstimado = totalUsdEstimado > 0 
-    ? totalUsdEstimado - (totalUsdEstimado * adiantNum / 100) 
-    : 0;
-
-  const textoClausulaPreview = !temProforma
-    ? `100% CAD (liquidação contra apresentação de documentos) a vista com prazo máximo de liquidação de ${diasLiquidacao || '20'} dias corridos após entrega dos documentos no banco do comprador. Caso a liquidação aconteça após os ${diasLiquidacao || '20'} dias corridos de prazo da data de entrega dos documentos no banco do comprador o valor da Invoice a ser paga deve ser acrescentado de ${multaAtrasoPerc || '5'}% de multa pelo atraso.`
-    : `Houve o adiantamento de ${adiantamentoPerc || '10'}% no momento do carregamento e saldo U$ ${saldoEstimado > 0 ? saldoEstimado.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '[saldo calculado]'} CAD (liquidação contra apresentação de documentos) a vista com prazo máximo de liquidação de ${diasLiquidacao || '10'} dias corridos após entrega dos documentos no banco do comprador. Caso a liquidação aconteça após os ${diasLiquidacao || '10'} dias corridos de prazo da data de entrega dos documentos no banco do comprador o valor da Invoice a ser paga deve ser acrescentado de ${multaAtrasoPerc || '5'}% de multa pelo atraso.`;
 
   return (
     <div className="max-w-3xl">
@@ -360,17 +355,6 @@ export default function NovaNegociacaoPage() {
               )}
             </div>
 
-            {/* PREVIEW DA CLÁUSULA DA CARTA BORDERÔ */}
-            <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl text-xs space-y-1">
-              <div className="flex items-center gap-1.5 text-amber-900 dark:text-amber-300 font-bold">
-                <FileText className="w-3.5 h-3.5" />
-                <span>Texto Oficial da Cláusula no Borderô (Cobrar juros por atraso):</span>
-              </div>
-              <p className="text-[11px] text-slate-700 dark:text-slate-300 italic bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-amber-100 dark:border-amber-900/30 leading-relaxed">
-                &ldquo;{textoClausulaPreview}&rdquo;
-              </p>
-            </div>
-
             {/* OPÇÃO DE INFORMAR DADOS BANCÁRIOS DO COMPRADOR AGORA OU DEPOIS */}
             <div className="pt-2">
               <button
@@ -431,17 +415,64 @@ export default function NovaNegociacaoPage() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                      SWIFT / BIC
-                    </label>
-                    <input
-                      type="text"
-                      name="bancoSwift"
-                      value={bancoSwift}
-                      onChange={(e) => setBancoSwift(e.target.value)}
-                      placeholder="Ex: TMBLINBB008"
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-mono uppercase focus:border-blue-500 outline-none"
-                    />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                        SWIFT / BIC
+                      </label>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {swiftLen > 0 ? `${swiftLen}/11` : '8 ou 11 alfanuméricos'}
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="bancoSwift"
+                        value={bancoSwift}
+                        maxLength={11}
+                        autoCapitalize="characters"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        onChange={(e) => setBancoSwift(maskSwift(e.target.value))}
+                        onInput={(e) => {
+                          const target = e.target as HTMLInputElement;
+                          target.value = maskSwift(target.value);
+                        }}
+                        onPaste={(e) => {
+                          e.preventDefault();
+                          const text = e.clipboardData.getData('text');
+                          setBancoSwift(maskSwift(text));
+                        }}
+                        placeholder="Ex: TMBLINBB ou TMBLINBB008"
+                        className={`w-full bg-white dark:bg-slate-900 border rounded-lg px-3 py-2 text-xs font-mono uppercase outline-none transition-all pr-8 ${
+                          isSwiftCompleto
+                            ? 'border-emerald-500 focus:border-emerald-500 ring-1 ring-emerald-500/30'
+                            : isSwiftInvalido
+                            ? 'border-amber-500 focus:border-amber-500 ring-1 ring-amber-500/30'
+                            : 'border-slate-200 dark:border-slate-700 focus:border-blue-500'
+                        }`}
+                      />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                        {isSwiftCompleto && <Check className="w-4 h-4 text-emerald-500" />}
+                        {isSwiftInvalido && <AlertCircle className="w-4 h-4 text-amber-500" />}
+                      </div>
+                    </div>
+
+                    {/* Feedback em tempo real */}
+                    {isSwiftCompleto && (
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 mt-1">
+                        ✓ Padrão SWIFT internacional válido ({swiftLen} caracteres).
+                      </span>
+                    )}
+                    {isSwiftInvalido && (
+                      <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 mt-1">
+                        ⚠ O padrão SWIFT requer 8 ou 11 caracteres (faltam {swiftLen < 8 ? 8 - swiftLen : 11 - swiftLen} caractere{swiftLen < 8 && (8 - swiftLen) === 1 ? '' : 's'}).
+                      </span>
+                    )}
+                    {!bancoSwift && (
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Padrão ISO 9362: 8 ou 11 dígitos alfanuméricos.
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
