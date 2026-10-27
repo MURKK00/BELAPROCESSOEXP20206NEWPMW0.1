@@ -410,44 +410,44 @@ export const COTACOES_INICIAIS: CotacoesMercadoState = {
 
   cambio: {
     dolarComercial: {
-      compra: 5.0300,
-      venda: 5.0320,
-      ptaxVenda: 5.0441,
-      ptaxCompra: 5.0435,
-      variacao: 0.0470,
-      variacaoPct: 0.94,
-      maxima: 5.0544,
-      minima: 5.0103,
-      abertura: 5.0139,
-      dolarFuturoB3: 5.0600,
+      compra: 5.3440,
+      venda: 5.3450,
+      ptaxVenda: 5.3346,
+      ptaxCompra: 5.3340,
+      variacao: -0.0579,
+      variacaoPct: -1.07,
+      maxima: 5.4120,
+      minima: 5.3080,
+      abertura: 5.4029,
+      dolarFuturoB3: 5.3720,
       historicoIntraday: [
-        { hora: '09:00', preco: 5.0139 },
-        { hora: '10:00', preco: 5.0210 },
-        { hora: '11:00', preco: 5.0280 },
-        { hora: '12:00', preco: 5.0544 },
-        { hora: '13:00', preco: 5.0435 },
-        { hora: '14:00', preco: 5.0360 },
-        { hora: '15:00', preco: 5.0320 },
+        { hora: '09:00', preco: 5.4029 },
+        { hora: '10:00', preco: 5.3850 },
+        { hora: '11:00', preco: 5.3720 },
+        { hora: '12:00', preco: 5.3580 },
+        { hora: '13:00', preco: 5.3480 },
+        { hora: '14:00', preco: 5.3440 },
+        { hora: '15:00', preco: 5.3450 },
       ],
     },
     euroComercial: {
-      compra: 5.6080,
-      venda: 5.6111,
-      ptaxVenda: 5.6111,
-      abertura: 5.5617,
-      variacao: 0.0494,
-      variacaoPct: 0.89,
-      crossRateEurUsd: 1.1151,
-      maxima: 5.6340,
-      minima: 5.5948,
+      compra: 5.9428,
+      venda: 5.9458,
+      ptaxVenda: 5.9449,
+      abertura: 6.0080,
+      variacao: -0.0622,
+      variacaoPct: -1.04,
+      crossRateEurUsd: 1.1127,
+      maxima: 6.0403,
+      minima: 5.9192,
       historicoIntraday: [
-        { hora: '09:00', preco: 5.5617 },
-        { hora: '10:00', preco: 5.5820 },
-        { hora: '11:00', preco: 5.6050 },
-        { hora: '12:00', preco: 5.6340 },
-        { hora: '13:00', preco: 5.6190 },
-        { hora: '14:00', preco: 5.6140 },
-        { hora: '15:00', preco: 5.6111 },
+        { hora: '09:00', preco: 6.0080 },
+        { hora: '10:00', preco: 5.9920 },
+        { hora: '11:00', preco: 5.9750 },
+        { hora: '12:00', preco: 5.9610 },
+        { hora: '13:00', preco: 5.9520 },
+        { hora: '14:00', preco: 5.9490 },
+        { hora: '15:00', preco: 5.9458 },
       ],
     },
   },
@@ -615,24 +615,26 @@ export function simularTickMercado(estadoAnterior: CotacoesMercadoState): Cotaco
   });
 
   // 5. Câmbio Spot USD/BRL
-  const deltaUsd = Number((rand(-0.0035, 0.0040)).toFixed(4));
+  const deltaUsd = Number((rand(-0.0020, 0.0020)).toFixed(4));
   const dol = newState.cambio.dolarComercial;
   dol.venda = Number((dol.venda + deltaUsd).toFixed(4));
   dol.compra = Number((dol.venda - 0.0020).toFixed(4));
   dol.dolarFuturoB3 = Number((dol.venda + 0.0280).toFixed(4));
-  dol.variacao = Number((dol.venda - dol.abertura).toFixed(4));
-  dol.variacaoPct = Number(((dol.variacao / dol.abertura) * 100).toFixed(2));
+  const fechamentoDol = dol.abertura || 5.3767;
+  dol.variacao = Number((dol.venda - fechamentoDol).toFixed(4));
+  dol.variacaoPct = Number(((dol.variacao / fechamentoDol) * 100).toFixed(2));
   dol.maxima = Math.max(dol.maxima, dol.venda);
   dol.minima = Math.min(dol.minima, dol.venda);
 
   // 6. Euro
-  const deltaEur = Number((rand(-0.0030, 0.0035)).toFixed(4));
+  const deltaEur = Number((rand(-0.0020, 0.0020)).toFixed(4));
   const eur = newState.cambio.euroComercial;
   eur.venda = Number((eur.venda + deltaEur).toFixed(4));
   eur.compra = Number((eur.venda - 0.0030).toFixed(4));
   eur.crossRateEurUsd = Number((eur.venda / dol.venda).toFixed(4));
-  eur.variacao = Number((eur.venda - eur.abertura).toFixed(4));
-  eur.variacaoPct = Number(((eur.variacao / eur.abertura) * 100).toFixed(2));
+  const fechamentoEur = eur.abertura || 6.0080;
+  eur.variacao = Number((eur.venda - fechamentoEur).toFixed(4));
+  eur.variacaoPct = Number(((eur.variacao / fechamentoEur) * 100).toFixed(2));
 
   // 7. Curva de Dólar sincroniza com Spot
   newState.curvaDolar.forEach((item, idx) => {

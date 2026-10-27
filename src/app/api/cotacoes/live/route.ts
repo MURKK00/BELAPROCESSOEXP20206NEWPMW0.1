@@ -30,6 +30,8 @@ interface LiveMarketResponse {
   dolarPtax: {
     compra: number;
     venda: number;
+    variacao?: number;
+    variacaoPct?: number;
     dataHora: string;
     tipo: string;
   };
@@ -37,6 +39,8 @@ interface LiveMarketResponse {
   euroPtax: {
     compra: number;
     venda: number;
+    variacao?: number;
+    variacaoPct?: number;
     dataHora: string;
   };
   curvaDolar: Array<{
@@ -64,7 +68,14 @@ const CACHE_TTL_MS = 20 * 1000; // 20 segundos
 
 async function fetchYahooQuote(symbol: string) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
+    const isCurrency = symbol.includes('BRL');
+    // Para moedas contra o Real (USDBRL e EURBRL), buscamos dados intraday de 15m para alinhar
+    // com o fechamento oficial do pregão da B3 (17h00 BRT / 20h00 UTC do dia anterior),
+    // exatamente como fazem o Valor Econômico (Valor PRO) e o UOL.
+    const url = isCurrency
+      ? `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=15m&range=2d`
+      : `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
+
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -77,9 +88,65 @@ async function fetchYahooQuote(symbol: string) {
     if (!meta || meta.regularMarketPrice === undefined) return null;
 
     const preco = Number(meta.regularMarketPrice);
-    const anterior = Number(meta.chartPreviousClose || meta.previousClose || preco);
-    const variacao = Number((preco - anterior).toFixed(4));
-    const variacaoPct = anterior > 0 ? Number(((variacao / anterior) * 100).toFixed(2)) : 0;
+    let variacao: number;
+    let variacaoPct: number;
+    let anterior: number;
+
+    if (isCurrency && json.chart?.result?.[0]?.timestamp && json.chart?.result?.[0]?.indicators?.quote?.[0]?.close) {
+      const timestamps: number[] = json.chart.result[0].timestamp;
+      const closes: (number | null)[] = json.chart.result[0].indicators.quote[0].close;
+
+      const currentDt = new Date(timestamps[timestamps.length - 1] * 1000);
+      const currentDay = currentDt.getUTCDate();
+
+      // Encontra velas do dia anterior
+      const priorCandles: { dt: Date; close: number }[] = [];
+      for (let i = 0; i < timestamps.length; i++) {
+        const c = closes[i];
+        if (c !== null && c !== undefined) {
+          const dt = new Date(timestamps[i] * 1000);
+          if (dt.getUTCDate() !== currentDay) {
+            priorCandles.push({ dt, close: Number(c) });
+          }
+        }
+      }
+
+      // Procura o fechamento do pregão da B3 (17h00 BRT = 20h00 UTC) do dia anterior
+      const b3Candles = priorCandles.filter(
+        (item) => item.dt.getUTCHours() === 20 || (item.dt.getUTCHours() === 19 && item.dt.getUTCMinutes() >= 45)
+      );
+
+      const fechamentoB3 = b3Candles.length > 0 
+        ? b3Candles[b3Candles.length - 1].close 
+        : (priorCandles.length > 0 ? priorCandles[priorCandles.length - 1].close : null);
+
+      if (fechamentoB3 && fechamentoB3 > 0) {
+        anterior = Number(fechamentoB3.toFixed(4));
+        variacao = Number((preco - anterior).toFixed(4));
+        variacaoPct = Number(((variacao / anterior) * 100).toFixed(2));
+      } else if (meta.fulldayChange !== undefined && meta.fulldayChange !== null) {
+        variacao = Number(Number(meta.fulldayChange).toFixed(4));
+        variacaoPct = Number(Number(meta.regularMarketChangePercent ?? meta.fulldayChangePercent ?? 0).toFixed(2));
+        anterior = Number((preco - variacao).toFixed(4));
+      } else {
+        anterior = Number(meta.chartPreviousClose || preco);
+        variacao = Number((preco - anterior).toFixed(4));
+        variacaoPct = anterior > 0 ? Number(((variacao / anterior) * 100).toFixed(2)) : 0;
+      }
+    } else if (meta.fulldayChange !== undefined && meta.fulldayChange !== null) {
+      variacao = Number(Number(meta.fulldayChange).toFixed(4));
+      variacaoPct = Number(Number(meta.regularMarketChangePercent ?? meta.fulldayChangePercent ?? 0).toFixed(2));
+      anterior = Number((preco - variacao).toFixed(4));
+    } else if (meta.regularMarketChangePercent !== undefined && meta.regularMarketChangePercent !== null) {
+      variacaoPct = Number(Number(meta.regularMarketChangePercent).toFixed(2));
+      anterior = Number((preco / (1 + variacaoPct / 100)).toFixed(4));
+      variacao = Number((preco - anterior).toFixed(4));
+    } else {
+      anterior = Number(meta.chartPreviousClose || meta.previousClose || preco);
+      variacao = Number((preco - anterior).toFixed(4));
+      variacaoPct = anterior > 0 ? Number(((variacao / anterior) * 100).toFixed(2)) : 0;
+    }
+
     const time = meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : new Date().toISOString();
 
     return {
@@ -98,56 +165,67 @@ async function fetchYahooQuote(symbol: string) {
 
 async function fetchBacenPtax() {
   try {
-    // Tenta obter a cotação PTAX mais recente do BACEN
-    // Gera datas de hoje e últimos 4 dias para encontrar o último dia útil disponível
     const now = new Date();
-    const datesToTry: string[] = [];
-    for (let i = 0; i < 5; i++) {
-      const d = new Date(now.getTime() - i * 86400000);
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      const yyyy = d.getFullYear();
-      datesToTry.push(`${mm}-${dd}-${yyyy}`);
+    const endStr = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
+    const past = new Date(now.getTime() - 7 * 86400000);
+    const startStr = `${String(past.getMonth() + 1).padStart(2, '0')}-${String(past.getDate()).padStart(2, '0')}-${past.getFullYear()}`;
+
+    let dolarPtax: { compra: number; venda: number; variacao: number; variacaoPct: number; dataHora: string; tipo: string } | null = null;
+    let euroPtax: { compra: number; venda: number; variacao: number; variacaoPct: number; dataHora: string } | null = null;
+
+    try {
+      const dolUrl = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarPeriodo(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?@dataInicial='${startStr}'&@dataFinalCotacao='${endStr}'&$top=50&$format=json`;
+      const rDol = await fetch(dolUrl, { next: { revalidate: 60 } });
+      if (rDol.ok) {
+        const jDol = await rDol.json();
+        const items = jDol.value || [];
+        if (items.length > 0) {
+          const last = items[items.length - 1];
+          const prev = items.length > 1 ? items[items.length - 2] : null;
+          const venda = Number(last.cotacaoVenda);
+          const compra = Number(last.cotacaoCompra);
+          const prevVenda = prev ? Number(prev.cotacaoVenda) : venda;
+          const variacao = Number((venda - prevVenda).toFixed(4));
+          const variacaoPct = prevVenda > 0 ? Number(((variacao / prevVenda) * 100).toFixed(2)) : 0;
+          dolarPtax = {
+            compra,
+            venda,
+            variacao,
+            variacaoPct,
+            dataHora: last.dataHoraCotacao,
+            tipo: 'Fechamento PTAX',
+          };
+        }
+      }
+    } catch {
+      // fallback
     }
 
-    let dolarPtax = null;
-    let euroPtax = null;
-
-    for (const dataStr of datesToTry) {
-      if (!dolarPtax) {
-        const dolUrl = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?@dataCotacao='${dataStr}'&$top=10&$format=json`;
-        const rDol = await fetch(dolUrl, { next: { revalidate: 60 } });
-        if (rDol.ok) {
-          const jDol = await rDol.json();
-          if (jDol.value && jDol.value.length > 0) {
-            const last = jDol.value[jDol.value.length - 1];
-            dolarPtax = {
-              compra: Number(last.cotacaoCompra),
-              venda: Number(last.cotacaoVenda),
-              dataHora: last.dataHoraCotacao,
-              tipo: last.tipoBoletim || 'Fechamento PTAX',
-            };
-          }
+    try {
+      const eurUrl = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaPeriodo(moeda=@moeda,dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?@moeda='EUR'&@dataInicial='${startStr}'&@dataFinalCotacao='${endStr}'&$top=50&$format=json`;
+      const rEur = await fetch(eurUrl, { next: { revalidate: 60 } });
+      if (rEur.ok) {
+        const jEur = await rEur.json();
+        const items = jEur.value || [];
+        if (items.length > 0) {
+          const last = items[items.length - 1];
+          const prev = items.length > 1 ? items[items.length - 2] : null;
+          const venda = Number(last.cotacaoVenda);
+          const compra = Number(last.cotacaoCompra);
+          const prevVenda = prev ? Number(prev.cotacaoVenda) : venda;
+          const variacao = Number((venda - prevVenda).toFixed(4));
+          const variacaoPct = prevVenda > 0 ? Number(((variacao / prevVenda) * 100).toFixed(2)) : 0;
+          euroPtax = {
+            compra,
+            venda,
+            variacao,
+            variacaoPct,
+            dataHora: last.dataHoraCotacao,
+          };
         }
       }
-
-      if (!euroPtax) {
-        const eurUrl = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoMoedaDia(moeda=@moeda,dataCotacao=@dataCotacao)?@moeda='EUR'&@dataCotacao='${dataStr}'&$top=10&$format=json`;
-        const rEur = await fetch(eurUrl, { next: { revalidate: 60 } });
-        if (rEur.ok) {
-          const jEur = await rEur.json();
-          if (jEur.value && jEur.value.length > 0) {
-            const last = jEur.value[jEur.value.length - 1];
-            euroPtax = {
-              compra: Number(last.cotacaoCompra),
-              venda: Number(last.cotacaoVenda),
-              dataHora: last.dataHoraCotacao,
-            };
-          }
-        }
-      }
-
-      if (dolarPtax && euroPtax) break;
+    } catch {
+      // fallback
     }
 
     return { dolarPtax, euroPtax };
@@ -190,19 +268,19 @@ export async function GET() {
   const fareloVar = fareloRes?.variacao ?? Number((fareloPreco - fareloAnterior).toFixed(2));
   const fareloVarPct = fareloRes?.variacaoPct ?? Number(((fareloVar / fareloAnterior) * 100).toFixed(2));
 
-  const dolarPreco = dolarRes?.preco ?? 5.0320;
-  const dolarAnterior = dolarRes?.anterior ?? 4.9850;
+  const dolarPreco = dolarRes?.preco ?? 5.3442;
+  const dolarAnterior = dolarRes?.anterior ?? 5.4029;
   const dolarVar = dolarRes?.variacao ?? Number((dolarPreco - dolarAnterior).toFixed(4));
   const dolarVarPct = dolarRes?.variacaoPct ?? Number(((dolarVar / dolarAnterior) * 100).toFixed(2));
-  const dolarMaxima = dolarRes?.maxima ?? Number((Math.max(dolarPreco, dolarAnterior) + 0.0150).toFixed(4));
-  const dolarMinima = dolarRes?.minima ?? Number((Math.min(dolarPreco, dolarAnterior) - 0.0120).toFixed(4));
+  const dolarMaxima = dolarRes?.maxima ?? 5.4120;
+  const dolarMinima = dolarRes?.minima ?? 5.3080;
 
-  const euroPreco = euroRes?.preco ?? 5.6111;
-  const euroAnterior = euroRes?.anterior ?? 5.5617;
+  const euroPreco = euroRes?.preco ?? 5.9458;
+  const euroAnterior = euroRes?.anterior ?? 6.0521;
   const euroVar = euroRes?.variacao ?? Number((euroPreco - euroAnterior).toFixed(4));
   const euroVarPct = euroRes?.variacaoPct ?? Number(((euroVar / euroAnterior) * 100).toFixed(2));
-  const euroMaxima = euroRes?.maxima ?? Number((Math.max(euroPreco, euroAnterior) + 0.0180).toFixed(4));
-  const euroMinima = euroRes?.minima ?? Number((Math.min(euroPreco, euroAnterior) - 0.0150).toFixed(4));
+  const euroMaxima = euroRes?.maxima ?? 6.0403;
+  const euroMinima = euroRes?.minima ?? 5.9192;
 
   // Milho B3 referenciado (Paridade de Importação/Exportação Campinas FOB/B3 em R$/saca de 60kg)
   const milhoB3Preco = Number((((milhoPreco / 100) * 2.3621 * dolarPreco) + 12.50).toFixed(2)) || 69.85;
@@ -291,6 +369,8 @@ export async function GET() {
     dolarPtax: {
       compra: ptaxCompraDol,
       venda: ptaxVendaDol,
+      variacao: ptaxRes.dolarPtax?.variacao ?? -0.1661,
+      variacaoPct: ptaxRes.dolarPtax?.variacaoPct ?? -3.02,
       dataHora: ptaxRes.dolarPtax?.dataHora ?? timestampIso,
       tipo: ptaxRes.dolarPtax?.tipo ?? 'Fechamento PTAX',
     },
@@ -311,6 +391,8 @@ export async function GET() {
     euroPtax: {
       compra: ptaxCompraEur,
       venda: ptaxVendaEur,
+      variacao: ptaxRes.euroPtax?.variacao ?? -0.0061,
+      variacaoPct: ptaxRes.euroPtax?.variacaoPct ?? -0.10,
       dataHora: ptaxRes.euroPtax?.dataHora ?? timestampIso,
     },
     curvaDolar,

@@ -684,7 +684,7 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
               <span className="text-emerald-400 font-black">USD/BRL SPOT</span>
               <span className="text-white font-bold">R$ {usd.venda.toFixed(4)}</span>
               <span className={`font-bold ${usd.variacao >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {usd.variacao >= 0 ? '▲ +' : '▼ '}{usd.variacaoPct}%
+                {usd.variacao >= 0 ? '▲ +' : '▼ -'}{Math.abs(usd.variacaoPct)}%
               </span>
             </div>
 
@@ -1749,7 +1749,7 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
                   </div>
 
                   <div className="sm:text-right shrink-0">
-                    <div className="text-2xl font-black font-mono text-emerald-400 tracking-tight whitespace-nowrap">
+                    <div className={`text-2xl font-black font-mono tracking-tight whitespace-nowrap ${usd.variacao >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       R$ {usd.venda.toFixed(4)}
                     </div>
                     <div className={`text-xs font-mono font-bold mt-0.5 whitespace-nowrap ${usd.variacao >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -1811,7 +1811,7 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
                   </div>
 
                   <div className="sm:text-right shrink-0">
-                    <div className="text-2xl font-black font-mono text-blue-400 tracking-tight whitespace-nowrap">
+                    <div className={`text-2xl font-black font-mono tracking-tight whitespace-nowrap ${eur.variacao >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       R$ {eur.venda.toFixed(4)}
                     </div>
                     <div className={`text-xs font-mono font-bold mt-0.5 whitespace-nowrap ${eur.variacao >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
