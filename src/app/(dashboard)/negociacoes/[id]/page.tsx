@@ -14,9 +14,14 @@ import {
   ShieldCheck, 
   Layers,
   Sparkles,
-  ArrowUpRight
+  ArrowUpRight,
+  UserCheck,
+  AlertCircle,
+  Printer
 } from 'lucide-react';
 import { parseRecebimentoProformaInfo } from '@/lib/proformaHelper';
+import { isImportadorPendente } from '@/lib/compradorHelper';
+import { ContratoPreviewModal } from '@/components/negociacoes/ContratoPreviewModal';
 
 const FASES_STATUS: { fase: string; label: string; num: string }[] = [
   { fase: 'BOOKING_TRANSPORTE', label: 'Booking & Transporte', num: '01' },
@@ -49,6 +54,8 @@ export default async function VisaoGeralNegociacaoPage({
   });
 
   if (!processo) notFound();
+
+  const pendenteImportador = isImportadorPendente(processo);
 
   const totalEtapas = processo.etapas.length;
   const etapasConcluidasTotal = processo.etapas.filter((e) => e.status === 'CONCLUIDA').length;
@@ -112,6 +119,75 @@ export default async function VisaoGeralNegociacaoPage({
   return (
     <div className="space-y-8">
       
+      {/* ALERTA DE DADOS DO IMPORTADOR PENDENTES COM ANIMAÇÃO PISCANTE */}
+      {pendenteImportador && (
+        <div className="relative overflow-hidden rounded-3xl border-2 border-amber-500 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 dark:from-amber-950/40 dark:via-orange-950/25 dark:to-amber-950/40 p-5 sm:p-6 shadow-md animate-pulse">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-2xl bg-amber-500 text-white shadow-sm shrink-0">
+                <AlertCircle className="w-5 h-5 animate-bounce" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 rounded-lg border border-amber-300 dark:border-amber-700">
+                    Ação Necessária
+                  </span>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                    Dados do Importador (Buyer) ainda não foram preenchidos
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                  Para emitir a <strong>Confirmação de Negócio (Contrato)</strong>, minutas de BL e o dossiê oficial, cadastre o endereço completo, documentos fiscais (IEC / PAN / GST) e dados bancários do comprador.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/negociacoes/${id}/importador`}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-amber-500/30 transition-all shrink-0 hover:scale-[1.02] cursor-pointer"
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>Preencher Importador (Buyer) →</span>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMAÇÃO DE NEGÓCIO - AÇÃO COMPACTA E MINIMALISTA */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center shrink-0">
+            <FileText className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                Confirmação de Negócio
+              </h3>
+              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                Sales Contract
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+              {processo.produto} • {((Number(processo.volumeKg) || 0) / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT {precoUsd > 0 ? `• US$ ${precoUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}/MT` : ''}
+            </p>
+          </div>
+        </div>
+
+        <div className="shrink-0 flex items-center gap-2">
+          <ContratoPreviewModal
+            processoId={processo.id}
+            numeroProcesso={processo.numeroProcesso}
+            clienteFinal={processo.clienteFinal}
+            produto={processo.produto}
+            volumeTon={Number(processo.volumeKg) / 1000}
+            valorTotalUsd={valorTotalUsd}
+            incoterm={processo.incoterm || 'FOB'}
+            fumigacao={processo.fumigacaoNecessaria !== false}
+            importadorPendente={pendenteImportador}
+          />
+        </div>
+      </div>
+
       {/* 1. SEÇÃO DE PROGRAMAÇÃO MARÍTIMA & TRÍADE DE DEADLINES */}
       <ResumoTopoCard
         processoId={processo.id}

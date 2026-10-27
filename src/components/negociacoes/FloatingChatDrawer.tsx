@@ -108,9 +108,10 @@ export function FloatingChatDrawer({
   }, [mensagens.length]);
 
   useEffect(() => {
+    if (!isOpen) return;
     const interval = setInterval(() => {
       carregarMensagens(true);
-    }, 8000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [isOpen, processoId]);
 

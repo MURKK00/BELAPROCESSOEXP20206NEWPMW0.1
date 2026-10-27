@@ -80,7 +80,10 @@ export default async function DetailLayout({
       />
 
       {/* ABAS DO COCKPIT INTEGRADO */}
-      <NegociacaoTabs processoId={processo.id} />
+      <NegociacaoTabs 
+        processoId={processo.id} 
+        importadorPendente={!processo.enderecoBuyer || !processo.enderecoBuyer.trim()} 
+      />
 
       {/* CONTEÚDO DA ABA ATUAL */}
       {children}

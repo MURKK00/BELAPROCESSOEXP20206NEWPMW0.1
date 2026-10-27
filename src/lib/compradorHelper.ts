@@ -27,6 +27,15 @@ export interface DadosBancoComprador {
   adiantamentoPerc?: number; // Padrão: 10%
 }
 
+export function isImportadorPendente(processo?: {
+  enderecoBuyer?: string | null;
+  cidadeBuyer?: string | null;
+  paisBuyer?: string | null;
+} | null): boolean {
+  if (!processo) return true;
+  return !processo.enderecoBuyer || !processo.enderecoBuyer.trim();
+}
+
 export function parseCompradorInfo(complementoBuyerRaw?: string | null): {
   complementoLimpo: string;
   comprador: DadosComprador;

@@ -13,7 +13,9 @@ import {
   Globe2,
   Box,
   Layers,
-  ChevronRight
+  ChevronRight,
+  FileText,
+  Printer
 } from 'lucide-react';
 import { formatDateBR } from '@/lib/formatters';
 import { StatusSelect } from '@/components/negociacoes/StatusSelect';
@@ -160,6 +162,18 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
             </span>
             <StatusSelect processoId={processo.id} status={processo.status} />
           </div>
+
+          {/* Botão de Prévia do Contrato (PDF / Imprimir) */}
+          <Link
+            href={`/contrato-preview/${processo.id}`}
+            target="_blank"
+            className="px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer hover:scale-[1.02]"
+            title="Visualizar e Imprimir Prévia do Contrato / Confirmação de Negócio em PDF"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Prévia Contrato (PDF)</span>
+            <span className="sm:hidden">Contrato PDF</span>
+          </Link>
 
           {/* Botão de Edição Completa */}
           <Link

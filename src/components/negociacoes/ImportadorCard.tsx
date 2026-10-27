@@ -298,28 +298,27 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
   }[perfilRegiao];
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 sm:p-7 shadow-2xs space-y-6">
+    <div className="bg-slate-50/40 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-7 shadow-2xs space-y-6">
       
       {/* CABEÇALHO GLOBAL UNIVERSAL */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-gray-100">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800">
         <div>
           <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-[#f58220]" />
-            <h3 className="text-lg font-bold text-gray-900">
+            <Building2 className="w-5 h-5 text-orange-500" />
+            <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
               {compradorDiferente 
                 ? 'Identificação: Importador (Consignee) & Comprador (Buyer)' 
                 : 'Dados do Importador (Buyer / Consignee)'}
             </h3>
           </div>
-          <p className="text-xs text-gray-500 mt-1 max-w-2xl">
-            Padrão universal compatível com qualquer país de destino. 
-            Estes dados integram automaticamente a emissão do <strong>Draft BL, Certificado Fitossanitário e Fatura Comercial</strong>.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
+            Padrão internacional para emissão automática do <strong>Draft BL, Certificado Fitossanitário e Fatura Comercial</strong>.
           </p>
         </div>
 
         {sucesso && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold animate-fadeIn shrink-0">
-            <Check className="w-4 h-4 text-emerald-600" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold animate-fadeIn shrink-0">
+            <Check className="w-4 h-4 text-emerald-500" />
             <span>Dados salvos com sucesso!</span>
           </div>
         )}
@@ -410,34 +409,36 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
 
       {/* AVISO DE CADASTRO PENDENTE QUANDO COMPRADOR DIFERENTE E DADOS AINDA NÃO PREENCHIDOS */}
       {compradorDiferente && !compradorNome && (
-        <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs shadow-2xs animate-fadeIn">
-          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs shadow-2xs animate-fadeIn">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
-            <span className="font-bold block text-sm text-amber-900">
-              ⚠️ Cadastro Pendente: Comprador e Importador definidos como entidades separadas
+            <span className="font-bold block text-sm text-amber-900 dark:text-amber-300">
+              Comprador e Importador separados: preencha os dados de cada entidade
             </span>
-            <span className="text-[11px] text-amber-800 block">
-              Esta negociação foi registrada na abertura com a separação entre <strong>Comprador (Buyer)</strong> e <strong>Importador (Consignee)</strong>. Preencha os dados de cada entidade abaixo e clique em &quot;Salvar Dados do Importador / Comprador&quot; para atualizar a emissão de documentos.
+            <span className="text-[11px] text-amber-800 dark:text-amber-400/90 block">
+              Preencha os blocos abaixo para garantir a conformidade documental entre a fatura e o Bill of Lading (BL).
             </span>
           </div>
         </div>
       )}
 
       {/* SELETOR DE PRESET / CONTEXTO REGIONAL DO IMPORTADOR */}
-      <div className="bg-gray-50 border border-gray-200/80 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Globe2 className="w-4 h-4 text-[#f58220] shrink-0" />
-          <div>
-            <span className="text-xs font-bold text-gray-800 block">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center shrink-0">
+            <Globe2 className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">
               Regras Aduaneiras do Destino: {labelsRegiao.titulo}
             </span>
-            <span className="text-[11px] text-gray-500 block">
-              Adequa exemplos e identificadores fiscais ao porto de destino ({processo.portoDestino || 'Porto não definido'})
+            <span className="text-[11px] text-slate-400 block truncate">
+              Exemplos e máscaras adaptados para {processo.portoDestino || 'Porto de Destino'}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 self-start sm:self-auto">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0 self-start sm:self-auto">
           {(
             [
               { id: 'GLOBAL', label: 'Universal' },
@@ -450,10 +451,10 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
               key={item.id}
               type="button"
               onClick={() => setPerfilRegiao(item.id)}
-              className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 perfilRegiao === item.id
-                  ? 'bg-[#f58220] text-white shadow-2xs'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  ? 'bg-orange-500 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-700/50'
               }`}
             >
               {item.label}
@@ -462,27 +463,36 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <input type="hidden" name="compradorDiferente" value={compradorDiferente ? 'true' : 'false'} />
 
         {/* ============================================================== */}
-        {/* BLOCO 1: DADOS DO IMPORTADOR (CONSIGNEE NO DESTINO) */}
+        {/* CARD 1: DADOS DO IMPORTADOR (CONSIGNEE NO DESTINO) */}
         {/* ============================================================== */}
-        <div className="space-y-5">
-          <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
-            <Building2 className="w-4 h-4 text-[#f58220]" />
-            <h4 className="text-sm font-black uppercase tracking-wider text-gray-900">
-              1. Dados do Importador (Consignee no Porto de Destino)
-            </h4>
-            <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded">
-              Recebedor da Carga na Alfândega
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-[#f58220] flex items-center justify-center shrink-0">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                  1. Dados do Importador (Consignee no Porto de Destino)
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Empresa titular no Bill of Lading (BL) e recebedora da carga no desembaraço aduaneiro.
+                </p>
+              </div>
+            </div>
+            <span className="text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg">
+              Desembaraço Aduaneiro
             </span>
           </div>
           
           {/* RAZÃO SOCIAL DO IMPORTADOR */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-              Nome / Razão Social do Importador (Consignee) <span className="text-red-500">*</span>
+            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
+              Razão Social / Nome da Empresa (Consignee) <span className="text-red-500">*</span>
             </label>
             {compradorDiferente ? (
               <input 
@@ -491,58 +501,63 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                 required
                 value={importadorNome}
                 onChange={(e) => setImportadorNome(e.target.value)}
-                className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none" 
+                className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400 shadow-2xs" 
                 placeholder="Ex: R S TRIVENI FOODS PVT LTD"
               />
             ) : (
-              <input 
-                type="text" 
-                value={processo.clienteFinal}
-                disabled
-                className="w-full bg-gray-50 text-gray-700 border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold cursor-not-allowed" 
-                title="Comprador e Importador unificados"
-              />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={processo.clienteFinal}
+                  disabled
+                  className="w-full bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-sm font-semibold cursor-not-allowed shadow-2xs" 
+                  title="Comprador e Importador unificados"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                  Unificado ao Comprador
+                </span>
+              </div>
             )}
-            <span className="text-[11px] text-gray-400 mt-1 block">
+            <span className="text-[11px] text-slate-400 mt-1 block">
               {compradorDiferente 
-                ? 'Nome da empresa que receberá o BL e fará o desembaraço aduaneiro no porto de destino.'
-                : 'Nome registrado na abertura da negociação. Para alterar a razão social quando unificados, edite os dados gerais do processo.'}
+                ? 'Nome que constará no Bill of Lading (BL) e Certificado Fitossanitário.'
+                : 'Nome registrado na abertura. Para alterar a razão social quando unificados, atualize os dados gerais do processo.'}
             </span>
           </div>
 
           {/* ENDEREÇO UNIVERSAL DO IMPORTADOR */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
-              <MapPin className="w-4 h-4 text-[#f58220]" />
-              <span>Endereço de Entrega & Desembaraço (Destino)</span>
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+              <MapPin className="w-3.5 h-3.5 text-[#f58220]" />
+              <span>Endereço de Entrega & Desembaraço</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                  Endereço Principal (Logradouro, Número, Bairro/Distrito) <span className="text-red-500">*</span>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Endereço Principal (Logradouro, Nº, Bairro/Distrito) <span className="text-red-500">*</span>
                 </label>
                 <input 
                   type="text" 
                   name="enderecoBuyer" 
                   required
                   defaultValue={processo.enderecoBuyer || ''} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none" 
-                  placeholder="Ex: 123 Rue de la Loi / Industrial Area, Phase 2" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
+                  placeholder="Ex: 123 Industrial Area, Phase 2, GIDC" 
                 />
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-semibold text-gray-600 uppercase">
-                    Complemento / Sala / Edifício / Ponto de Referência
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Complemento / Sala / Edifício
                   </label>
-                  <label className="flex items-center gap-1.5 text-[11px] text-gray-500 font-normal cursor-pointer select-none">
+                  <label className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={naoTemComplemento}
                       onChange={(e) => setNaoTemComplemento(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-gray-300 text-[#f58220] focus:ring-[#f58220] cursor-pointer"
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
                     />
                     <span>Sem complemento</span>
                   </label>
@@ -552,19 +567,17 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   name="complementoBuyer" 
                   disabled={naoTemComplemento}
                   defaultValue={naoTemComplemento ? '' : complementoLimpo} 
-                  className={`w-full border rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
+                  className={`w-full border rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all font-medium ${
                     naoTemComplemento 
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                      : 'border-gray-300 focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20'
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' 
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15'
                   }`}
                   placeholder={naoTemComplemento ? 'Não aplicável (N/A)' : 'Ex: Suite 400 / Building B'} 
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Cidade & Estado / Província <span className="text-red-500">*</span>
                 </label>
                 <input 
@@ -572,166 +585,151 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   name="cidadeBuyer" 
                   required
                   defaultValue={processo.cidadeBuyer || ''} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none" 
-                  placeholder="Ex: Rotterdam / Antwerp / Gujarat" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
+                  placeholder="Ex: Gandhidham / Gujarat / Rotterdam" 
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                  País & Código Postal (CEP / ZIP / Postal Code / PIN) <span className="text-red-500">*</span>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  País & Código Postal (CEP / PIN / ZIP) <span className="text-red-500">*</span>
                 </label>
                 <input 
                   type="text" 
                   name="paisBuyer" 
                   required
                   defaultValue={processo.paisBuyer || ''} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none" 
-                  placeholder="Ex: Netherlands, 3011 / India, PIN 370410" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
+                  placeholder="Ex: India, PIN 370201 / Netherlands, 3011" 
                 />
               </div>
             </div>
           </div>
 
           {/* CÓDIGOS REGULATÓRIOS DO IMPORTADOR */}
-          <div className="pt-3 border-t border-gray-100 space-y-3">
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
-                <FileText className="w-4 h-4 text-blue-600" />
-                <span>Identificadores Fiscais, Sanitários & Aduaneiros do Importador</span>
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Identificadores Fiscais & Aduaneiros ({labelsRegiao.titulo})</span>
               </div>
-              <span className="text-[11px] text-gray-400">
-                Marque caso o importador não possua ou o registro não seja aplicável
+              <span className="text-[11px] text-slate-400">
+                Ative &quot;N/A&quot; caso a empresa não possua o registro
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               
               {/* 1. REGISTRO ADUANEIRO PRINCIPAL */}
-              <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-gray-900 uppercase">
-                      {perfilRegiao === 'INDIA' ? 'IEC (Índia)' : perfilRegiao === 'EUROPA' ? 'EORI (Europa)' : 'Reg. Aduaneiro / Tax ID'}
-                    </label>
-                    <span className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-100 text-blue-800 rounded">
-                      Principal
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
-                    {labelsRegiao.docPrincipalHint}
-                  </p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                    {perfilRegiao === 'INDIA' ? 'IEC Code (Índia)' : perfilRegiao === 'EUROPA' ? 'EORI (Europa)' : 'Reg. Aduaneiro'}
+                  </label>
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 rounded">
+                    Principal
+                  </span>
                 </div>
                 <input 
                   type="text" 
                   name="iecBuyer" 
                   defaultValue={processo.iecBuyer || ''} 
-                  className="w-full bg-white border border-gray-300 rounded-md px-2.5 py-1.5 text-xs font-mono font-semibold focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none uppercase" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-semibold focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none uppercase transition-all shadow-2xs" 
                   placeholder={labelsRegiao.docPrincipalPlaceholder}
+                  title={labelsRegiao.docPrincipalHint}
                 />
               </div>
 
               {/* 2. REGISTRO FISCAL SECUNDÁRIO */}
-              <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-gray-900 uppercase">
-                      {perfilRegiao === 'INDIA' ? 'PAN NO. (Índia)' : perfilRegiao === 'EUROPA' ? 'VAT NO. (UE)' : 'Tax ID Corporativo'}
-                    </label>
-                    <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={naoTemSecundario}
-                        onChange={(e) => setNaoTemSecundario(e.target.checked)}
-                        className="w-3 h-3 rounded border-gray-300 text-[#f58220] focus:ring-[#f58220] cursor-pointer"
-                      />
-                      <span>N/A</span>
-                    </label>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
-                    {labelsRegiao.docSecundarioHint}
-                  </p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                    {perfilRegiao === 'INDIA' ? 'PAN NO. (Índia)' : perfilRegiao === 'EUROPA' ? 'VAT NO. (UE)' : 'Tax ID Corporativo'}
+                  </label>
+                  <label className="flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={naoTemSecundario}
+                      onChange={(e) => setNaoTemSecundario(e.target.checked)}
+                      className="w-3 h-3 rounded border-slate-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
+                    />
+                    <span>N/A</span>
+                  </label>
                 </div>
                 <input 
                   type="text" 
                   name="panBuyer" 
                   disabled={naoTemSecundario}
                   defaultValue={naoTemSecundario ? '' : (processo.panBuyer || '')} 
-                  className={`w-full border rounded-md px-2.5 py-1.5 text-xs font-mono outline-none transition-colors ${
+                  className={`w-full border rounded-xl px-3 py-2 text-xs font-mono outline-none transition-all shadow-2xs ${
                     naoTemSecundario 
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                      : 'bg-white border-gray-300 focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 font-semibold uppercase'
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' 
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 font-semibold uppercase'
                   }`}
                   placeholder={naoTemSecundario ? 'Não aplicável (N/A)' : labelsRegiao.docSecundarioPlaceholder}
+                  title={labelsRegiao.docSecundarioHint}
                 />
               </div>
 
               {/* 3. LICENÇA SANITÁRIA / FITO */}
-              <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-gray-900 uppercase">
-                      {perfilRegiao === 'INDIA' ? 'FSSAI License' : 'Licença Sanitária / Fito'}
-                    </label>
-                    <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={naoTemSanitaria}
-                        onChange={(e) => setNaoTemSanitaria(e.target.checked)}
-                        className="w-3 h-3 rounded border-gray-300 text-[#f58220] focus:ring-[#f58220] cursor-pointer"
-                      />
-                      <span>N/A</span>
-                    </label>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
-                    {labelsRegiao.docSanitarioHint}
-                  </p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                    {perfilRegiao === 'INDIA' ? 'FSSAI License' : 'Licença Sanitária / Fito'}
+                  </label>
+                  <label className="flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={naoTemSanitaria}
+                      onChange={(e) => setNaoTemSanitaria(e.target.checked)}
+                      className="w-3 h-3 rounded border-slate-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
+                    />
+                    <span>N/A</span>
+                  </label>
                 </div>
                 <input 
                   type="text" 
                   name="fassaiBuyer" 
                   disabled={naoTemSanitaria}
                   defaultValue={naoTemSanitaria ? '' : (processo.fassaiBuyer || '')} 
-                  className={`w-full border rounded-md px-2.5 py-1.5 text-xs font-mono outline-none transition-colors ${
+                  className={`w-full border rounded-xl px-3 py-2 text-xs font-mono outline-none transition-all shadow-2xs ${
                     naoTemSanitaria 
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                      : 'bg-white border-gray-300 focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 font-semibold'
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' 
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 font-semibold'
                   }`}
                   placeholder={naoTemSanitaria ? 'Não aplicável (N/A)' : labelsRegiao.docSanitarioPlaceholder}
+                  title={labelsRegiao.docSanitarioHint}
                 />
               </div>
 
               {/* 4. INSCRIÇÃO ESTADUAL / IVA */}
-              <div className="bg-gray-50/70 p-3 rounded-lg border border-gray-200 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-gray-900 uppercase">
-                      {perfilRegiao === 'INDIA' ? 'GSTIN NO. (Índia)' : 'Inscrição Estadual / IVA'}
-                    </label>
-                    <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={naoTemEstadual}
-                        onChange={(e) => setNaoTemEstadual(e.target.checked)}
-                        className="w-3 h-3 rounded border-gray-300 text-[#f58220] focus:ring-[#f58220] cursor-pointer"
-                      />
-                      <span>N/A</span>
-                    </label>
-                  </div>
-                  <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
-                    {labelsRegiao.docEstadualHint}
-                  </p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                    {perfilRegiao === 'INDIA' ? 'GSTIN NO. (Índia)' : 'Inscrição Estadual / IVA'}
+                  </label>
+                  <label className="flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={naoTemEstadual}
+                      onChange={(e) => setNaoTemEstadual(e.target.checked)}
+                      className="w-3 h-3 rounded border-slate-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
+                    />
+                    <span>N/A</span>
+                  </label>
                 </div>
                 <input 
                   type="text" 
                   name="gstBuyer" 
                   disabled={naoTemEstadual}
                   defaultValue={naoTemEstadual ? '' : (processo.gstBuyer || '')} 
-                  className={`w-full border rounded-md px-2.5 py-1.5 text-xs font-mono outline-none transition-colors ${
+                  className={`w-full border rounded-xl px-3 py-2 text-xs font-mono outline-none transition-all shadow-2xs ${
                     naoTemEstadual 
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                      : 'bg-white border-gray-300 focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 font-semibold uppercase'
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' 
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 font-semibold uppercase'
                   }`}
                   placeholder={naoTemEstadual ? 'Não informado (N/A)' : labelsRegiao.docEstadualPlaceholder}
+                  title={labelsRegiao.docEstadualHint}
                 />
               </div>
 
@@ -739,15 +737,15 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
           </div>
 
           {/* CONTATOS DO IMPORTADOR */}
-          <div className="pt-3 border-t border-gray-100 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-gray-700 uppercase tracking-wider">
-              <Mail className="w-4 h-4 text-emerald-600" />
-              <span>Contatos Operacionais do Importador (Aviso de Chegada / Notice of Arrival)</span>
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3.5">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+              <Mail className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Contatos Operacionais (Notice of Arrival / Chegada)</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   E-mail do Importador <span className="text-red-500">*</span>
                 </label>
                 <input 
@@ -755,22 +753,22 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   name="emailBuyer" 
                   required
                   defaultValue={processo.emailBuyer || ''} 
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20 outline-none" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
                   placeholder="import@company.com / clearance@broker.com"
                 />
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-semibold text-gray-600 uppercase">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                     Telefone do Importador
                   </label>
-                  <label className="flex items-center gap-1.5 text-[11px] text-gray-500 font-normal cursor-pointer select-none">
+                  <label className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={naoTemTelefone}
                       onChange={(e) => setNaoTemTelefone(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-gray-300 text-[#f58220] focus:ring-[#f58220] cursor-pointer"
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
                     />
                     <span>Sem telefone</span>
                   </label>
@@ -780,10 +778,10 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   name="telefoneBuyer" 
                   disabled={naoTemTelefone}
                   defaultValue={naoTemTelefone ? '' : (processo.telefoneBuyer || '')} 
-                  className={`w-full border rounded-lg px-3 py-2 text-sm outline-none transition-colors ${
+                  className={`w-full border rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all font-medium ${
                     naoTemTelefone 
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                      : 'border-gray-300 focus:border-[#f58220] focus:ring-1 focus:ring-[#f58220]/20'
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' 
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15'
                   }`}
                   placeholder={naoTemTelefone ? 'Não informado (N/A)' : '+91 98250 12345 / +31 10 123 4567'} 
                 />
@@ -793,30 +791,33 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
         </div>
 
         {/* ============================================================== */}
-        {/* BLOCO 2: DADOS DO COMPRADOR (BUYER) - SE DIFERENTE */}
+        {/* CARD 2: DADOS DO COMPRADOR COMERCIAL (BUYER) - SE DIFERENTE */}
         {/* ============================================================== */}
         {compradorDiferente && (
-          <div className="space-y-5 pt-6 border-t-2 border-dashed border-orange-300 animate-fadeIn bg-orange-50/30 p-5 rounded-2xl border border-orange-200">
-            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-orange-200">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-blue-700" />
-                <h4 className="text-sm font-black uppercase tracking-wider text-blue-950">
-                  2. Dados do Comprador Comercial (Buyer / Faturamento)
-                </h4>
+          <div className="bg-slate-50/70 dark:bg-slate-850/60 border border-blue-200 dark:border-blue-900/50 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5 animate-fadeIn">
+            <div className="flex items-center justify-between flex-wrap gap-2 pb-4 border-b border-blue-100 dark:border-blue-900/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <Briefcase className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                    2. Dados do Comprador Comercial (Buyer / Faturamento)
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Entidade compradora ou trading contratante para fatura pro-forma e comercial.
+                  </p>
+                </div>
               </div>
-              <span className="text-[10px] bg-blue-100 text-blue-800 font-extrabold px-2.5 py-0.5 rounded-full">
-                Empresa Contratante / Pagadora
+              <span className="text-[11px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 px-2.5 py-1 rounded-lg">
+                Faturamento Comercial
               </span>
             </div>
-
-            <p className="text-xs text-slate-600">
-              Preencha os dados comerciais da empresa que está comprando e pagando pelo contrato (Trading, Matriz ou Intermediária comercial).
-            </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* NOME / RAZÃO SOCIAL DO COMPRADOR */}
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
                   Nome / Razão Social do Comprador Comercial (Buyer)
                 </label>
                 <input 
@@ -824,32 +825,29 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   name="compradorNome"
                   value={compradorNome}
                   onChange={(e) => setCompradorNome(e.target.value)}
-                  className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
-                  placeholder="Pendente de preenchimento — Ex: AGRI FORTUNE PTE LTD"
+                  className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 outline-none transition-all placeholder:text-slate-400" 
+                  placeholder="Ex: AGRI FORTUNE PTE LTD / COMMODITIES TRADING LLC"
                 />
-                <span className="text-[11px] text-gray-400 mt-1 block">
-                  Razão social da empresa compradora que constará no contrato de venda e fatura pro-forma.
-                </span>
               </div>
 
               {/* ENDEREÇO COMERCIAL */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                  Endereço Comercial da Empresa Compradora
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Endereço Comercial da Empresa
                 </label>
                 <input 
                   type="text" 
                   name="compradorEndereco"
                   value={compradorEndereco}
                   onChange={(e) => setCompradorEndereco(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
                   placeholder="Ex: 10 Marina Boulevard, Tower 2 #28-00" 
                 />
               </div>
 
               {/* COMPLEMENTO COMERCIAL */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Complemento / Sala / Edifício
                 </label>
                 <input 
@@ -857,14 +855,14 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   name="compradorComplemento"
                   value={compradorComplemento}
                   onChange={(e) => setCompradorComplemento(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
-                  placeholder="Ex: Ocean Financial Centre" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
+                  placeholder="Ex: Ocean Financial Centre, Suite 120" 
                 />
               </div>
 
               {/* CIDADE & ESTADO */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Cidade & Estado / Província
                 </label>
                 <input 
@@ -872,14 +870,14 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   name="compradorCidade"
                   value={compradorCidade}
                   onChange={(e) => setCompradorCidade(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
                   placeholder="Ex: Singapore / Dubai / London" 
                 />
               </div>
 
               {/* PAÍS & CEP / ZIP */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   País & Código Postal (ZIP / Postal Code)
                 </label>
                 <input 
@@ -887,29 +885,29 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   name="compradorPais"
                   value={compradorPais}
                   onChange={(e) => setCompradorPais(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
                   placeholder="Ex: Singapore 018983 / UAE" 
                 />
               </div>
 
               {/* TAX ID / REGISTRO FISCAL */}
               <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
-                  Tax ID / Registro Fiscal / CNPJ Internacional do Comprador
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Tax ID / Registro Fiscal / Registration No. do Comprador
                 </label>
                 <input 
                   type="text" 
                   name="compradorTaxId"
                   value={compradorTaxId}
                   onChange={(e) => setCompradorTaxId(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
-                  placeholder="Ex: UEN 201812345M / VAT GB123456789 / Registration No." 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 outline-none transition-all placeholder:text-slate-400" 
+                  placeholder="Ex: UEN 201812345M / VAT GB123456789" 
                 />
               </div>
 
               {/* E-MAIL COMERCIAL */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   E-mail Comercial do Comprador
                 </label>
                 <input 
@@ -917,14 +915,14 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   name="compradorEmail"
                   value={compradorEmail}
                   onChange={(e) => setCompradorEmail(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
                   placeholder="finance@buyer.com / commercial@trader.com" 
                 />
               </div>
 
               {/* TELEFONE COMERCIAL */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Telefone Comercial
                 </label>
                 <input 
@@ -932,7 +930,7 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   name="compradorTelefone"
                   value={compradorTelefone}
                   onChange={(e) => setCompradorTelefone(e.target.value)}
-                  className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20 outline-none" 
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
                   placeholder="+65 6123 4567 / +971 4 123 4567" 
                 />
               </div>
@@ -941,20 +939,20 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
         )}
 
         {/* ============================================================== */}
-        {/* BLOCO 3: DADOS DO BANCO DE DESTINO (COMPRADOR / CARTA BORDERÔ) */}
+        {/* CARD 3: DADOS DO BANCO DE DESTINO (COMPRADOR / CARTA BORDERÔ) */}
         {/* ============================================================== */}
-        <div className="space-y-5 pt-6 border-t border-gray-200">
-          <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-gray-200">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600">
-                <Landmark className="w-5 h-5" />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <Landmark className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
-                  3. Dados do Banco de Destino (Comprador / Cobrança CAD)
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                  {compradorDiferente ? '3.' : '2.'} Dados do Banco de Destino (Cobrança CAD / Carta Borderô)
                 </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Dados bancários no exterior utilizados para a remessa de documentos e emissão da <strong>Carta Borderô</strong>.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Instituição financeira no exterior para remessa de documentos de exportação.
                 </p>
               </div>
             </div>
@@ -963,7 +961,7 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
               href={`/carta-bordero/${processo.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-orange-400" />
               <span>Gerar Carta Borderô ↗</span>
@@ -975,7 +973,7 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
             {/* NOME DO BANCO */}
             <div className="md:col-span-2">
               <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
                   Nome do Banco no Destino (Comprador)
                 </label>
                 <button
@@ -997,13 +995,13 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   setBancoNome(e.target.value);
                   if (feedbackBanco) setFeedbackBanco(null);
                 }}
-                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none uppercase font-semibold"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none uppercase font-semibold transition-all shadow-2xs"
                 placeholder="Ex: TAMILNAD MERCANTILE BANK / STATE BANK OF INDIA"
               />
 
               {/* Feedback inline caso preenchido */}
               {feedbackBanco && (
-                <div className="mt-1.5 flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 animate-fadeIn">
+                <div className="mt-2 flex items-center justify-between text-xs px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 animate-fadeIn">
                   <span className="flex items-center gap-1 font-medium">
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     {feedbackBanco}
@@ -1073,7 +1071,7 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
 
             {/* ENDEREÇO DO BANCO */}
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 Endereço Completo da Agência do Banco
               </label>
               <input
@@ -1081,14 +1079,14 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                 name="bancoEndereco"
                 value={bancoEndereco}
                 onChange={(e) => setBancoEndereco(e.target.value)}
-                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400 font-medium"
                 placeholder="Ex: 20, GOLAWAR AGRAHARAM ROAD, OLD WASHERMANPET, CHENNAI - 600021, TAMILNADU, INDIA"
               />
             </div>
 
             {/* CONTA */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 Conta Corrente / Account No.
               </label>
               <input
@@ -1096,15 +1094,15 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                 name="bancoConta"
                 value={bancoConta}
                 onChange={(e) => setBancoConta(e.target.value)}
-                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-mono focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400"
                 placeholder="Ex: 008700150950284"
               />
             </div>
 
             {/* SWIFT / BIC */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                   Código SWIFT / BIC
                 </label>
                 <span className="text-[10px] font-mono text-slate-400">
@@ -1130,12 +1128,12 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                     const text = e.clipboardData.getData('text');
                     setBancoSwift(maskSwift(text));
                   }}
-                  className={`w-full bg-white dark:bg-slate-800 border rounded-lg px-3 py-2 text-sm font-mono uppercase font-bold outline-none transition-all pr-8 ${
+                  className={`w-full bg-white dark:bg-slate-900 border rounded-xl px-3.5 py-2.5 text-sm font-mono uppercase font-bold outline-none transition-all pr-8 ${
                     isSwiftCompleto
-                      ? 'border-emerald-500 ring-1 ring-emerald-500/20'
+                      ? 'border-emerald-500 ring-2 ring-emerald-500/20'
                       : isSwiftInvalido
-                      ? 'border-amber-500 ring-1 ring-amber-500/20'
-                      : 'border-gray-300 dark:border-slate-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20'
+                      ? 'border-amber-500 ring-2 ring-amber-500/20'
+                      : 'border-slate-300 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
                   }`}
                   placeholder="Ex: TMBLINBB / TMBLINBB008"
                 />
@@ -1154,16 +1152,11 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   ⚠ O padrão SWIFT requer 8 ou 11 caracteres (faltam {swiftLen < 8 ? 8 - swiftLen : 11 - swiftLen} caractere{swiftLen < 8 && (8 - swiftLen) === 1 ? '' : 's'}).
                 </span>
               )}
-              {!bancoSwift && (
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Padrão ISO 9362: 8 ou 11 dígitos alfanuméricos.
-                </span>
-              )}
             </div>
 
             {/* TELEFONE / CONTATO NO BANCO */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 Telefone / Contato no Banco
               </label>
               <input
@@ -1171,14 +1164,14 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                 name="bancoTelefone"
                 value={bancoTelefone}
                 onChange={(e) => setBancoTelefone(e.target.value)}
-                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400"
                 placeholder="Ex: (+91) 9444426126 Mr MATHAN"
               />
             </div>
 
             {/* E-MAIL DO BANCO */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 E-mail do Banco / Trade Finance
               </label>
               <input
@@ -1186,7 +1179,7 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                 name="bancoEmail"
                 value={bancoEmail}
                 onChange={(e) => setBancoEmail(e.target.value)}
-                className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 outline-none"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400"
                 placeholder="tradefinance@bank.com / collection@bank.com"
               />
             </div>
@@ -1278,7 +1271,7 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                       name="adiantamentoPerc"
                       value={adiantamentoPerc}
                       onChange={(e) => setAdiantamentoPerc(Number(e.target.value))}
-                      className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold pr-7 outline-none focus:border-orange-500"
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold pr-7 outline-none focus:border-orange-500"
                       min={1}
                       max={99}
                     />
@@ -1297,7 +1290,7 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                     name="diasLiquidacao"
                     value={diasLiquidacao}
                     onChange={(e) => setDiasLiquidacao(Number(e.target.value))}
-                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold pr-12 outline-none focus:border-orange-500"
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold pr-12 outline-none focus:border-orange-500"
                     min={1}
                     max={120}
                   />
@@ -1315,7 +1308,7 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                     name="multaAtrasoPerc"
                     value={multaAtrasoPerc}
                     onChange={(e) => setMultaAtrasoPerc(Number(e.target.value))}
-                    className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold pr-7 outline-none focus:border-orange-500"
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold pr-7 outline-none focus:border-orange-500"
                     min={0}
                     max={100}
                     step={0.5}
@@ -1339,27 +1332,37 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
           </div>
         </div>
 
-        {/* NOTA EXPLICATIVA UNIVERSAL */}
-        <div className="bg-blue-50/70 border border-blue-200/80 rounded-lg p-3.5 text-xs text-blue-900 flex items-start gap-2.5">
-          <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <span className="font-bold">Equivalências & Documentos no Comércio Internacional:</span>
-            <p className="text-[11px] text-blue-800 leading-relaxed">
-              • <strong>Importador (Consignee)</strong>: Constará no conhecimento de embarque (BL), certificados fitossanitários do MAPA e desembaraço aduaneiro.<br/>
-              • <strong>Comprador (Buyer / Notify / Applicant)</strong>: Constará nos contratos comerciais, faturas pro-forma e invoice comercial quando houver faturamento para trading.
-            </p>
-          </div>
+        {/* NOTA EXPLICATIVA UNIVERSAL COMPACTA */}
+        <div className="bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 rounded-xl p-3 text-xs text-blue-900 dark:text-blue-200 flex items-center gap-2.5">
+          <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+          <span className="text-[11px] leading-relaxed">
+            <strong>BL & Certificados</strong> utilizam os dados do <strong>Importador (Consignee)</strong>. Contratos e Faturas Comerciais integram o <strong>Comprador (Buyer)</strong>.
+          </span>
         </div>
 
-        {/* BOTÃO DE SALVAMENTO */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+        {/* BARRA DE AÇÃO / SALVAMENTO DESTACADA */}
+        <div className="flex items-center justify-between gap-3 pt-2">
+          {sucesso ? (
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 animate-fadeIn">
+              <Check className="w-4 h-4" />
+              Alterações salvas com sucesso!
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400">
+              * Campos obrigatórios para emissão documental
+            </span>
+          )}
+
           <button 
             type="submit" 
             disabled={loading} 
-            className="flex items-center gap-2 bg-[#1a365d] hover:bg-blue-900 text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-98 text-white px-7 py-3 rounded-xl font-bold text-sm transition-all shadow-md shadow-orange-500/25 disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
-              <span>Salvando dados...</span>
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Salvando dados...
+              </span>
             ) : (
               <>
                 <Check className="w-4 h-4 text-white" />
