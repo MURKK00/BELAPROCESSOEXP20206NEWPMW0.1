@@ -1,16 +1,33 @@
 import { getMockStore, saveMockStoreToFile } from './mockStore';
+import { gerarNomeUsuarioUnico } from './userHelper';
 
 function matchesWhere(item: any, where?: Record<string, any>): boolean {
   if (!where) return true;
+  if (Array.isArray(where.OR)) {
+    const orMatches = where.OR.some((subWhere: any) => matchesWhere(item, subWhere));
+    if (!orMatches) return false;
+  }
   for (const [key, val] of Object.entries(where)) {
+    if (key === 'OR') continue;
     if (val === undefined) continue;
     if (key === 'id' && item.id !== val) return false;
     if (key === 'numeroProcesso' && item.numeroProcesso !== val) return false;
-    if (key === 'email' && item.email !== val) return false;
+    if (key === 'email' && String(item.email || '').toLowerCase() !== String(val).toLowerCase()) return false;
+    if (key === 'username' && String(item.username || '').toUpperCase() !== String(val).toUpperCase()) return false;
     if (key === 'nome' && item.nome !== val) return false;
+    if (key === 'primeiroAcesso' && item.primeiroAcesso !== val) return false;
     if (key === 'processoId' && item.processoId !== val) return false;
     if (key === 'financeiroId' && item.financeiroId !== val) return false;
     if (key === 'categoria' && item.categoria !== val) return false;
+    if (key === 'etapa' && item.etapa !== val) return false;
+    if (key === 'containerId' && item.containerId !== val) return false;
+    if (key === 'notaRetornoId' && item.notaRetornoId !== val) return false;
+    if (key === 'notaEntradaId' && item.notaEntradaId !== val) return false;
+    if (key === 'notaExportacaoId' && item.notaExportacaoId !== val) return false;
+    if (key === 'notaLoteRedexId' && item.notaLoteRedexId !== val) return false;
+    if (key === 'statusAverbacao' && item.statusAverbacao !== val) return false;
+    if (key === 'statusSefaz' && item.statusSefaz !== val) return false;
+    if (key === 'chaveAcesso' && item.chaveAcesso !== val) return false;
     if (key === 'financeiroId_categoria') {
       if (item.financeiroId !== val.financeiroId || item.categoria !== val.categoria) return false;
     }
@@ -31,6 +48,9 @@ const DATE_FIELDS = [
   'dataRecebimento',
   'dataTravamento',
   'concluidaEm',
+  'dataEmissao',
+  'dataConsultaSefaz',
+  'dataAverbacao',
 ];
 
 function ensureDates(obj: any): any {
@@ -158,6 +178,63 @@ function resolveProcessoIncludes(processo: any, include?: Record<string, any>) {
     copy.logs = logs;
   }
 
+  if (include.notasFiscais) {
+    let nfs = store.notasFiscais.filter((n) => n.processoId === processo.id);
+    copy.notasFiscais = nfs.map((nf) => resolveNotaFiscalIncludes(nf, typeof include.notasFiscais === 'object' ? include.notasFiscais.include : undefined));
+  }
+
+  return copy;
+}
+
+function resolveNotaFiscalIncludes(nf: any, include?: Record<string, any>) {
+  if (!nf) return nf;
+  const store = getMockStore();
+  const copy = ensureDates({ ...nf });
+  if (!include) return copy;
+
+  if (include.container) {
+    copy.container = store.containers.find((c) => c.id === nf.containerId) ?? null;
+  }
+  if (include.retornosComoOrigem) {
+    let retornos = store.notasFiscaisRetorno.filter((r) => r.notaRetornoId === nf.id);
+    if (include.retornosComoOrigem.include?.notaEntrada) {
+      retornos = retornos.map((r) => ({
+        ...r,
+        notaEntrada: store.notasFiscais.find((n) => n.id === r.notaEntradaId) ?? null,
+      }));
+    }
+    copy.retornosComoOrigem = retornos;
+  }
+  if (include.entradasReferenciadas) {
+    let entradas = store.notasFiscaisRetorno.filter((r) => r.notaEntradaId === nf.id);
+    if (include.entradasReferenciadas.include?.notaRetorno) {
+      entradas = entradas.map((r) => ({
+        ...r,
+        notaRetorno: store.notasFiscais.find((n) => n.id === r.notaRetornoId) ?? null,
+      }));
+    }
+    copy.entradasReferenciadas = entradas;
+  }
+  if (include.itensExportacao) {
+    let itens = store.notasFiscaisExportacaoItens.filter((it) => it.notaExportacaoId === nf.id);
+    if (include.itensExportacao.include?.notaLoteRedex) {
+      itens = itens.map((it) => ({
+        ...it,
+        notaLoteRedex: store.notasFiscais.find((n) => n.id === it.notaLoteRedexId) ?? null,
+      }));
+    }
+    copy.itensExportacao = itens;
+  }
+  if (include.consumosEmExportacao) {
+    let consumos = store.notasFiscaisExportacaoItens.filter((it) => it.notaLoteRedexId === nf.id);
+    if (include.consumosEmExportacao.include?.notaExportacao) {
+      consumos = consumos.map((it) => ({
+        ...it,
+        notaExportacao: store.notasFiscais.find((n) => n.id === it.notaExportacaoId) ?? null,
+      }));
+    }
+    copy.consumosEmExportacao = consumos;
+  }
   return copy;
 }
 
@@ -178,9 +255,15 @@ export function createMockPrismaClient() {
         return list;
       },
       create: async ({ data }: any) => {
+        let username = data.username;
+        if (!username && data.nome) {
+          username = gerarNomeUsuarioUnico(data.nome, store.usuarios);
+        }
         const item = {
           id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
           ...data,
+          username: username ? String(username).toUpperCase() : undefined,
+          primeiroAcesso: data.primeiroAcesso !== undefined ? data.primeiroAcesso : true,
           ativo: data.ativo !== undefined ? data.ativo : true,
           criadoEm: new Date(),
           atualizadoEm: new Date(),
@@ -637,6 +720,104 @@ export function createMockPrismaClient() {
         };
         store.auditLogs.unshift(item);
         return item;
+      },
+    },
+
+    notaFiscal: {
+      findMany: async (args: any = {}) => {
+        let list = store.notasFiscais.filter((nf) => matchesWhere(nf, args.where));
+        if (args.orderBy?.dataEmissao === 'desc') {
+          list.sort((a, b) => new Date(b.dataEmissao).getTime() - new Date(a.dataEmissao).getTime());
+        } else if (args.orderBy?.criadoEm === 'desc') {
+          list.sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime());
+        }
+        return list.map((nf) => resolveNotaFiscalIncludes(nf, args.include));
+      },
+      findUnique: async (args: any) => {
+        const item = store.notasFiscais.find((nf) => matchesWhere(nf, args.where));
+        if (!item) return null;
+        return resolveNotaFiscalIncludes(item, args.include);
+      },
+      findFirst: async (args: any = {}) => {
+        const item = store.notasFiscais.find((nf) => matchesWhere(nf, args.where));
+        if (!item) return null;
+        return resolveNotaFiscalIncludes(item, args.include);
+      },
+      count: async (args: any = {}) => store.notasFiscais.filter((nf) => matchesWhere(nf, args.where)).length,
+      create: async ({ data, include }: any) => {
+        const id = `nf_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const newItem = {
+          id,
+          ...data,
+          saldoZerado: data.saldoZerado ?? false,
+          statusSefaz: data.statusSefaz ?? 'AUTORIZADA',
+          statusAverbacao: data.statusAverbacao ?? 'AGUARDANDO',
+          dataEmissao: data.dataEmissao ? new Date(data.dataEmissao) : new Date(),
+          criadoEm: new Date(),
+          atualizadoEm: new Date(),
+        };
+        store.notasFiscais.push(newItem);
+        return resolveNotaFiscalIncludes(newItem, include);
+      },
+      update: async ({ where, data, include }: any) => {
+        const item = store.notasFiscais.find((nf) => matchesWhere(nf, where));
+        if (!item) throw new Error('Nota Fiscal não encontrada');
+        if (data.dataEmissao) data.dataEmissao = new Date(data.dataEmissao);
+        if (data.dataConsultaSefaz) data.dataConsultaSefaz = new Date(data.dataConsultaSefaz);
+        if (data.dataAverbacao) data.dataAverbacao = new Date(data.dataAverbacao);
+        Object.assign(item, data, { atualizadoEm: new Date() });
+        return resolveNotaFiscalIncludes(item, include);
+      },
+      delete: async ({ where }: any) => {
+        const idx = store.notasFiscais.findIndex((nf) => matchesWhere(nf, where));
+        if (idx !== -1) {
+          const [deleted] = store.notasFiscais.splice(idx, 1);
+          // Also clean up relations
+          store.notasFiscaisRetorno = store.notasFiscaisRetorno.filter(
+            (r) => r.notaRetornoId !== deleted.id && r.notaEntradaId !== deleted.id
+          );
+          store.notasFiscaisExportacaoItens = store.notasFiscaisExportacaoItens.filter(
+            (it) => it.notaExportacaoId !== deleted.id && it.notaLoteRedexId !== deleted.id
+          );
+          return deleted;
+        }
+        return {};
+      },
+    },
+
+    notaFiscalRetornoItem: {
+      findMany: async ({ where }: any = {}) => store.notasFiscaisRetorno.filter((r) => matchesWhere(r, where)),
+      create: async ({ data }: any) => {
+        const item = {
+          id: `nfr_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          ...data,
+          criadoEm: new Date(),
+        };
+        store.notasFiscaisRetorno.push(item);
+        return item;
+      },
+      deleteMany: async ({ where }: any = {}) => {
+        const initialLen = store.notasFiscaisRetorno.length;
+        store.notasFiscaisRetorno = store.notasFiscaisRetorno.filter((r) => !matchesWhere(r, where));
+        return { count: initialLen - store.notasFiscaisRetorno.length };
+      },
+    },
+
+    notaFiscalExportacaoItem: {
+      findMany: async ({ where }: any = {}) => store.notasFiscaisExportacaoItens.filter((it) => matchesWhere(it, where)),
+      create: async ({ data }: any) => {
+        const item = {
+          id: `nfe_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          ...data,
+          criadoEm: new Date(),
+        };
+        store.notasFiscaisExportacaoItens.push(item);
+        return item;
+      },
+      deleteMany: async ({ where }: any = {}) => {
+        const initialLen = store.notasFiscaisExportacaoItens.length;
+        store.notasFiscaisExportacaoItens = store.notasFiscaisExportacaoItens.filter((it) => !matchesWhere(it, where));
+        return { count: initialLen - store.notasFiscaisExportacaoItens.length };
       },
     },
 

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Fase, TipoParceiro, CategoriaDocumento, Papel, CategoriaCusto, StatusNegociacao } from '@prisma/client';
 import { CHECKLIST_ETAPAS, TIPOS_DOCUMENTO_CHECKLIST } from '../../prisma/checklistData';
+import { getDemoNotasFiscaisData } from './demoNotasFiscaisData';
 
 export interface MockStore {
   isDemoMode?: boolean;
@@ -18,6 +19,9 @@ export interface MockStore {
   documentos: any[];
   chatMessages: any[];
   auditLogs: any[];
+  notasFiscais: any[];
+  notasFiscaisRetorno: any[];
+  notasFiscaisExportacaoItens: any[];
 }
 
 const STORAGE_FILE_PATH = path.join(process.cwd(), 'prisma', 'dev-store.json');
@@ -29,6 +33,41 @@ function initMockStore(): MockStore {
       const raw = fs.readFileSync(STORAGE_FILE_PATH, 'utf-8');
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.processos)) {
+        // Migração de campos novos em usuários (username e primeiroAcesso)
+        if (Array.isArray(parsed.usuarios)) {
+          let mudou = false;
+          for (const u of parsed.usuarios) {
+            if (!u.username) {
+              if (u.id === 'usr_admin_principal' || u.email === 'admin@belacereais.com.br') {
+                u.username = 'ACEREAIS';
+              } else if (u.id === 'usr_dev_admin' || u.email === 'dev@belacereais.local') {
+                u.username = 'ADEV';
+              } else {
+                const partes = String(u.nome || u.email.split('@')[0])
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/[^a-zA-Z0-9\s]/g, '')
+                  .trim()
+                  .split(/\s+/)
+                  .filter(Boolean);
+                const p1 = partes[0] ? partes[0][0].toUpperCase() : 'U';
+                const p2 = partes.length > 1 ? partes[partes.length - 1].toUpperCase() : 'USUARIO';
+                u.username = `${p1}${p2}`;
+              }
+              mudou = true;
+            }
+            if (u.primeiroAcesso === undefined) {
+              // Usuários legados existentes já têm senha definida
+              u.primeiroAcesso = false;
+              mudou = true;
+            }
+          }
+          if (mudou) {
+            try {
+              fs.writeFileSync(STORAGE_FILE_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
+            } catch {}
+          }
+        }
         return parsed;
       }
     } catch (err) {
@@ -43,7 +82,9 @@ function initMockStore(): MockStore {
         id: 'usr_admin_principal',
         nome: 'Administrador Bela Cereais',
         email: 'admin@belacereais.com.br',
+        username: 'ACEREAIS',
         senhaHash: '$2b$10$pbhcS1a8GjPLThpTUtinN.sUhuNTjdLNfpBIU4iotF97VmbzIOnM2',
+        primeiroAcesso: false,
         papel: Papel.ADMIN,
         ativo: true,
         criadoEm: new Date(),
@@ -53,7 +94,9 @@ function initMockStore(): MockStore {
         id: 'usr_dev_admin',
         nome: 'Admin (Dev)',
         email: 'dev@belacereais.local',
+        username: 'ADEV',
         senhaHash: '$2b$10$pbhcS1a8GjPLThpTUtinN.sUhuNTjdLNfpBIU4iotF97VmbzIOnM2',
+        primeiroAcesso: false,
         papel: Papel.ADMIN,
         ativo: true,
         criadoEm: new Date(),
@@ -82,6 +125,9 @@ function initMockStore(): MockStore {
     documentos: [],
     chatMessages: [],
     auditLogs: [],
+    notasFiscais: [],
+    notasFiscaisRetorno: [],
+    notasFiscaisExportacaoItens: [],
   };
 
   // Tipos de documento base
@@ -177,6 +223,22 @@ export function getMockStore(): MockStore {
       console.warn('[MockStore] Erro ao sincronizar dev-store.json:', e);
     }
   }
+  if (!Array.isArray(globalStore.notasFiscais)) globalStore.notasFiscais = [];
+  if (!Array.isArray(globalStore.notasFiscaisRetorno)) globalStore.notasFiscaisRetorno = [];
+  if (!Array.isArray(globalStore.notasFiscaisExportacaoItens)) globalStore.notasFiscaisExportacaoItens = [];
+
+  // Se o sistema está em modo demonstração (ou com processos de exemplo) e ainda não tem notas fiscais, injeta os dados de exemplo
+  if (
+    (globalStore.isDemoMode || (globalStore.processos && globalStore.processos.length > 0)) &&
+    globalStore.notasFiscais.length === 0
+  ) {
+    const demoNfs = getDemoNotasFiscaisData();
+    globalStore.notasFiscais = demoNfs.notasFiscais;
+    globalStore.notasFiscaisRetorno = demoNfs.notasFiscaisRetorno;
+    globalStore.notasFiscaisExportacaoItens = demoNfs.notasFiscaisExportacaoItens;
+    saveMockStoreToFile(globalStore);
+  }
+
   return globalStore;
 }
 
@@ -199,10 +261,15 @@ export function resetMockStore(): void {
   globalStore.documentos = [];
   globalStore.chatMessages = [];
   globalStore.auditLogs = [];
+  globalStore.notasFiscais = [];
+  globalStore.notasFiscaisRetorno = [];
+  globalStore.notasFiscaisExportacaoItens = [];
   saveMockStoreToFile(globalStore);
 }
 
 export function enableDemoMode(): void {
+  const demoNfs = getDemoNotasFiscaisData();
+
   // 1. Tenta carregar os dados de exemplo pré-gravados em demo-store.json
   if (fs.existsSync(DEMO_STORAGE_FILE_PATH)) {
     try {
@@ -219,6 +286,18 @@ export function enableDemoMode(): void {
         globalStore.documentos = demoData.documentos || [];
         globalStore.chatMessages = demoData.chatMessages || [];
         globalStore.auditLogs = demoData.auditLogs || [];
+        
+        // Carrega notas fiscais de exemplo
+        globalStore.notasFiscais = (Array.isArray(demoData.notasFiscais) && demoData.notasFiscais.length > 0)
+          ? demoData.notasFiscais
+          : demoNfs.notasFiscais;
+        globalStore.notasFiscaisRetorno = (Array.isArray(demoData.notasFiscaisRetorno) && demoData.notasFiscaisRetorno.length > 0)
+          ? demoData.notasFiscaisRetorno
+          : demoNfs.notasFiscaisRetorno;
+        globalStore.notasFiscaisExportacaoItens = (Array.isArray(demoData.notasFiscaisExportacaoItens) && demoData.notasFiscaisExportacaoItens.length > 0)
+          ? demoData.notasFiscaisExportacaoItens
+          : demoNfs.notasFiscaisExportacaoItens;
+
         saveMockStoreToFile(globalStore);
         return;
       }
@@ -227,8 +306,11 @@ export function enableDemoMode(): void {
     }
   }
 
-  // Se o arquivo não existir, recria base de demonstração
+  // Se o arquivo não existir, recria base de demonstração completa
   globalStore.isDemoMode = true;
+  globalStore.notasFiscais = demoNfs.notasFiscais;
+  globalStore.notasFiscaisRetorno = demoNfs.notasFiscaisRetorno;
+  globalStore.notasFiscaisExportacaoItens = demoNfs.notasFiscaisExportacaoItens;
   saveMockStoreToFile(globalStore);
 }
 

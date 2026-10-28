@@ -10,6 +10,7 @@ import {
   Container, 
   FileSpreadsheet, 
   History,
+  Receipt,
   Sparkles
 } from 'lucide-react';
 
@@ -50,6 +51,13 @@ export function NegociacaoTabs({ processoId, importadorPendente = false }: Negoc
       tag: 'Estufagem',
       icon: Container,
       color: 'text-cyan-500' 
+    },
+    { 
+      href: `${base}/notas-fiscais`, 
+      label: 'Notas Fiscais', 
+      tag: 'Triangulação',
+      icon: Receipt,
+      color: 'text-emerald-500' 
     },
     { 
       href: `${base}/financeiro`, 

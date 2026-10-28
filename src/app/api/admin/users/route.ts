@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/passwordUtils';
 import { Papel } from '@prisma/client';
 import { getUserPapeis } from '@/lib/permissions';
+import { gerarNomeUsuarioUnico, SENHA_PADRAO_NOVO_USUARIO } from '@/lib/userHelper';
 
 export async function GET() {
   try {
@@ -10,11 +11,13 @@ export async function GET() {
       orderBy: { criadoEm: 'desc' },
     });
 
-    // Sanitiza removendo senhaHash da resposta e inclui múltiplos papéis
+    // Sanitiza removendo senhaHash da resposta e inclui múltiplos papéis e username
     const sanitized = usuarios.map((u: any) => ({
       id: u.id,
       nome: u.nome,
       email: u.email,
+      username: u.username || null,
+      primeiroAcesso: u.primeiroAcesso !== false,
       papel: u.papel || 'ADMIN',
       papeis: getUserPapeis(u),
       ativo: u.ativo !== false,
@@ -37,9 +40,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { nome, email, password, papel, papeis } = body;
 
-    if (!nome || !email || !password) {
+    if (!nome || !email) {
       return NextResponse.json(
-        { success: false, error: 'Nome completo, e-mail e senha são obrigatórios.' },
+        { success: false, error: 'Nome completo e e-mail são obrigatórios.' },
         { status: 400 }
       );
     }
@@ -58,12 +61,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (password.length < 6) {
+    // Senha fornecida ou senha padrão do sistema: abc12345
+    const senhaFinal = (password && String(password).trim().length > 0)
+      ? String(password).trim()
+      : SENHA_PADRAO_NOVO_USUARIO;
+
+    if (senhaFinal.length < 6) {
       return NextResponse.json(
         { success: false, error: 'A senha deve conter no mínimo 6 caracteres.' },
         { status: 400 }
       );
     }
+
+    // Busca todos os usuários para garantir username único (ex: MNUNES)
+    const todosUsuarios = await prisma.usuario.findMany({
+      select: { id: true, username: true },
+    });
+
+    const usernameGerado = gerarNomeUsuarioUnico(nome, todosUsuarios);
 
     // Normaliza os múltiplos papéis selecionados
     const papeisLista: string[] = Array.isArray(papeis) && papeis.length > 0
@@ -79,15 +94,18 @@ export async function POST(req: NextRequest) {
     const papeisFinal = papeisValidos.length > 0 ? papeisValidos : ['ADMIN'];
     const cargoPrimario = (papeisFinal[0] as Papel) || Papel.ADMIN;
 
-    const senhaHash = await hashPassword(password);
+    const senhaHash = await hashPassword(senhaFinal);
 
+    // Cria o usuário com primeiroAcesso = true (para que redefina a senha ao entrar)
     const novoUsuario = await (prisma.usuario as any).create({
       data: {
         nome: String(nome).trim(),
         email: emailNormalizado,
+        username: usernameGerado,
         senhaHash,
         papel: cargoPrimario,
         papeis: papeisFinal,
+        primeiroAcesso: true,
         ativo: true,
       },
     });
@@ -98,11 +116,13 @@ export async function POST(req: NextRequest) {
         id: novoUsuario.id,
         nome: novoUsuario.nome,
         email: novoUsuario.email,
+        username: novoUsuario.username || usernameGerado,
+        primeiroAcesso: true,
         papel: novoUsuario.papel,
         papeis: papeisFinal,
         ativo: novoUsuario.ativo,
       },
-      message: 'Usuário cadastrado com sucesso!',
+      message: `Usuário cadastrado com sucesso! Usuário de login: ${usernameGerado}. Senha padrão: abc12345 (redefinição obrigatória no 1º acesso).`,
     });
   } catch (error: any) {
     console.error('[API Users POST] Erro:', error);

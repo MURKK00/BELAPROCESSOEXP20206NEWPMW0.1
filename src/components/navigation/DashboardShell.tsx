@@ -316,6 +316,11 @@ export function DashboardShell({ children }: DashboardShellProps) {
                   <span className="font-bold text-slate-700 dark:text-slate-200 max-w-[120px] truncate">
                     {currentUser.name || currentUser.email}
                   </span>
+                  {currentUser.username && (
+                    <span className="font-mono font-bold text-[10px] text-orange-600 dark:text-orange-400 bg-orange-100/70 dark:bg-orange-950/60 px-1.5 py-0.2 rounded border border-orange-200 dark:border-orange-900">
+                      @{currentUser.username}
+                    </span>
+                  )}
                   <div className="flex items-center gap-1">
                     {getUserPapeis(currentUser).map((p) => (
                       <span

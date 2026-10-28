@@ -118,3 +118,10 @@
     break-after: auto !important;
   }
 }
+
+/* Container da Etapa 4 - Notas Fiscais */
+.etapa-4-container {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+}

@@ -26,11 +26,14 @@ import {
   Info
 } from 'lucide-react';
 import { PAPEIS_DISPONIVEIS, Papel, canAccessAdmin } from '@/lib/permissions';
+import { gerarNomeUsuario, SENHA_PADRAO_NOVO_USUARIO } from '@/lib/userHelper';
 
 interface UsuarioItem {
   id: string;
   nome: string;
   email: string;
+  username?: string | null;
+  primeiroAcesso?: boolean;
   papel: string;
   papeis: string[];
   ativo: boolean;
@@ -600,7 +603,7 @@ export default function AdminPage() {
             onClick={() => {
               setNome('');
               setEmail('');
-              setPassword('');
+              setPassword(SENHA_PADRAO_NOVO_USUARIO);
               setPapeisSelecionados(['ADMIN']);
               setModalNovoUsuario(true);
             }}
@@ -616,10 +619,10 @@ export default function AdminPage() {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="py-3.5 px-4">Usuário / Nome</th>
-                <th className="py-3.5 px-4">E-mail (Login)</th>
+                <th className="py-3.5 px-4">Nome &amp; Usuário de Login</th>
+                <th className="py-3.5 px-4">E-mail Corporativo</th>
                 <th className="py-3.5 px-4">Perfis de Acesso (Cargos)</th>
-                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4">Status &amp; Acesso</th>
                 <th className="py-3.5 px-4">Data Cadastro</th>
                 <th className="py-3.5 px-4 text-right">Ações</th>
               </tr>
@@ -637,9 +640,21 @@ export default function AdminPage() {
                         <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-black text-xs flex items-center justify-center shrink-0">
                           {(user.nome || user.email)[0].toUpperCase()}
                         </div>
-                        <span className="font-bold text-slate-900 dark:text-white">
-                          {user.nome || 'Sem nome'}
-                        </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {user.nome || 'Sem nome'}
+                            </span>
+                            {user.username && (
+                              <span className="font-mono font-black text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-200 dark:border-orange-900 tracking-wider">
+                                @{user.username}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-400">
+                            ID: {user.id}
+                          </span>
+                        </div>
                       </div>
                     </td>
                     <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600 dark:text-slate-300">
@@ -663,19 +678,26 @@ export default function AdminPage() {
                       </div>
                     </td>
                     <td className="py-3.5 px-4">
-                      <button
-                        type="button"
-                        onClick={() => toggleStatusUsuario(user.id, user.ativo)}
-                        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
-                          user.ativo
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                            : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-                        }`}
-                        title="Clique para alternar o status do usuário"
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${user.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                        <span>{user.ativo ? 'Ativo' : 'Inativo'}</span>
-                      </button>
+                      <div className="flex flex-col gap-1 items-start">
+                        <button
+                          type="button"
+                          onClick={() => toggleStatusUsuario(user.id, user.ativo)}
+                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
+                            user.ativo
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                          }`}
+                          title="Clique para alternar o status do usuário"
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${user.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                          <span>{user.ativo ? 'Ativo' : 'Inativo'}</span>
+                        </button>
+                        {user.primeiroAcesso && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-900" title="Aguardando usuário definir nova senha no 1º login">
+                            1º Acesso Pendente
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 text-[11px]">
                       {user.criadoEm ? new Date(user.criadoEm).toLocaleDateString('pt-BR') : '-'}
@@ -758,12 +780,38 @@ export default function AdminPage() {
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Carlos Eduardo Santos"
+                    placeholder="Ex: Murillo Maciel Nunes"
                     value={nome}
                     onChange={(e) => setNome(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
                   />
                 </div>
+
+                {/* Pré-visualização do Nome de Usuário (Padrão: 1ª letra do nome + último sobrenome) */}
+                {nome.trim() ? (
+                  <div className="mt-2 p-2.5 rounded-xl bg-orange-50/90 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/60 flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 block">
+                        Usuário de login gerado automaticamente:
+                      </span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="font-mono font-black text-xs text-orange-600 dark:text-orange-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-orange-300 dark:border-orange-800 tracking-wider">
+                          {gerarNomeUsuario(nome)}
+                        </span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          (Ex: Murillo Maciel Nunes &rarr; MNUNES)
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-800">
+                      Formato Padronizado
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    O nome de usuário para login será gerado automaticamente (ex: Murillo Maciel Nunes &rarr; <strong className="text-orange-600">MNUNES</strong>).
+                  </p>
+                )}
               </div>
 
               <div>
@@ -788,14 +836,14 @@ export default function AdminPage() {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Senha de Acesso
+                    Senha Provisória Inicial
                   </label>
                   <button
                     type="button"
-                    onClick={gerarSenhaAleatoria}
+                    onClick={() => setPassword(SENHA_PADRAO_NOVO_USUARIO)}
                     className="text-[10px] text-orange-600 dark:text-orange-400 font-bold hover:underline cursor-pointer"
                   >
-                    Gerar senha automática
+                    Usar padrão (abc12345)
                   </button>
                 </div>
                 <div className="relative">
@@ -805,7 +853,7 @@ export default function AdminPage() {
                   <input
                     type={mostrarSenha ? 'text' : 'password'}
                     required
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="abc12345"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-9 pr-10 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
@@ -817,6 +865,12 @@ export default function AdminPage() {
                   >
                     {mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
+                </div>
+                <div className="mt-1.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 text-[11px] text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Senha inicial:</strong> <code className="font-mono text-orange-600 font-bold">abc12345</code>. No primeiro login, o usuário é <strong>obrigado a cadastrar uma nova senha</strong> confirmada 2x.
+                  </span>
                 </div>
               </div>
 

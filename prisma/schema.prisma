@@ -23,7 +23,9 @@ model Usuario {
   id                 String          @id @default(cuid())
   nome               String
   email              String          @unique
+  username           String?         @unique
   senhaHash          String?
+  primeiroAcesso     Boolean         @default(true)
   papel              Papel           @default(ADMIN)
   ativo              Boolean         @default(true)
   imagem             String?
@@ -244,6 +246,7 @@ model Processo {
   mensagens         ChatMessage[]
   logs              AuditLog[]
   containers        Container[]
+  notasFiscais      NotaFiscal[]
 
   statusCache       String? 
   status            StatusNegociacao @default(PENDENTE)
@@ -268,17 +271,19 @@ model Processo {
 // CONTÊINERES
 // ---------------------------------------------------------------------------
 model Container {
-  id              String   @id @default(cuid())
-  processoId      String
-  processo        Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  ordem           Int
-  numeroContainer String?
-  lacre           String?
-  pesoBruto       Decimal? @db.Decimal(12, 3)
-  pesoLiquido     Decimal? @db.Decimal(12, 3)
-  totalSacos      Int?
-  tara            Decimal? @db.Decimal(12, 3)
-  atualizadoEm    DateTime @updatedAt
+  id                     String       @id @default(cuid())
+  processoId             String
+  processo               Processo     @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  ordem                  Int
+  numeroContainer        String?
+  lacre                  String?
+  pesoBruto              Decimal?     @db.Decimal(12, 3)
+  pesoLiquido            Decimal?     @db.Decimal(12, 3)
+  totalSacos             Int?
+  tara                   Decimal?     @db.Decimal(12, 3)
+  atualizadoEm           DateTime     @updatedAt
+
+  notasFiscaisExportacao NotaFiscal[]
 
   @@unique([processoId, ordem])
 }
@@ -457,4 +462,107 @@ model WebhookEvent {
   processado Boolean  @default(false)
   erro       String?
   recebidoEm DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO: NOTAS FISCAIS (TRIANGULAÇÃO FISCAL & AVERBAÇÃO DE EXPORTAÇÃO)
+// ---------------------------------------------------------------------------
+
+enum EtapaNotaFiscal {
+  ETAPA_1_ENTRADA_INDUSTRIA
+  ETAPA_2_RETORNO_ARMAZENAGEM
+  ETAPA_3_REMESSA_REDEX
+  ETAPA_4_EXPORTACAO
+}
+
+enum StatusSefaz {
+  AUTORIZADA
+  PENDENTE
+  CANCELADA
+  DENEGADA
+}
+
+enum StatusAverbacao {
+  AGUARDANDO
+  PENDENTE_AVERBACAO
+  AVERBADA
+  REJEITADA
+}
+
+model NotaFiscal {
+  id                String          @id @default(cuid())
+  processoId        String
+  processo          Processo        @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  etapa             EtapaNotaFiscal
+  numero            String
+  serie             String?         @default("1")
+  chaveAcesso       String?         // 44 dígitos
+  dataEmissao       DateTime
+  emitente          String
+  emitenteCnpj      String?
+  destinatario      String
+  destinatarioCnpj  String?
+  cfop              String?
+  pesoBruto         Decimal?        @db.Decimal(14, 3)
+  pesoLiquido       Decimal         @db.Decimal(14, 3)
+  quantidadeSacas   Int?
+  valorTotal        Decimal?        @db.Decimal(14, 2)
+  anexoUrl          String?
+  anexoNome         String?
+
+  // Controle de Saldo da Etapa 3 (Formação de Lote REDEX)
+  saldoDisponivelKg Decimal?        @db.Decimal(14, 3)
+  saldoZerado       Boolean         @default(false)
+
+  // Vínculo Obrigatório com Contêiner (Etapa 4)
+  containerId       String?
+  container         Container?      @relation(fields: [containerId], references: [id], onDelete: SetNull)
+
+  // Integração SEFAZ & Averbação (Etapa 4)
+  statusSefaz       StatusSefaz     @default(AUTORIZADA)
+  protocoloSefaz    String?
+  dataConsultaSefaz DateTime?
+  mensagemSefaz     String?
+  statusAverbacao   StatusAverbacao @default(AGUARDANDO)
+  dataAverbacao     DateTime?
+  numeroDue         String?         // DUE vinculada à exportação
+
+  // Relações Etapa 2 <-> Etapa 1
+  retornosComoOrigem NotaFiscalRetornoItem[] @relation("NotaRetorno")
+  entradasReferenciadas NotaFiscalRetornoItem[] @relation("NotaEntrada")
+
+  // Relações Etapa 4 <-> Etapa 3 (Até 3 NFs Etapa 3 por contêiner)
+  itensExportacao    NotaFiscalExportacaoItem[] @relation("NotaExportacao")
+  consumosEmExportacao NotaFiscalExportacaoItem[] @relation("NotaLoteRedex")
+
+  observacoes       String?
+  criadoEm          DateTime        @default(now())
+  atualizadoEm      DateTime        @updatedAt
+
+  @@index([processoId, etapa])
+  @@index([chaveAcesso])
+}
+
+model NotaFiscalRetornoItem {
+  id              String      @id @default(cuid())
+  notaRetornoId   String
+  notaRetorno     NotaFiscal  @relation("NotaRetorno", fields: [notaRetornoId], references: [id], onDelete: Cascade)
+  notaEntradaId   String
+  notaEntrada     NotaFiscal  @relation("NotaEntrada", fields: [notaEntradaId], references: [id], onDelete: Cascade)
+  pesoRetornadoKg Decimal?    @db.Decimal(14, 3)
+  criadoEm        DateTime    @default(now())
+
+  @@unique([notaRetornoId, notaEntradaId])
+}
+
+model NotaFiscalExportacaoItem {
+  id              String      @id @default(cuid())
+  notaExportacaoId String
+  notaExportacao  NotaFiscal  @relation("NotaExportacao", fields: [notaExportacaoId], references: [id], onDelete: Cascade)
+  notaLoteRedexId String
+  notaLoteRedex   NotaFiscal  @relation("NotaLoteRedex", fields: [notaLoteRedexId], references: [id], onDelete: Cascade)
+  pesoConsumidoKg Decimal     @db.Decimal(14, 3)
+  criadoEm        DateTime    @default(now())
+
+  @@unique([notaExportacaoId, notaLoteRedexId])
 }
