@@ -164,11 +164,40 @@ export async function GET() {
     const margemDolarValor = Math.abs(dolarLive - ptaxVenda);
     const margemDolarPct = (margemDolarValor / dolarLive) * 100;
 
-    // 6. Lista de Processos para o Ticker Inferior
+    // 6. Lista de Processos para o Ticker Inferior com detecção de Deadlines Críticos e Vencidos
+    let totalDeadlinesVencidos = 0;
+    let totalDeadlinesCriticos = 0;
+
     const tickerNegociacoes = processos.map((p) => {
       const totalCont = p.containers?.length || p.containerQtd || 0;
       const nfsExportacao = p.notasFiscais.filter((n) => n.etapa === 'ETAPA_4_EXPORTACAO');
       const averbadasCount = nfsExportacao.filter((n) => n.statusAverbacao === 'AVERBADA').length;
+
+      let deadlineStatus: 'NORMAL' | 'CRITICO' | 'VENCIDO' | 'SEM_DEADLINE' = 'SEM_DEADLINE';
+      let deadlineDiffHoras: number | null = null;
+      let deadlineTexto = '';
+
+      if (p.deadlineEmbarque && p.status !== 'FINALIZADO' && p.status !== 'CANCELADO') {
+        const dDate = new Date(p.deadlineEmbarque);
+        const diffMs = dDate.getTime() - agora.getTime();
+        const diffHoras = Math.round(diffMs / (1000 * 60 * 60));
+        deadlineDiffHoras = diffHoras;
+        const dias = Math.floor(Math.abs(diffHoras) / 24);
+        const horasRest = Math.abs(diffHoras) % 24;
+
+        if (diffHoras < 0) {
+          deadlineStatus = 'VENCIDO';
+          totalDeadlinesVencidos++;
+          deadlineTexto = dias > 0 ? `Vencido há ${dias}d ${horasRest}h` : `Vencido há ${Math.abs(diffHoras)}h`;
+        } else if (diffHoras <= 72) {
+          deadlineStatus = 'CRITICO';
+          totalDeadlinesCriticos++;
+          deadlineTexto = dias > 0 ? `Crítico: ${dias}d ${horasRest}h` : `Crítico: ${horasRest}h rest.`;
+        } else {
+          deadlineStatus = 'NORMAL';
+          deadlineTexto = dias > 0 ? `${dias}d restantes` : `${horasRest}h restantes`;
+        }
+      }
 
       return {
         id: p.id,
@@ -181,6 +210,11 @@ export async function GET() {
         portoDestino: p.portoDestino,
         booking: p.bookingNumero || null,
         deadlineEmbarque: p.deadlineEmbarque ? new Date(p.deadlineEmbarque).toLocaleDateString('pt-BR') : null,
+        deadlineStatus,
+        deadlineDiffHoras,
+        deadlineTexto,
+        isAtrasado: deadlineStatus === 'VENCIDO',
+        isCritico: deadlineStatus === 'CRITICO',
         containers: totalCont,
         nfsExportacaoQtd: nfsExportacao.length,
         averbadasQtd: averbadasCount,
@@ -193,6 +227,11 @@ export async function GET() {
       data: {
         proximoDeadline: proximoDeadlineFormatado,
         outrosDeadlines: processosComDeadline.slice(1, 5),
+        alertasDeadlines: {
+          totalVencidos: totalDeadlinesVencidos,
+          totalCriticos: totalDeadlinesCriticos,
+          temAlertas: totalDeadlinesVencidos > 0 || totalDeadlinesCriticos > 0,
+        },
         negociacoesEmExecucao: {
           total: emExecucao.length,
           volumeKg: volumeEmExecucaoKg,
