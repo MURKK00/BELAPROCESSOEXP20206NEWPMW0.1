@@ -1,4 +1,4 @@
-export type Papel = 'COMERCIAL' | 'ADMINISTRATIVO' | 'FINANCEIRO' | 'DIRETORIA' | 'ADMIN';
+export type Papel = 'COMERCIAL' | 'ADMINISTRATIVO' | 'FINANCEIRO' | 'DIRETORIA' | 'ADMIN' | 'BACKOFFICE_TV';
 
 export interface PapelMeta {
   id: Papel;
@@ -38,6 +38,12 @@ export const PAPEIS_DISPONIVEIS: PapelMeta[] = [
     desc: 'Acesso total ao sistema e permissão exclusiva para o Painel Administrativo (usuários & demo)',
     badgeClass: 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30',
   },
+  {
+    id: 'BACKOFFICE_TV',
+    label: 'Backoffice TV',
+    desc: 'Acesso exclusivo para exibição contínua em TV (Wallboard de deadlines, NFs sem averbação e negociações)',
+    badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  },
 ];
 
 /**
@@ -70,7 +76,7 @@ export function getUserPapeis(user: any): Papel[] {
       rawList
         .map((p) => p.trim().toUpperCase())
         .filter((p): p is Papel =>
-          ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
+          ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN', 'BACKOFFICE_TV'].includes(p)
         )
     )
   );
@@ -87,6 +93,7 @@ export const isDiretoria = (user: any): boolean => hasRole(user, 'DIRETORIA');
 export const isComercial = (user: any): boolean => hasRole(user, 'COMERCIAL');
 export const isAdministrativo = (user: any): boolean => hasRole(user, 'ADMINISTRATIVO');
 export const isFinanceiro = (user: any): boolean => hasRole(user, 'FINANCEIRO');
+export const isBackofficeTv = (user: any): boolean => hasRole(user, 'BACKOFFICE_TV');
 
 // 1. Painel Admin: Exclusivo para ADMIN
 export const canAccessAdmin = (user: any): boolean => isAdmin(user);
@@ -98,6 +105,24 @@ export const canAccessCotacoes = (user: any): boolean =>
 // 3. Módulo Financeiro: Financeiro + Diretoria + Admin
 export const canAccessFinanceiro = (user: any): boolean =>
   isAdmin(user) || isDiretoria(user) || isFinanceiro(user);
+
+// 3.1 Módulo Backoffice TV: Acesso amplo para todos os usuários logados
+export const canAccessBackoffice = (_user: any): boolean => true;
+
+// 3.2 Usuário exclusivo para TV (exibe somente a tela de Backoffice TV sem outras abas)
+export const isBackofficeTvOnly = (user: any): boolean => {
+  if (!user) return false;
+  const papeis = getUserPapeis(user);
+  if (papeis.length === 1 && papeis[0] === 'BACKOFFICE_TV') return true;
+  const username = String(user.username || '').toUpperCase();
+  const email = String(user.email || '').toLowerCase();
+  return (
+    username === 'TVOFFICE' || 
+    username === 'BACKOFFICE' || 
+    email.startsWith('tv@') || 
+    email.startsWith('backoffice@')
+  );
+};
 
 // 4. Edição da aba Financeiro & DRE da negociação: Financeiro + Diretoria + Admin
 export const canEditFinanceiro = (user: any): boolean =>

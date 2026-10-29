@@ -270,7 +270,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
       {/* ========================================================================= */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50/70 dark:bg-[#090d16] transition-colors">
         {/* TOPBAR ELEGANTE COM BOTÃO DE ATALHOS NO MOBILE E EXPANDIR DESKTOP */}
-        <header className="h-14 border-b border-slate-200/80 dark:border-slate-800/90 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-md px-3.5 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 transition-colors relative z-10">
+        <header className="h-14 border-b border-slate-200/80 dark:border-slate-800/90 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-md px-3.5 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 transition-colors relative z-0">
           <div className="flex items-center gap-3 min-w-0">
             {/* BOTÃO MOBILE: ABRE MENU DE ATALHOS COM SETINHA */}
             <button

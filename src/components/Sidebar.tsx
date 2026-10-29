@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Handshake, DollarSign, TrendingUp, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Handshake, FileSpreadsheet, DollarSign, TrendingUp, ShieldCheck, Tv2 } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
 import { 
   canAccessAdmin, 
   canAccessCotacoes, 
-  canAccessFinanceiro 
+  canAccessFinanceiro,
+  canAccessBackoffice,
+  isBackofficeTvOnly
 } from '@/lib/permissions';
 
 export interface SidebarProps {
@@ -29,32 +31,44 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
 
   const isVisaoGeral = pathname === '/';
   const isNegociacoes = pathname.startsWith('/negociacoes');
+  const isNotasFiscais = pathname.startsWith('/notas-fiscais');
   const isFinanceiro = pathname.startsWith('/financeiro');
   const isCotacoes = pathname.startsWith('/cotacoes');
+  const isBackoffice = pathname.startsWith('/backoffice');
   const isAdmin = pathname.startsWith('/admin');
 
+  const tvOnly = isBackofficeTvOnly(currentUser);
+
   // Filtragem de links por permissão (suporta múltiplos perfis por usuário)
-  const links = [
+  const allLinks = [
     {
       href: '/',
       label: 'Visão Geral',
       active: isVisaoGeral,
       icon: LayoutDashboard,
-      visivel: true, // Todos têm acesso
+      visivel: !tvOnly, // Se usuário for exclusivo de TV, oculta
     },
     {
       href: '/negociacoes',
       label: 'Negociações',
       active: isNegociacoes,
       icon: Handshake,
-      visivel: true, // Todos têm acesso completo
+      visivel: !tvOnly,
+    },
+    {
+      href: '/notas-fiscais',
+      label: 'Notas Fiscais',
+      active: isNotasFiscais,
+      icon: FileSpreadsheet,
+      badge: 'FISCAL',
+      visivel: !tvOnly,
     },
     {
       href: '/financeiro',
       label: 'Financeiro',
       active: isFinanceiro,
       icon: DollarSign,
-      visivel: currentUser ? canAccessFinanceiro(currentUser) : true,
+      visivel: !tvOnly && (currentUser ? canAccessFinanceiro(currentUser) : true),
     },
     {
       href: '/cotacoes',
@@ -62,7 +76,15 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       active: isCotacoes,
       icon: TrendingUp,
       badge: 'LIVE',
-      visivel: currentUser ? canAccessCotacoes(currentUser) : true,
+      visivel: !tvOnly && (currentUser ? canAccessCotacoes(currentUser) : true),
+    },
+    {
+      href: '/backoffice',
+      label: 'Backoffice',
+      active: isBackoffice,
+      icon: Tv2,
+      badge: 'TV 4K',
+      visivel: currentUser ? canAccessBackoffice(currentUser) : true,
     },
     {
       href: '/admin',
@@ -70,9 +92,11 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       active: isAdmin,
       icon: ShieldCheck,
       badge: 'GESTAO',
-      visivel: currentUser ? canAccessAdmin(currentUser) : true,
+      visivel: !tvOnly && (currentUser ? canAccessAdmin(currentUser) : true),
     },
-  ].filter((l) => l.visivel);
+  ];
+
+  const links = allLinks.filter((l) => l.visivel);
 
   return (
     <nav className={`flex flex-col gap-1.5 mt-4 ${collapsed ? 'px-2' : 'px-3'}`}>

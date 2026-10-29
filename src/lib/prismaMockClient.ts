@@ -192,6 +192,10 @@ function resolveNotaFiscalIncludes(nf: any, include?: Record<string, any>) {
   const copy = ensureDates({ ...nf });
   if (!include) return copy;
 
+  if (include.processo) {
+    const proc = store.processos.find((p) => p.id === nf.processoId);
+    copy.processo = proc ? resolveProcessoIncludes(proc, typeof include.processo === 'object' ? include.processo.include : undefined) : null;
+  }
   if (include.container) {
     copy.container = store.containers.find((c) => c.id === nf.containerId) ?? null;
   }
