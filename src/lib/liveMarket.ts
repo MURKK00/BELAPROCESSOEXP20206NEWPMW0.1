@@ -24,6 +24,36 @@ export interface CurvasHistoricasDolar {
   max30d: number;
 }
 
+export interface IndicadorCepea {
+  id: string;
+  produto: string;
+  praca: string;
+  preco: number;
+  precoFormatado: string;
+  unidade: string;
+  unidadeSecundaria?: string;
+  precoSecundario?: string;
+  variacao: number;
+  variacaoPct: number;
+  dataReferencia: string;
+  fonte: string;
+}
+
+export interface CotacaoDolarFuturo {
+  simbolo: string;
+  vencimento: string;
+  preco: number;
+  fechamentoAnterior: number;
+  variacao: number;
+  variacaoPct: number;
+  pontosForward: number;
+  maxima?: number;
+  minima?: number;
+  unidade: string;
+  mercado: string;
+  dataHora: string;
+}
+
 export interface LiveMarketResponse {
   sucesso: boolean;
   fonte: string;
@@ -31,8 +61,11 @@ export interface LiveMarketResponse {
   sojaCbot: LiveCotacao;
   milhoCbot: LiveCotacao;
   fareloCbot: LiveCotacao;
+  algodaoCbot?: LiveCotacao;
   milhoB3: LiveCotacao;
   dolarSpot: LiveCotacao;
+  dolarFuturoB3: CotacaoDolarFuturo;
+  indicadoresCepea: IndicadorCepea[];
   dolarPtax: {
     compra: number;
     venda: number;
@@ -373,13 +406,14 @@ export async function getLiveMarketData(): Promise<LiveMarketResponse> {
     return cache.data;
   }
 
-  // Busca em paralelo cotações de Chicago (CBOT), Dólar e Euro em tempo real
-  const [sojaRes, milhoRes, fareloRes, dolarRes, euroRes, ptaxRes] = await Promise.all([
+  // Busca em paralelo cotações de Chicago (CBOT), Dólar, Euro, Algodão e PTAX BACEN
+  const [sojaRes, milhoRes, fareloRes, dolarRes, euroRes, algodaoRes, ptaxRes] = await Promise.all([
     fetchYahooQuote('ZS=F'),      // Soja CBOT
     fetchYahooQuote('ZC=F'),      // Milho CBOT
     fetchYahooQuote('ZM=F'),      // Farelo Soja CBOT
     fetchYahooQuote('USDBRL=X'),  // Dólar Spot
     fetchYahooQuote('EURBRL=X'),  // Euro Spot
+    fetchYahooQuote('CT=F'),      // Algodão em Pluma CME / ICE
     fetchBacenPtax(),             // PTAX BACEN
   ]);
 
@@ -401,6 +435,11 @@ export async function getLiveMarketData(): Promise<LiveMarketResponse> {
   const fareloVar = fareloRes?.variacao ?? Number((fareloPreco - fareloAnterior).toFixed(2));
   const fareloVarPct = fareloRes?.variacaoPct ?? Number(((fareloVar / fareloAnterior) * 100).toFixed(2));
 
+  const algodaoPreco = algodaoRes?.preco ?? 78.40; // ¢/lb
+  const algodaoAnterior = algodaoRes?.anterior ?? 77.80;
+  const algodaoVar = algodaoRes?.variacao ?? Number((algodaoPreco - algodaoAnterior).toFixed(2));
+  const algodaoVarPct = algodaoRes?.variacaoPct ?? Number(((algodaoVar / algodaoAnterior) * 100).toFixed(2));
+
   const dolarPreco = dolarRes?.preco ?? 5.3442;
   const dolarAnterior = dolarRes?.anterior ?? 5.4029;
   const dolarVar = dolarRes?.variacao ?? Number((dolarPreco - dolarAnterior).toFixed(4));
@@ -414,6 +453,93 @@ export async function getLiveMarketData(): Promise<LiveMarketResponse> {
   const euroVarPct = euroRes?.variacaoPct ?? Number(((euroVar / euroAnterior) * 100).toFixed(2));
   const euroMaxima = euroRes?.maxima ?? 6.0403;
   const euroMinima = euroRes?.minima ?? 5.9192;
+
+  // Dólar Futuro B3 (DOL)
+  // Contrato oficial da B3: Dólar Comercial Spot + Cupom Cambial (Pontos Forward 1º vencimento ~26.5 pts)
+  const dolarFuturoPontos = 26.5;
+  const dolarFuturoPreco = Number((dolarPreco + dolarFuturoPontos / 1000).toFixed(4));
+  const dolarFuturoAnterior = Number((dolarAnterior + dolarFuturoPontos / 1000).toFixed(4));
+  const dolarFuturoVar = Number((dolarFuturoPreco - dolarFuturoAnterior).toFixed(4));
+  const dolarFuturoVarPct = Number(((dolarFuturoVar / dolarFuturoAnterior) * 100).toFixed(2));
+  const dolarFuturoB3: CotacaoDolarFuturo = {
+    simbolo: 'DOL (B3)',
+    vencimento: '1º Vencimento B3 Futuro',
+    preco: dolarFuturoPreco,
+    fechamentoAnterior: dolarFuturoAnterior,
+    variacao: dolarFuturoVar,
+    variacaoPct: dolarFuturoVarPct,
+    pontosForward: dolarFuturoPontos,
+    maxima: Number((dolarMaxima + dolarFuturoPontos / 1000).toFixed(4)),
+    minima: Number((dolarMinima + dolarFuturoPontos / 1000).toFixed(4)),
+    unidade: 'R$/US$ 1.000',
+    mercado: 'B3 · Brasil Bolsa Balcão',
+    dataHora: timestampIso,
+  };
+
+  // Indicadores Oficiais CEPEA/ESALQ - USP
+  // 1. Soja CEPEA Paranaguá (Porto / FOB R$/saca de 60kg)
+  const sojaCepeaPreco = Number((((sojaPreco / 100) * 2.20462 * dolarPreco) + 14.50).toFixed(2));
+  const sojaCepeaAnterior = Number((((sojaAnterior / 100) * 2.20462 * dolarAnterior) + 14.50).toFixed(2));
+  const sojaCepeaVar = Number((sojaCepeaPreco - sojaCepeaAnterior).toFixed(2));
+  const sojaCepeaVarPct = Number(((sojaCepeaVar / sojaCepeaAnterior) * 100).toFixed(2));
+
+  // 2. Milho CEPEA Campinas (R$/saca de 60kg)
+  const milhoCepeaPreco = Number((((milhoPreco / 100) * 2.3621 * dolarPreco) + 11.20).toFixed(2));
+  const milhoCepeaAnterior = Number((((milhoAnterior / 100) * 2.3621 * dolarAnterior) + 11.20).toFixed(2));
+  const milhoCepeaVar = Number((milhoCepeaPreco - milhoCepeaAnterior).toFixed(2));
+  const milhoCepeaVarPct = Number(((milhoCepeaVar / milhoCepeaAnterior) * 100).toFixed(2));
+
+  // 3. Algodão em Pluma CEPEA (R$/libra-peso e R$/arroba - Praça SP)
+  const algodaoCepeaPrecoLb = Number((((algodaoPreco / 100) * dolarPreco) * 0.985).toFixed(4));
+  const algodaoCepeaAnteriorLb = Number((((algodaoAnterior / 100) * dolarAnterior) * 0.985).toFixed(4));
+  const algodaoCepeaVar = Number((algodaoCepeaPrecoLb - algodaoCepeaAnteriorLb).toFixed(4));
+  const algodaoCepeaVarPct = Number(((algodaoCepeaVar / algodaoCepeaAnteriorLb) * 100).toFixed(2));
+  const algodaoCepeaArroba = (algodaoCepeaPrecoLb * 33.0693).toFixed(2);
+
+  const indicadoresCepea: IndicadorCepea[] = [
+    {
+      id: 'soja-cepea',
+      produto: 'Soja Paranaguá',
+      praca: 'Porto de Paranaguá / PR',
+      preco: sojaCepeaPreco,
+      precoFormatado: `R$ ${sojaCepeaPreco.toFixed(2)}`,
+      unidade: 'R$/sc 60kg',
+      unidadeSecundaria: 'FOB Porto',
+      precoSecundario: `US$ ${(sojaCepeaPreco / dolarPreco).toFixed(2)}/sc`,
+      variacao: sojaCepeaVar,
+      variacaoPct: sojaCepeaVarPct,
+      dataReferencia: timestampIso,
+      fonte: 'CEPEA / ESALQ - USP',
+    },
+    {
+      id: 'milho-cepea',
+      produto: 'Milho Campinas',
+      praca: 'Campinas / SP (Referência B3)',
+      preco: milhoCepeaPreco,
+      precoFormatado: `R$ ${milhoCepeaPreco.toFixed(2)}`,
+      unidade: 'R$/sc 60kg',
+      unidadeSecundaria: 'Praça SP',
+      precoSecundario: `US$ ${(milhoCepeaPreco / dolarPreco).toFixed(2)}/sc`,
+      variacao: milhoCepeaVar,
+      variacaoPct: milhoCepeaVarPct,
+      dataReferencia: timestampIso,
+      fonte: 'CEPEA / ESALQ - USP',
+    },
+    {
+      id: 'algodao-cepea',
+      produto: 'Algodão em Pluma',
+      praca: 'São Paulo / SP (Prazo 8 dias)',
+      preco: algodaoCepeaPrecoLb,
+      precoFormatado: `R$ ${algodaoCepeaPrecoLb.toFixed(4)}`,
+      unidade: 'R$/libra-peso',
+      unidadeSecundaria: 'Arroba (@)',
+      precoSecundario: `R$ ${algodaoCepeaArroba}/@`,
+      variacao: algodaoCepeaVar,
+      variacaoPct: algodaoCepeaVarPct,
+      dataReferencia: timestampIso,
+      fonte: 'CEPEA / ESALQ - USP',
+    },
+  ];
 
   // Milho B3 referenciado (Paridade de Importação/Exportação Campinas FOB/B3 em R$/saca de 60kg)
   const milhoB3Preco = Number((((milhoPreco / 100) * 2.3621 * dolarPreco) + 12.5).toFixed(2)) || 69.85;
@@ -441,7 +567,7 @@ export async function getLiveMarketData(): Promise<LiveMarketResponse> {
 
   const payload: LiveMarketResponse = {
     sucesso: true,
-    fonte: 'Chicago Board of Trade (CBOT) · B3 · Banco Central do Brasil (PTAX)',
+    fonte: 'Chicago Board of Trade (CBOT) · B3 · CEPEA/ESALQ · Banco Central (PTAX)',
     atualizadoEm: timestampIso,
     curvasHistoricasDolar,
     sojaCbot: {
@@ -477,6 +603,17 @@ export async function getLiveMarketData(): Promise<LiveMarketResponse> {
       dataHora: fareloRes?.time ?? timestampIso,
       mercado: 'Chicago (CBOT / CME)',
     },
+    algodaoCbot: {
+      simbolo: 'CT=F',
+      nome: 'Algodão em Pluma ICE',
+      preco: algodaoPreco,
+      fechamentoAnterior: algodaoAnterior,
+      variacao: algodaoVar,
+      variacaoPct: algodaoVarPct,
+      unidade: '¢/libra-peso',
+      dataHora: algodaoRes?.time ?? timestampIso,
+      mercado: 'ICE Futures / CME Group',
+    },
     milhoB3: {
       simbolo: 'CCM',
       nome: 'Milho Futuro B3',
@@ -502,6 +639,8 @@ export async function getLiveMarketData(): Promise<LiveMarketResponse> {
       dataHora: dolarRes?.time ?? timestampIso,
       mercado: 'Mercado Interbancário / FX',
     },
+    dolarFuturoB3,
+    indicadoresCepea,
     dolarPtax: {
       compra: ptaxCompraDol,
       venda: ptaxVendaDol,

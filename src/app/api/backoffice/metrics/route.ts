@@ -141,6 +141,10 @@ export async function GET() {
 
     let sojaCbot = null;
     let milhoCbot = null;
+    let algodaoCbot = null;
+    let dolarFuturo = null;
+    let indicadoresCepea: any[] = [];
+    let statusMercados: any = null;
     let curvasHistoricas = null;
 
     try {
@@ -169,6 +173,18 @@ export async function GET() {
       if (liveData?.milhoCbot) {
         milhoCbot = liveData.milhoCbot;
       }
+      if (liveData?.algodaoCbot) {
+        algodaoCbot = liveData.algodaoCbot;
+      }
+      if (liveData?.dolarFuturoB3) {
+        dolarFuturo = liveData.dolarFuturoB3;
+      }
+      if (liveData?.indicadoresCepea) {
+        indicadoresCepea = liveData.indicadoresCepea;
+      }
+      if (liveData?.statusMercados) {
+        statusMercados = liveData.statusMercados;
+      }
     } catch (e) {
       console.error('[API /api/backoffice/metrics] Erro ao obter cotação oficial:', e);
     }
@@ -176,6 +192,11 @@ export async function GET() {
     // Margem Cambial: Spread oficial entre Dólar Comercial Spot e Ptax Venda
     const margemDolarValor = Math.abs(dolarLive - ptaxVenda);
     const margemDolarPct = (margemDolarValor / dolarLive) * 100;
+
+    // Status de funcionamento do Câmbio / B3
+    const isCambioAberto = statusMercados?.cambio?.aberto ?? false;
+    const cambioStatusLabel = isCambioAberto ? 'MERCADO ABERTO' : 'PREGÃO FECHADO';
+    const cambioDetalheSessao = statusMercados?.cambio?.detalheSessao ?? 'Pregão Encerrado';
 
     // 6. Lista de Processos para o Ticker Inferior com detecção de Deadlines Críticos e Vencidos
     let totalDeadlinesVencidos = 0;
@@ -278,18 +299,25 @@ export async function GET() {
           dolarVariacao,
           maxima,
           minima,
+          aberto: isCambioAberto,
+          statusLabel: cambioStatusLabel,
+          detalheSessao: cambioDetalheSessao,
           ptaxVenda,
           ptaxCompra,
           dataPtax,
           margemDolarValor: margemDolarValor.toFixed(4),
           margemDolarPct: margemDolarPct.toFixed(2),
+          dolarFuturo,
           fonte,
           curvasHistoricas,
         },
         commodities: {
           sojaCbot,
           milhoCbot,
+          algodaoCbot,
+          indicadoresCepea,
         },
+        statusMercados,
         ticker: tickerNegociacoes,
       },
     });
