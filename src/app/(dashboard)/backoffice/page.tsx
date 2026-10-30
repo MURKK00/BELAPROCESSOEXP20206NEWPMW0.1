@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
@@ -12,6 +12,7 @@ import {
   RefreshCw, 
   Clock, 
   TrendingUp, 
+  TrendingDown,
   AlertTriangle, 
   CheckCircle2, 
   Ship, 
@@ -21,14 +22,26 @@ import {
   Anchor, 
   ExternalLink, 
   ArrowUpRight, 
+  ArrowDownRight,
   ShieldCheck, 
   ShieldAlert, 
   Calendar,
   Layers,
   Pause,
   Play,
-  AlertOctagon
+  Bookmark,
+  Activity,
+  Wheat,
+  BarChart3
 } from 'lucide-react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface WorldClock {
   cidade: string;
@@ -90,6 +103,8 @@ const WORLD_CLOCKS: WorldClock[] = [
   },
 ];
 
+type PeriodoCurva = '24h' | '7d' | '15d' | '30d';
+
 export default function BackofficeTvPage() {
   const [dataAtual, setDataAtual] = useState<Date | null>(null);
   const [dados, setDados] = useState<any>(null);
@@ -98,6 +113,8 @@ export default function BackofficeTvPage() {
   const [segundosParaRefresh, setSegundosParaRefresh] = useState<number>(30);
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [autoScrollPausado, setAutoScrollPausado] = useState<boolean>(false);
+  const [periodoCurva, setPeriodoCurva] = useState<PeriodoCurva>('30d');
+  const [autoCycleCurva, setAutoCycleCurva] = useState<boolean>(true);
   const tickerContainerRef = useRef<HTMLDivElement>(null);
 
   // 1. Relógio Mundial com atualização a cada segundo
@@ -146,7 +163,20 @@ export default function BackofficeTvPage() {
     return () => clearInterval(timer);
   }, [carregarMetricas]);
 
-  // 4. Modo Tela Cheia
+  // 4. Auto-Cycle do período do gráfico na TV (a cada 12 segundos se ativo)
+  useEffect(() => {
+    if (!autoCycleCurva) return;
+    const periodos: PeriodoCurva[] = ['24h', '7d', '15d', '30d'];
+    const timer = setInterval(() => {
+      setPeriodoCurva((prev) => {
+        const idx = periodos.indexOf(prev);
+        return periodos[(idx + 1) % periodos.length];
+      });
+    }, 12000);
+    return () => clearInterval(timer);
+  }, [autoCycleCurva]);
+
+  // 5. Modo Tela Cheia
   const alternarFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().then(() => setIsFullScreen(true)).catch(() => {});
@@ -165,7 +195,7 @@ export default function BackofficeTvPage() {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  // 5. Formatação de hora por fuso horário
+  // 6. Formatação de hora por fuso horário
   const formatarHoraFuso = (timeZone: string) => {
     if (!dataAtual) return '--:--:--';
     try {
@@ -199,65 +229,108 @@ export default function BackofficeTvPage() {
   const embarcadas = dados?.negociacoesEmbarcadas;
   const fiscal = dados?.auditoriaFiscal;
   const cambio = dados?.cambio;
+  const commodities = dados?.commodities;
   const tickerItems = dados?.ticker || [];
   const alertasDeadlines = dados?.alertasDeadlines;
 
   const totalVencidos = alertasDeadlines?.totalVencidos || 0;
   const totalCriticos = alertasDeadlines?.totalCriticos || 0;
-  const temAlertasDeadlines = totalVencidos > 0 || totalCriticos > 0;
+
+  // Dados das Curvas do Gráfico
+  const curvasHistoricas = cambio?.curvasHistoricas;
+  const dadosGrafico = useMemo(() => {
+    if (!curvasHistoricas) return [];
+    switch (periodoCurva) {
+      case '24h':
+        return curvasHistoricas.h24 || [];
+      case '7d':
+        return curvasHistoricas.d7 || [];
+      case '15d':
+        return curvasHistoricas.d15 || [];
+      case '30d':
+      default:
+        return curvasHistoricas.d30 || [];
+    }
+  }, [curvasHistoricas, periodoCurva]);
+
+  // Cálculos de Min / Max para domínio do gráfico
+  const { minValor, maxValor, varPeriodoPct } = useMemo(() => {
+    if (!dadosGrafico || dadosGrafico.length === 0) {
+      return { minValor: 5.30, maxValor: 5.45, varPeriodoPct: 0 };
+    }
+    const vals = dadosGrafico.map((d: any) => d.valor).filter((v: any) => typeof v === 'number' && !isNaN(v));
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const prim = vals[0] || 1;
+    const ult = vals[vals.length - 1] || 1;
+    const varPct = Number((((ult - prim) / prim) * 100).toFixed(2));
+    return { minValor: min, maxValor: max, varPeriodoPct: varPct };
+  }, [dadosGrafico]);
+
+  const paddingY = Math.max((maxValor - minValor) * 0.15, 0.015);
+  const domainY = [Number((minValor - paddingY).toFixed(4)), Number((maxValor + paddingY).toFixed(4))];
+
+  // Commodities Chicago (CBOT)
+  const soja = commodities?.sojaCbot;
+  const milho = commodities?.milhoCbot;
+  const dolarPreco = Number(cambio?.dolarLive ?? 5.3890);
+
+  // Paridades derivadas
+  const sojaUsdTon = soja ? Number(((soja.preco / 100) * 36.7437).toFixed(2)) : 379.38;
+  const sojaReaisSaca = Number(((sojaUsdTon * dolarPreco) / 16.6667).toFixed(2));
+
+  const milhoUsdTon = milho ? Number(((milho.preco / 100) * 39.368).toFixed(2)) : 169.77;
+  const milhoReaisSaca = Number(((milhoUsdTon * dolarPreco) / 16.6667).toFixed(2));
 
   return (
     <div
-      className={`bg-[#070b14] text-slate-100 flex flex-col justify-between select-none font-sans overflow-hidden transition-all ${
+      className={`bg-[#060a12] text-slate-100 flex flex-col justify-between select-none font-sans overflow-hidden transition-all ${
         isFullScreen
-          ? 'fixed inset-0 z-50 w-screen h-screen p-3 sm:p-4 gap-2'
-          : 'h-[calc(100vh-4.2rem)] max-h-[calc(100vh-4.2rem)] -m-3.5 sm:-m-6 lg:-m-8 p-2.5 sm:p-3.5 gap-2'
+          ? 'fixed inset-0 z-50 w-screen h-screen p-3 gap-2.5'
+          : 'h-[calc(100vh-4.2rem)] max-h-[calc(100vh-4.2rem)] -m-3.5 sm:-m-6 lg:-m-8 p-2.5 sm:p-3 gap-2'
       }`}
     >
       {/* ========================================================================= */}
       {/* 1. TOPO: HEADER EXECUTIVO + WORLD CLOCKS COM BANDEIRAS OFICIAIS           */}
       {/* ========================================================================= */}
-      <header className="shrink-0 space-y-2">
+      <header className="shrink-0 space-y-1.5">
         {/* Barra de Identificação e Controle TV */}
-        <div className="flex items-center justify-between gap-3 bg-[#0d1424] border border-slate-800/90 rounded-xl px-3.5 py-2 shadow-lg">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-orange-500/15 text-orange-400 flex items-center justify-center shrink-0 border border-orange-500/30 shadow-inner">
+        <div className="flex items-center justify-between gap-3 bg-[#0d1424] border border-slate-800/90 rounded-xl px-3 py-1.5 shadow-md">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-orange-500/15 text-orange-400 flex items-center justify-center shrink-0 border border-orange-500/30">
               <Tv2 className="w-4 h-4" />
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-black text-xs sm:text-sm tracking-tight text-white uppercase whitespace-nowrap">
-                  Bela Cereais
-                </span>
-                <span className="text-slate-600">|</span>
-                <span className="text-xs font-bold text-orange-400 tracking-wider uppercase font-mono whitespace-nowrap">
-                  Backoffice TV Cockpit
-                </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  Live Wallboard
-                </span>
+            <div className="min-w-0 flex items-center gap-2 flex-wrap">
+              <span className="font-black text-xs sm:text-sm tracking-tight text-white uppercase whitespace-nowrap">
+                Bela Cereais
+              </span>
+              <span className="text-slate-600">|</span>
+              <span className="text-xs font-bold text-orange-400 tracking-wider uppercase font-mono whitespace-nowrap">
+                Backoffice TV Cockpit
+              </span>
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-widest bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                Live Wallboard
+              </span>
 
-                {/* ALERTA VISUAL NO TOPO SE HOUVER DEADLINES VENCIDOS OU CRÍTICOS */}
-                {totalVencidos > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/50 animate-pulse whitespace-nowrap">
-                    <AlertTriangle className="w-3 h-3 text-rose-400" />
-                    {totalVencidos} {totalVencidos === 1 ? 'Deadline Vencido' : 'Deadlines Vencidos'}
-                  </span>
-                )}
-                {totalCriticos > 0 && (
-                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/50 animate-pulse whitespace-nowrap">
-                    <Clock className="w-3 h-3 text-amber-400" />
-                    {totalCriticos} {totalCriticos === 1 ? 'Crítico (< 72h)' : 'Críticos (< 72h)'}
-                  </span>
-                )}
-              </div>
+              {/* ALERTAS VISUAIS DE DEADLINES NO TOPO */}
+              {totalVencidos > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/50 animate-pulse whitespace-nowrap">
+                  <AlertTriangle className="w-3 h-3 text-rose-400" />
+                  {totalVencidos} {totalVencidos === 1 ? 'Deadline Vencido' : 'Deadlines Vencidos'}
+                </span>
+              )}
+              {totalCriticos > 0 && (
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/50 animate-pulse whitespace-nowrap">
+                  <Clock className="w-3 h-3 text-amber-400" />
+                  {totalCriticos} {totalCriticos === 1 ? 'Crítico (< 72h)' : 'Críticos (< 72h)'}
+                </span>
+              )}
             </div>
           </div>
 
           {/* Controles de Atualização & Tela Cheia */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Indicador de Auto-refresh 30s */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-xs">
               <RefreshCw className={`w-3 h-3 text-orange-400 ${loading ? 'animate-spin' : ''}`} />
               <span className="text-slate-400 text-[10px] hidden sm:inline">Refresh:</span>
@@ -266,7 +339,6 @@ export default function BackofficeTvPage() {
               </span>
             </div>
 
-            {/* Botão de Atualizar Agora */}
             <button
               type="button"
               onClick={() => carregarMetricas(false)}
@@ -276,7 +348,6 @@ export default function BackofficeTvPage() {
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
 
-            {/* Botão Tela Cheia (Ideal para TV) */}
             <button
               type="button"
               onClick={alternarFullscreen}
@@ -298,24 +369,24 @@ export default function BackofficeTvPage() {
           </div>
         </div>
 
-        {/* FAIXA DE RELÓGIOS MUNDIAIS (WORLD CLOCKS COM BANDEIRAS OFICIAIS) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5 sm:gap-2">
+        {/* FAIXA DE RELÓGIOS MUNDIAIS (7 PAÍSES COM BANDEIRAS OFICIAIS) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5">
           {WORLD_CLOCKS.map((clock) => {
             const hora = formatarHoraFuso(clock.timeZone);
             const dataFuso = formatarDataFuso(clock.timeZone);
             return (
               <div
                 key={clock.pais + clock.cidade}
-                className="bg-[#0b1120] border border-slate-800/90 hover:border-slate-700 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex flex-col justify-between transition-all shadow-sm"
+                className="bg-[#0b1120] border border-slate-800/90 hover:border-slate-700 rounded-xl px-2.5 py-1.5 flex flex-col justify-between transition-all shadow-xs"
               >
                 <div className="flex items-center justify-between gap-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="relative w-7 h-4.5 sm:w-8 sm:h-5 rounded overflow-hidden shadow-xs border border-slate-700/80 shrink-0 bg-slate-900">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="relative w-6 h-4 rounded overflow-hidden shadow-xs border border-slate-700/80 shrink-0 bg-slate-900">
                       <Image
                         src={clock.bandeiraImg}
                         alt={clock.pais}
                         fill
-                        sizes="32px"
+                        sizes="24px"
                         className="object-cover"
                         referrerPolicy="no-referrer"
                       />
@@ -328,13 +399,13 @@ export default function BackofficeTvPage() {
                     {clock.fuso}
                   </span>
                 </div>
-                <div className="mt-1">
-                  <div className="font-mono font-black text-sm sm:text-base text-white tracking-wider tabular-nums">
+                <div className="mt-1 flex items-baseline justify-between">
+                  <div className="font-mono font-black text-sm text-white tracking-wider tabular-nums">
                     {hora}
                   </div>
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 truncate">
-                    <span className="truncate text-slate-400">{clock.cidade}</span>
-                    <span className="font-mono text-slate-500 shrink-0 ml-1">{dataFuso}</span>
+                  <div className="text-[10px] text-slate-400 truncate text-right">
+                    <span className="truncate">{clock.cidade.split(' ')[0]}</span>
+                    <span className="font-mono text-slate-500 ml-1">{dataFuso}</span>
                   </div>
                 </div>
               </div>
@@ -344,393 +415,438 @@ export default function BackofficeTvPage() {
       </header>
 
       {/* ========================================================================= */}
-      {/* 2. BARRA DE CÂMBIO & DÓLAR AO VIVO (OFICIAL IGUAL A COTAÇÕES MERCADO)      */}
+      {/* 2. BLOCO DE INDICADORES (4 CARDS COMPACTOS - NÃO ESTICADOS)               */}
       {/* ========================================================================= */}
-      <section className="shrink-0 bg-gradient-to-r from-[#0d1424] via-[#0e172a] to-[#0d1424] border border-slate-800/80 rounded-xl px-3 py-2 sm:px-5 sm:py-2.5 shadow-md flex flex-wrap items-center justify-between gap-2.5">
-        {/* Dólar Comercial Live Spot */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20 shrink-0">
-            <DollarSign className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                Dólar Comercial Spot
-              </span>
-              <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 uppercase">
-                Ao Vivo
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono font-black text-lg sm:text-xl text-emerald-400 tabular-nums">
-                R$ {Number(cambio?.dolarLive ?? 5.3442).toFixed(4)}
-              </span>
-              <span className={`text-xs font-bold font-mono ${
-                Number(cambio?.dolarVariacaoPct || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
-              }`}>
-                {Number(cambio?.dolarVariacaoPct || 0) >= 0 ? '+' : ''}{Number(cambio?.dolarVariacaoPct || 0).toFixed(2)}%
-              </span>
-              {cambio?.dolarVariacao !== undefined && (
-                <span className="text-[10px] text-slate-400 font-mono hidden xl:inline">
-                  (Δ {Number(cambio.dolarVariacao) >= 0 ? '+' : ''}{Number(cambio.dolarVariacao).toFixed(4)})
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="h-7 w-px bg-slate-800 hidden md:block" />
-
-        {/* Ptax Banco Central Oficial */}
-        <div className="flex items-center gap-3">
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                PTAX BACEN Oficial
-              </span>
-              <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 uppercase">
-                Fechamento
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono font-bold text-slate-200 text-xs sm:text-sm tabular-nums">
-                Venda: <strong className="text-white">R$ {Number(cambio?.ptaxVenda ?? 5.3492).toFixed(4)}</strong>
-              </span>
-              <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
-                (Compra: R$ {Number(cambio?.ptaxCompra ?? 5.3436).toFixed(4)})
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="h-7 w-px bg-slate-800 hidden md:block" />
-
-        {/* Margem / Spread Dólar */}
-        <div className="flex items-center gap-2.5">
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-              Margem Dólar (Spread Spot vs PTAX)
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono font-black text-amber-400 text-xs sm:text-sm tabular-nums">
-                +{cambio?.margemDolarPct || '0.10'}%
-              </span>
-              <span className="text-[10px] text-slate-400 font-mono">
-                (Δ R$ {cambio?.margemDolarValor || '0.0050'} / USD)
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Range Intraday */}
-        {cambio?.minima && cambio?.maxima && (
-          <>
-            <div className="h-7 w-px bg-slate-800 hidden lg:block" />
-            <div className="hidden lg:block">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
-                Range Intraday
-              </span>
-              <div className="text-[11px] font-mono text-slate-300">
-                <span className="text-slate-400">Mín:</span> R$ {Number(cambio.minima).toFixed(4)}{' '}
-                <span className="text-slate-600">|</span>{' '}
-                <span className="text-slate-400">Máx:</span> R$ {Number(cambio.maxima).toFixed(4)}
-              </div>
-            </div>
-          </>
-        )}
-      </section>
-
-      {/* ========================================================================= */}
-      {/* 3. BLOCO PRINCIPAL: 4 CARDS DE INDICADORES DE ALTO IMPACTO (TV)          */}
-      {/* ========================================================================= */}
-      <section className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-        {/* CARD 1: PRÓXIMO DEADLINE EMBARQUE COM ALERTA VISUAL PULSANTE */}
+      <section className="shrink-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+        {/* CARD 1: PRÓXIMO DEADLINE */}
         <div
-          className={`p-3.5 sm:p-4 rounded-xl border flex flex-col justify-between shadow-xl transition-all relative overflow-hidden ${
+          className={`p-2.5 sm:p-3 rounded-xl border flex flex-col justify-between shadow-md transition-all relative overflow-hidden h-[120px] ${
             proximoDeadline?.atrasado
-              ? 'animate-pulse-danger bg-gradient-to-br from-[#260e15] via-[#160a0f] to-[#0b1120]'
+              ? 'animate-pulse-danger bg-gradient-to-br from-[#260e15] to-[#0b1120]'
               : proximoDeadline?.urgente
-              ? 'animate-pulse-warning bg-gradient-to-br from-[#26170a] via-[#150d06] to-[#0b1120]'
+              ? 'animate-pulse-warning bg-gradient-to-br from-[#26170a] to-[#0b1120]'
               : 'bg-[#0b1120] border-slate-800'
           }`}
         >
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`p-1.5 rounded-lg ${
-                    proximoDeadline?.atrasado
-                      ? 'bg-rose-500/20 text-rose-400'
-                      : proximoDeadline?.urgente
-                      ? 'bg-amber-500/20 text-amber-400'
-                      : 'bg-blue-500/15 text-blue-400'
-                  }`}
-                >
-                  {proximoDeadline?.atrasado ? (
-                    <AlertTriangle className="w-4 h-4 text-rose-400 animate-bounce" />
-                  ) : proximoDeadline?.urgente ? (
-                    <Clock className="w-4 h-4 text-amber-400" />
-                  ) : (
-                    <Anchor className="w-4 h-4" />
-                  )}
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                  Próximo Deadline Embarque
-                </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div
+                className={`p-1 rounded-md ${
+                  proximoDeadline?.atrasado
+                    ? 'bg-rose-500/20 text-rose-400'
+                    : proximoDeadline?.urgente
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'bg-blue-500/15 text-blue-400'
+                }`}
+              >
+                {proximoDeadline?.atrasado ? (
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                ) : (
+                  <Anchor className="w-3.5 h-3.5" />
+                )}
               </div>
-              {proximoDeadline && (
-                <span
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider border ${
-                    proximoDeadline.atrasado
-                      ? 'bg-rose-500/25 text-rose-300 border-rose-500/60 animate-pulse'
-                      : proximoDeadline.urgente
-                      ? 'bg-amber-500/25 text-amber-300 border-amber-500/60 animate-pulse'
-                      : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
-                  }`}
-                >
-                  {proximoDeadline.tempoTexto}
-                </span>
-              )}
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                Próximo Deadline
+              </span>
             </div>
-
-            {proximoDeadline ? (
-              <div className="mt-2 space-y-1.5">
-                <div className="flex items-baseline justify-between">
-                  <span className="font-mono font-black text-lg sm:text-xl text-white">
-                    {proximoDeadline.numeroProcesso}
-                  </span>
-                  <span className="text-xs font-mono font-bold text-orange-400">
-                    {(proximoDeadline.volumeKg / 1000).toFixed(0)} Toneladas
-                  </span>
-                </div>
-
-                <div className="text-xs text-slate-200 font-bold truncate">
-                  {proximoDeadline.clienteFinal}
-                </div>
-
-                <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span>Navio:</span>
-                    <strong className="text-slate-200 truncate max-w-[140px]">{proximoDeadline.navio}</strong>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Porto Destino:</span>
-                    <strong className="text-slate-200">{proximoDeadline.portoDestino}</strong>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Booking:</span>
-                    <span className="font-mono text-slate-300">{proximoDeadline.bookingNumero}</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 text-center text-xs text-slate-500">
-                Nenhum deadline pendente cadastrado.
-              </div>
+            {proximoDeadline && (
+              <span
+                className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-black uppercase tracking-wider border ${
+                  proximoDeadline.atrasado
+                    ? 'bg-rose-500/25 text-rose-300 border-rose-500/60 animate-pulse'
+                    : proximoDeadline.urgente
+                    ? 'bg-amber-500/25 text-amber-300 border-amber-500/60 animate-pulse'
+                    : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                }`}
+              >
+                {proximoDeadline.tempoTexto}
+              </span>
             )}
           </div>
 
-          <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
-            <span>Controle Portuário</span>
-            <span className={`font-mono font-bold ${
-              proximoDeadline?.atrasado
-                ? 'text-rose-400'
-                : proximoDeadline?.urgente
-                ? 'text-amber-400'
-                : 'text-emerald-400'
-            }`}>
-              {proximoDeadline?.atrasado ? 'Atenção Imediata' : proximoDeadline?.urgente ? 'Atenção Crítica' : 'Fluxo Normal'}
-            </span>
+          {proximoDeadline ? (
+            <div className="my-1">
+              <div className="flex items-baseline justify-between">
+                <span className="font-mono font-black text-base text-white">
+                  {proximoDeadline.numeroProcesso}
+                </span>
+                <span className="text-xs font-mono font-bold text-orange-400">
+                  {(proximoDeadline.volumeKg / 1000).toFixed(0)} t
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-300 font-bold truncate">
+                {proximoDeadline.clienteFinal}
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs text-slate-500 text-center py-2">Sem deadline pendente</div>
+          )}
+
+          <div className="pt-1 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+            <span className="truncate max-w-[150px]">Navio: <strong className="text-slate-200">{proximoDeadline?.navio}</strong></span>
+            <span className="font-mono text-slate-300">{proximoDeadline?.portoDestino}</span>
           </div>
         </div>
 
-        {/* CARD 2: NEGOCIAÇÕES EM EXECUÇÃO */}
-        <div className="p-3.5 sm:p-4 bg-[#0b1120] border border-slate-800 rounded-xl flex flex-col justify-between shadow-xl">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-orange-500/15 text-orange-400">
-                  <TrendingUp className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  Em Execução
-                </span>
+        {/* CARD 2: EM EXECUÇÃO */}
+        <div className="p-2.5 sm:p-3 bg-[#0b1120] border border-slate-800 rounded-xl flex flex-col justify-between shadow-md h-[120px]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1 rounded-md bg-orange-500/15 text-orange-400">
+                <TrendingUp className="w-3.5 h-3.5" />
               </div>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/30">
-                Operações Ativas
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                Em Execução
               </span>
             </div>
-
-            <div className="mt-2">
-              <div className="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight tabular-nums">
-                {emExecucao?.total || 0} <span className="text-xs font-bold text-slate-400">contratos</span>
-              </div>
-
-              <div className="mt-2.5 space-y-1 text-xs text-slate-400">
-                <div className="flex items-center justify-between">
-                  <span>Volume Total:</span>
-                  <span className="font-mono font-bold text-slate-100">
-                    {emExecucao?.volumeToneladas || 0} t
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Sacaria Estimada:</span>
-                  <span className="font-mono font-bold text-slate-200">
-                    {Number(emExecucao?.volumeSacas || 0).toLocaleString('pt-BR')} sc
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Contêineres em Lote:</span>
-                  <span className="font-mono font-bold text-orange-400">
-                    {emExecucao?.containers || 0} cont.
-                  </span>
-                </div>
-              </div>
-            </div>
+            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-black uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/30">
+              Ativas
+            </span>
           </div>
 
-          <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
-            <span>Fase 1 a 3 (Indústria e REDEX)</span>
-            <span className="font-mono text-emerald-400">Operando</span>
+          <div className="my-1 flex items-baseline justify-between">
+            <div className="text-2xl sm:text-3xl font-black text-white font-mono tabular-nums">
+              {emExecucao?.total || 0}{' '}
+              <span className="text-xs font-bold text-slate-400">contratos</span>
+            </div>
+            <span className="font-mono font-bold text-xs text-orange-400">
+              {emExecucao?.containers || 0} contêineres
+            </span>
+          </div>
+
+          <div className="pt-1 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+            <span>Volume: <strong className="text-slate-200 font-mono">{emExecucao?.volumeToneladas || 0} t</strong></span>
+            <span className="font-mono text-slate-300">{Number(emExecucao?.volumeSacas || 0).toLocaleString('pt-BR')} sc</span>
           </div>
         </div>
 
         {/* CARD 3: NEGOCIAÇÕES EMBARCADAS */}
-        <div className="p-3.5 sm:p-4 bg-[#0b1120] border border-slate-800 rounded-xl flex flex-col justify-between shadow-xl">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400">
-                  <Ship className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  Negociações Embarcadas
-                </span>
+        <div className="p-2.5 sm:p-3 bg-[#0b1120] border border-slate-800 rounded-xl flex flex-col justify-between shadow-md h-[120px]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1 rounded-md bg-blue-500/15 text-blue-400">
+                <Ship className="w-3.5 h-3.5" />
               </div>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                Carga Despachada
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                Embarcadas
               </span>
             </div>
-
-            <div className="mt-2">
-              <div className="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight tabular-nums">
-                {embarcadas?.total || 0} <span className="text-xs font-bold text-slate-400">embarcadas</span>
-              </div>
-
-              <div className="mt-2.5 space-y-1 text-xs text-slate-400">
-                <div className="flex items-center justify-between">
-                  <span>Volume Despachado:</span>
-                  <span className="font-mono font-bold text-slate-100">
-                    {embarcadas?.volumeToneladas || 0} t
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Sacaria Embarcada:</span>
-                  <span className="font-mono font-bold text-slate-200">
-                    {Number(embarcadas?.volumeSacas || 0).toLocaleString('pt-BR')} sc
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Total Contêineres no Mar:</span>
-                  <span className="font-mono font-bold text-blue-400">
-                    {embarcadas?.containers || 0} cont.
-                  </span>
-                </div>
-              </div>
-            </div>
+            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-black uppercase tracking-wider bg-blue-500/15 text-blue-400 border border-blue-500/30">
+              No Mar / BL
+            </span>
           </div>
 
-          <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
-            <span>Fase 4 (Exportação Marítima)</span>
-            <span className="font-mono text-blue-400">Em Trânsito / BL</span>
+          <div className="my-1 flex items-baseline justify-between">
+            <div className="text-2xl sm:text-3xl font-black text-white font-mono tabular-nums">
+              {embarcadas?.total || 0}{' '}
+              <span className="text-xs font-bold text-slate-400">embarcadas</span>
+            </div>
+            <span className="font-mono font-bold text-xs text-blue-400">
+              {embarcadas?.containers || 0} contêineres
+            </span>
+          </div>
+
+          <div className="pt-1 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+            <span>Volume: <strong className="text-slate-200 font-mono">{embarcadas?.volumeToneladas || 0} t</strong></span>
+            <span className="font-mono text-slate-300">{Number(embarcadas?.volumeSacas || 0).toLocaleString('pt-BR')} sc</span>
           </div>
         </div>
 
-        {/* CARD 4: NOTAS FISCAIS SEM AVERBAÇÃO & RISCO FISCAL CRÍTICO */}
+        {/* CARD 4: AVERBAÇÃO SEFAZ & ALERTA FISCAL */}
         <div
-          className={`p-3.5 sm:p-4 rounded-xl border flex flex-col justify-between shadow-xl transition-all relative overflow-hidden ${
+          className={`p-2.5 sm:p-3 rounded-xl border flex flex-col justify-between shadow-md h-[120px] ${
             fiscal?.semAverbacaoEEmbarcadas > 0
-              ? 'animate-pulse-warning bg-gradient-to-br from-[#26170a] via-[#140e06] to-[#0b1120]'
+              ? 'animate-pulse-warning bg-gradient-to-br from-[#26170a] to-[#0b1120]'
               : 'bg-[#0b1120] border-slate-800'
           }`}
         >
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`p-1.5 rounded-lg ${
-                    fiscal?.semAverbacaoEEmbarcadas > 0
-                      ? 'bg-amber-500/20 text-amber-400'
-                      : 'bg-emerald-500/15 text-emerald-400'
-                  }`}
-                >
-                  {fiscal?.semAverbacaoEEmbarcadas > 0 ? (
-                    <ShieldAlert className="w-4 h-4" />
-                  ) : (
-                    <ShieldCheck className="w-4 h-4" />
-                  )}
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  Averbação SEFAZ
-                </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div
+                className={`p-1 rounded-md ${
+                  fiscal?.semAverbacaoEEmbarcadas > 0
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'bg-emerald-500/15 text-emerald-400'
+                }`}
+              >
+                {fiscal?.semAverbacaoEEmbarcadas > 0 ? (
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                ) : (
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                )}
               </div>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
-                Etapa 4 NFe
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                Averbação SEFAZ
               </span>
             </div>
-
-            <div className="mt-2">
-              <div className="flex items-baseline justify-between">
-                <div className="text-3xl sm:text-4xl font-black text-white font-mono tracking-tight tabular-nums">
-                  {fiscal?.semAverbacaoTotal || 0} <span className="text-xs font-bold text-slate-400">sem averbar</span>
-                </div>
-                <span className="text-xs font-mono font-bold text-emerald-400">
-                  {fiscal?.totalAverbadas || 0} averbada(s)
-                </span>
-              </div>
-
-              {/* ALERTA CRÍTICO: Cargas já embarcadas sem averbação */}
-              <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-amber-300 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span>Embarcadas sem averbação:</span>
-                  </span>
-                  <span className="font-mono font-black text-xs text-amber-400 tabular-nums">
-                    {fiscal?.semAverbacaoEEmbarcadas || 0} NFs
-                  </span>
-                </div>
-                <span className="text-[10px] text-slate-400 block mt-0.5">
-                  {fiscal?.semAverbacaoEEmbarcadas > 0
-                    ? 'Atenção: Prazo legal Siscomex 60 dias.'
-                    : 'Sem carga embarcada em risco.'}
-                </span>
-              </div>
-            </div>
+            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-black uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
+              Etapa 4 NFe
+            </span>
           </div>
 
-          {/* Barra de Progresso Averbação */}
-          <div className="mt-2 pt-2 border-t border-slate-800/60">
-            <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-              <span>Índice Geral de Averbação</span>
-              <span className="font-mono font-bold text-emerald-400">
-                {Number(fiscal?.percAverbado || 0).toFixed(0)}%
-              </span>
+          <div className="my-1 flex items-baseline justify-between">
+            <div className="text-2xl sm:text-3xl font-black text-white font-mono tabular-nums">
+              {fiscal?.semAverbacaoTotal || 0}{' '}
+              <span className="text-xs font-bold text-slate-400">sem averbar</span>
             </div>
-            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-              <div
-                className="bg-emerald-500 h-full rounded-full transition-all"
-                style={{ width: `${fiscal?.percAverbado || 0}%` }}
-              />
-            </div>
+            <span className="font-mono font-bold text-xs text-emerald-400">
+              {fiscal?.totalAverbadas || 0} averbada(s)
+            </span>
+          </div>
+
+          <div className="pt-1 border-t border-slate-800/80 flex items-center justify-between text-[10px]">
+            <span className="text-amber-300 flex items-center gap-1 font-bold">
+              <AlertTriangle className="w-3 h-3 text-amber-400" />
+              Embarcadas s/ averbação:
+            </span>
+            <strong className="text-amber-400 font-mono font-black text-xs">
+              {fiscal?.semAverbacaoEEmbarcadas || 0} NFs
+            </strong>
           </div>
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. PARTE INFERIOR: NEGOCIAÇÕES (ROLAGEM CONTÍNUA TV COM ALERTAS VISUAIS) */}
+      {/* 3. CENTRO: CÂMBIO DÓLAR EM GRANDE EVIDÊNCIA + GRÁFICO CURVAS + CBOT AGRO  */}
       {/* ========================================================================= */}
-      <footer className="shrink-0 space-y-1.5 pb-1">
+      <section className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-2.5">
+        {/* COLUNA ESQUERDA (8 COLUNAS): DÓLAR LIVE + GRÁFICO DE CURVAS (24h, 7d, 15d, 30d) */}
+        <div className="lg:col-span-8 bg-[#0b1120] border border-slate-800/90 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between shadow-xl">
+          {/* Topo do Card de Câmbio: Valores com Alto Destaque Visual */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-2.5">
+            {/* Dólar Comercial Spot Principal */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0 shadow-inner">
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Dólar Comercial Spot
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 uppercase">
+                    Ao Vivo
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono font-black text-2xl sm:text-3xl text-emerald-400 tabular-nums tracking-tight">
+                    R$ {Number(cambio?.dolarLive ?? 5.3890).toFixed(4)}
+                  </span>
+                  <span className={`text-xs font-bold font-mono px-1.5 py-0.5 rounded ${
+                    Number(cambio?.dolarVariacaoPct || 0) >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'
+                  }`}>
+                    {Number(cambio?.dolarVariacaoPct || 0) >= 0 ? '+' : ''}{Number(cambio?.dolarVariacaoPct || 0).toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* PTAX BACEN Oficial */}
+            <div className="hidden sm:block border-l border-slate-800/80 pl-3">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                PTAX BACEN (Oficial)
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono font-black text-sm text-white tabular-nums">
+                  Venda: R$ {Number(cambio?.ptaxVenda ?? 5.3744).toFixed(4)}
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">
+                  (Compra: R$ {Number(cambio?.ptaxCompra ?? 5.3688).toFixed(4)})
+                </span>
+              </div>
+            </div>
+
+            {/* Margem / Spread */}
+            <div className="hidden md:block border-l border-slate-800/80 pl-3">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                Margem Dólar (Spread)
+              </span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-mono font-black text-sm text-amber-400 tabular-nums">
+                  +{cambio?.margemDolarPct || '0.27'}%
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">
+                  (Δ R$ {cambio?.margemDolarValor || '0.0146'})
+                </span>
+              </div>
+            </div>
+
+            {/* Seletor de Período da Curva (24h, 7d, 15d, 30d) */}
+            <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 p-1 rounded-xl">
+              {(['24h', '7d', '15d', '30d'] as PeriodoCurva[]).map((periodo) => {
+                const isAtivo = periodoCurva === periodo;
+                return (
+                  <button
+                    key={periodo}
+                    type="button"
+                    onClick={() => {
+                      setPeriodoCurva(periodo);
+                      setAutoCycleCurva(false);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                      isAtivo
+                        ? 'bg-emerald-500 text-slate-950 font-black shadow-xs shadow-emerald-500/30'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {periodo}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Gráfico de Curva do Dólar Recharts */}
+          <div className="flex-1 min-h-[140px] sm:min-h-[160px] w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={dadosGrafico} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="dolarGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.45} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="label"
+                  stroke="#475569"
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={{ stroke: '#334155' }}
+                  dy={4}
+                />
+                <YAxis
+                  domain={domainY}
+                  stroke="#475569"
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={{ stroke: '#334155' }}
+                  tickFormatter={(val) => `R$${val.toFixed(2)}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#0b1120',
+                    borderColor: '#334155',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                    padding: '8px 12px',
+                  }}
+                  itemStyle={{ color: '#10b981', fontFamily: 'monospace', fontWeight: 'bold' }}
+                  labelStyle={{ color: '#94a3b8', fontSize: '11px', marginBottom: '2px' }}
+                  formatter={(value: any) => [`R$ ${Number(value).toFixed(4)}`, 'Dólar']}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="valor"
+                  stroke="#10b981"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#dolarGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Rodapé do Gráfico com Indicadores Estatísticos */}
+          <div className="pt-2 border-t border-slate-800/70 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+            <div className="flex items-center gap-3">
+              <span>Mínima {periodoCurva}: <strong className="text-slate-200">R$ {minValor.toFixed(4)}</strong></span>
+              <span className="text-slate-700">|</span>
+              <span>Máxima {periodoCurva}: <strong className="text-slate-200">R$ {maxValor.toFixed(4)}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span>Variação {periodoCurva}:</span>
+              <strong className={`font-bold ${varPeriodoPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {varPeriodoPct >= 0 ? '+' : ''}{varPeriodoPct.toFixed(2)}%
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        {/* COLUNA DIREITA (4 COLUNAS): COTAÇÕES SOJA & MILHO CHICAGO (CBOT) */}
+        <div className="lg:col-span-4 bg-[#0b1120] border border-slate-800/90 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                <Wheat className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white uppercase tracking-wider block">
+                  Commodities Chicago
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">
+                  CBOT · CME Group Oficial
+                </span>
+              </div>
+            </div>
+            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700 uppercase">
+              Mercado Agro
+            </span>
+          </div>
+
+          {/* Bloco 1: Soja em Grão CBOT (ZS=F) */}
+          <div className="py-2.5 border-b border-slate-800/60">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono font-black text-sm text-slate-100">SOJA CBOT</span>
+                <span className="text-[10px] font-mono text-slate-500">(ZS=F)</span>
+              </div>
+              <span className={`text-[11px] font-mono font-bold px-1.5 py-0.2 rounded ${
+                (soja?.variacaoPct ?? 1.40) >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'
+              }`}>
+                {(soja?.variacaoPct ?? 1.40) >= 0 ? '+' : ''}{(soja?.variacaoPct ?? 1.40).toFixed(2)}%
+              </span>
+            </div>
+
+            <div className="flex items-baseline justify-between">
+              <div className="font-mono font-black text-xl sm:text-2xl text-amber-400 tabular-nums">
+                {Number(soja?.preco ?? 1032.50).toFixed(2)}{' '}
+                <span className="text-xs font-normal text-slate-400">¢/bu</span>
+              </div>
+              <div className="text-right text-[11px] font-mono text-slate-300">
+                <div>US$ {sojaUsdTon.toFixed(2)}/t</div>
+                <div className="text-emerald-400 font-bold">R$ {sojaReaisSaca.toFixed(2)}/sc</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bloco 2: Milho CBOT (ZC=F) */}
+          <div className="py-2.5">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono font-black text-sm text-slate-100">MILHO CBOT</span>
+                <span className="text-[10px] font-mono text-slate-500">(ZC=F)</span>
+              </div>
+              <span className={`text-[11px] font-mono font-bold px-1.5 py-0.2 rounded ${
+                (milho?.variacaoPct ?? 0.82) >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'
+              }`}>
+                {(milho?.variacaoPct ?? 0.82) >= 0 ? '+' : ''}{(milho?.variacaoPct ?? 0.82).toFixed(2)}%
+              </span>
+            </div>
+
+            <div className="flex items-baseline justify-between">
+              <div className="font-mono font-black text-xl sm:text-2xl text-amber-400 tabular-nums">
+                {Number(milho?.preco ?? 431.25).toFixed(2)}{' '}
+                <span className="text-xs font-normal text-slate-400">¢/bu</span>
+              </div>
+              <div className="text-right text-[11px] font-mono text-slate-300">
+                <div>US$ {milhoUsdTon.toFixed(2)}/t</div>
+                <div className="text-emerald-400 font-bold">R$ {milhoReaisSaca.toFixed(2)}/sc</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Rodapé de Paridade Cambial / Exportação */}
+          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+            <span>Base FOB Santos / Paranaguá</span>
+            <span className="text-orange-400 font-bold">Safra 2026</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 4. PARTE INFERIOR: NEGOCIAÇÕES (MAIORES COM NÚMERO BOOKING E ALERTAS)     */}
+      {/* ========================================================================= */}
+      <footer className="shrink-0 space-y-1.5 pb-0.5">
         <div className="flex items-center justify-between px-1 text-xs">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-orange-400 animate-pulse" />
@@ -738,7 +854,7 @@ export default function BackofficeTvPage() {
               Negociações
             </h2>
             <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
-              {tickerItems.length} ativas
+              {tickerItems.length} processos ativos
             </span>
             {totalVencidos > 0 && (
               <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/50 animate-pulse">
@@ -780,10 +896,10 @@ export default function BackofficeTvPage() {
           ref={tickerContainerRef}
           onMouseEnter={() => setAutoScrollPausado(true)}
           onMouseLeave={() => setAutoScrollPausado(false)}
-          className="bg-[#0b1120] border border-slate-800/90 rounded-xl p-2 overflow-x-auto no-scrollbar shadow-lg"
+          className="bg-[#0b1120] border border-slate-800/90 rounded-2xl p-2.5 overflow-x-auto no-scrollbar shadow-xl"
         >
           <div
-            className={`flex items-stretch gap-2.5 ${
+            className={`flex items-stretch gap-3 ${
               autoScrollPausado ? '' : 'animate-marquee'
             }`}
             style={{ width: 'max-content' }}
@@ -797,70 +913,87 @@ export default function BackofficeTvPage() {
               return (
                 <div
                   key={`${item.id}-${idx}`}
-                  className={`w-72 sm:w-80 h-[135px] p-2.5 sm:p-3 rounded-xl transition-all flex flex-col justify-between shrink-0 shadow-md group relative overflow-hidden ${
+                  className={`w-[360px] sm:w-[410px] h-[160px] p-3 rounded-xl transition-all flex flex-col justify-between shrink-0 shadow-lg group relative overflow-hidden ${
                     isAtrasado
-                      ? 'animate-pulse-danger bg-gradient-to-b from-[#260e14] to-[#0d1424]'
+                      ? 'animate-pulse-danger bg-gradient-to-b from-[#280d16] via-[#1a0a10] to-[#0d1424]'
                       : isCritico
-                      ? 'animate-pulse-warning bg-gradient-to-b from-[#22160a] to-[#0d1424]'
+                      ? 'animate-pulse-warning bg-gradient-to-b from-[#24170a] via-[#160e06] to-[#0d1424]'
                       : 'bg-[#0e172a] border border-slate-800 hover:border-orange-500/50'
                   }`}
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-black text-sm text-white group-hover:text-orange-400 transition-colors">
-                          {item.numeroProcesso}
-                        </span>
-                        {isAtrasado && (
-                          <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                        )}
-                        {isCritico && !isAtrasado && (
-                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                        )}
-                      </div>
-
-                      {/* BADGE DE DEADLINE VENCIDO OU CRÍTICO */}
-                      {isAtrasado ? (
-                        <span className="px-2 py-0.5 rounded text-[9px] font-mono font-black uppercase tracking-wider bg-rose-500/30 text-rose-300 border border-rose-500/60 animate-pulse">
-                          {item.deadlineTexto || 'Vencido'}
-                        </span>
-                      ) : isCritico ? (
-                        <span className="px-2 py-0.5 rounded text-[9px] font-mono font-black uppercase tracking-wider bg-amber-500/30 text-amber-300 border border-amber-500/60 animate-pulse">
-                          {item.deadlineTexto || 'Crítico'}
-                        </span>
-                      ) : (
-                        <span
-                          className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
-                            isEmbarcado
-                              ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                              : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                          }`}
-                        >
-                          {item.status.replace('_', ' ')}
-                        </span>
+                  {/* Linha 1: Processo + Status / Alerta Deadline */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-black text-base sm:text-lg text-white group-hover:text-orange-400 transition-colors">
+                        {item.numeroProcesso}
+                      </span>
+                      {isAtrasado && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                      )}
+                      {isCritico && !isAtrasado && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
                       )}
                     </div>
 
-                    <div className="text-xs font-bold text-slate-200 truncate" title={item.clienteFinal}>
+                    {/* BADGE DE DEADLINE VENCIDO OU CRÍTICO */}
+                    {isAtrasado ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider bg-rose-500/30 text-rose-300 border border-rose-500/60 animate-pulse">
+                        {item.deadlineTexto || 'Vencido'}
+                      </span>
+                    ) : isCritico ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider bg-amber-500/30 text-amber-300 border border-amber-500/60 animate-pulse">
+                        {item.deadlineTexto || 'Crítico'}
+                      </span>
+                    ) : (
+                      <span
+                        className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
+                          isEmbarcado
+                            ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                            : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        }`}
+                      >
+                        {item.status.replace('_', ' ')}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Linha 2: BOOKING EM EVIDÊNCIA */}
+                  <div className="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
+                      <Bookmark className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="font-mono">Booking:</span>
+                    </div>
+                    <strong className="text-xs font-mono font-black text-amber-300 tracking-wider">
+                      {item.bookingNumero || item.booking || 'A Definir'}
+                    </strong>
+                  </div>
+
+                  {/* Linha 3: Cliente & Produto / Volume */}
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold text-slate-100 truncate" title={item.clienteFinal}>
                       {item.clienteFinal}
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-slate-400">
-                      <span className="truncate max-w-[160px]">{item.produto}</span>
-                      <span className="font-mono font-bold text-slate-200 shrink-0">
-                        {(item.volumeKg / 1000).toFixed(0)} Ton
+                      <span className="truncate max-w-[210px] text-slate-300">{item.produto}</span>
+                      <span className="font-mono font-bold text-slate-100 shrink-0">
+                        {(item.volumeKg / 1000).toFixed(0)} t{' '}
+                        {item.sacas ? `(${item.sacas.toLocaleString('pt-BR')} sc)` : ''}
                       </span>
                     </div>
                   </div>
 
+                  {/* Linha 4: Logística (Navio, Destino e Contêineres) */}
                   <div className="pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-300">
-                    <div className="truncate max-w-[160px]" title={item.portoDestino}>
-                      Destino: <strong className="text-white">{item.portoDestino}</strong>
+                    <div className="truncate max-w-[220px]" title={`${item.navio} -> ${item.portoDestino}`}>
+                      <span className="text-slate-400">Navio:</span>{' '}
+                      <strong className="text-white">{item.navio}</strong>{' '}
+                      <span className="text-orange-400">➔</span> {item.portoDestino}
                     </div>
 
                     <div className="flex items-center gap-1 font-mono shrink-0 text-slate-400">
-                      <Container className="w-3 h-3 text-slate-400" />
-                      <span>{item.containers} cont.</span>
+                      <Container className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="font-bold text-slate-200">{item.containers} cont.</span>
                     </div>
                   </div>
                 </div>

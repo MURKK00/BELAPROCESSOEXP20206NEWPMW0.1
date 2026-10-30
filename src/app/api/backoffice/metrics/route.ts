@@ -139,6 +139,10 @@ export async function GET() {
     let minima = 5.3080;
     let fonte = 'Chicago Board of Trade (CBOT) · B3 · Banco Central do Brasil (PTAX)';
 
+    let sojaCbot = null;
+    let milhoCbot = null;
+    let curvasHistoricas = null;
+
     try {
       const liveData = await getLiveMarketData();
       if (liveData?.dolarSpot) {
@@ -155,6 +159,15 @@ export async function GET() {
       }
       if (liveData?.fonte) {
         fonte = liveData.fonte;
+      }
+      if (liveData?.curvasHistoricasDolar) {
+        curvasHistoricas = liveData.curvasHistoricasDolar;
+      }
+      if (liveData?.sojaCbot) {
+        sojaCbot = liveData.sojaCbot;
+      }
+      if (liveData?.milhoCbot) {
+        milhoCbot = liveData.milhoCbot;
       }
     } catch (e) {
       console.error('[API /api/backoffice/metrics] Erro ao obter cotação oficial:', e);
@@ -205,10 +218,15 @@ export async function GET() {
         clienteFinal: p.clienteFinal,
         produto: p.produto,
         volumeKg: Number(p.volumeKg || 0),
+        sacas: p.volumeKg ? Math.round(Number(p.volumeKg) / 60) : 0,
         status: p.status,
         navio: p.navio || 'Navio a nomear',
+        armador: p.armador || null,
+        portoOrigem: p.portoOrigem || 'Santos (BRSSZ)',
         portoDestino: p.portoDestino,
         booking: p.bookingNumero || null,
+        bookingNumero: p.bookingNumero || null,
+        incoterm: p.incoterm || 'FOB',
         deadlineEmbarque: p.deadlineEmbarque ? new Date(p.deadlineEmbarque).toLocaleDateString('pt-BR') : null,
         deadlineStatus,
         deadlineDiffHoras,
@@ -266,6 +284,11 @@ export async function GET() {
           margemDolarValor: margemDolarValor.toFixed(4),
           margemDolarPct: margemDolarPct.toFixed(2),
           fonte,
+          curvasHistoricas,
+        },
+        commodities: {
+          sojaCbot,
+          milhoCbot,
         },
         ticker: tickerNegociacoes,
       },
