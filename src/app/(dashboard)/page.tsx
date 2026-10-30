@@ -7,6 +7,8 @@ import { formatNum, formatDateBR } from '@/lib/formatters';
 import { Scale, DollarSign, Clock, Ship, TrendingUp, ArrowRight, Activity, Globe, Container } from 'lucide-react';
 import { LedTickerTape } from '@/components/cotacoes/LedTickerTape';
 
+import { VisaoGeralHeaderActions } from '@/components/dashboard/VisaoGeralHeaderActions';
+
 export default async function DashboardPage() {
   const processos = await prisma.processo.findMany({
     include: {
@@ -124,14 +126,7 @@ export default async function DashboardPage() {
             Acompanhamento executivo de volumes, câmbio e operações em andamento.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/negociacoes/nova"
-            className="inline-flex items-center gap-2 bg-[#f58220] hover:bg-orange-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 transition-all self-start sm:self-auto"
-          >
-            <span>+ Nova Negociação</span>
-          </Link>
-        </div>
+        <VisaoGeralHeaderActions />
       </div>
 
       {/* CARDS SUPERIORES ESTILIZADOS */}

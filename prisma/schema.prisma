@@ -263,8 +263,33 @@ model Processo {
   emailBuyer        String?
   telefoneBuyer     String?
 
+  // --- VÍNCULOS COM CADASTRO CENTRALIZADO & RASTREABILIDADE DO GRÃO ---
+  produtorId          String?
+  produtor            CadastroEntidade? @relation("ProcessoProdutor", fields: [produtorId], references: [id])
+  importadorId        String?
+  importador          CadastroEntidade? @relation("ProcessoImportador", fields: [importadorId], references: [id])
+
+  // Snapshot do Trajeto do Grão & Auditoria de Origem
+  fazendaOrigemNome     String?
+  produtorCarCache      String?
+  produtorIeCache       String?
+  trajetoStatus         String?           @default("FAZENDA") // FAZENDA, SILO_ORIGEM, TRANSBORDO_RODOVIARIO, TERMINAL_PORTUARIO, EMBARCADO_NAVIO, ENTREGUE_DESTINO
+  siloArmazemOrigem     String?
+  armazemCnpj           String?
+  armazemUf             String?
+  armazemCidade         String?
+  armazemEndereco       String?
+  coletaDiretaLavoura   Boolean?          @default(false)
+  armazemId             String?
+  terminalTransbordo    String?
+  laudoClassificacao    String?
+  distanciaRodoviariaKm Int?
+  emissaoCO2EstimadaKg  Decimal?        @db.Decimal(10, 2)
+
   @@index([deadlineEmbarque])
   @@index([statusCache])
+  @@index([produtorId])
+  @@index([importadorId])
 }
 
 // ---------------------------------------------------------------------------
@@ -565,4 +590,67 @@ model NotaFiscalExportacaoItem {
   criadoEm        DateTime    @default(now())
 
   @@unique([notaExportacaoId, notaLoteRedexId])
+}
+
+// ---------------------------------------------------------------------------
+// CENTRAL DE CADASTROS: PRODUTORES, IMPORTADORES & BUYERS
+// ---------------------------------------------------------------------------
+enum TipoEntidadeComercial {
+  PRODUTOR
+  IMPORTADOR
+  BUYER
+  ARMAZEM
+}
+
+model CadastroEntidade {
+  id                String                 @id @default(cuid())
+  tipo              TipoEntidadeComercial  @default(IMPORTADOR)
+  razaoSocial       String
+  nomeFantasia      String?
+  documento         String?                // CNPJ, CPF ou Tax ID
+
+  // Rastreabilidade do Grão & Dados do Produtor Rural
+  inscricaoEstadual String?                // Inscrição Estadual (IE)
+  carNumero         String?                // Cadastro Ambiental Rural (CAR)
+  nomePropriedade   String?                // Fazenda / Gleba de Origem
+  municipio         String?
+  uf                String?
+  coordenadasGps    String?                // Latitude, Longitude (ex: -11.8542, -51.1823)
+  areaTotalHectares Decimal?               @db.Decimal(12, 2)
+  certificacoes     String?                // Ex: RTRS, ProTerra, Não-Transgênico
+  conformidadeSocioambiental Boolean?      @default(true)
+
+  // Dados Comuns & Internacionais (Importador / Buyer)
+  pais              String?                @default("Brasil")
+  cidade            String?
+  endereco          String?
+  complemento       String?
+  codigoPostal      String?
+  email             String?
+  telefone          String?
+  iecTaxId          String?                // IEC (Import Export Code)
+  fassaiId          String?                // FASSAI
+  panId             String?                // PAN
+  gstId             String?                // GST
+
+  // Informações Bancárias do Destino
+  bancoNome         String?
+  bancoEndereco     String?
+  bancoConta        String?
+  bancoSwift        String?
+  bancoEmail        String?
+  bancoTelefone     String?
+
+  observacoes       String?
+  ativo             Boolean                @default(true)
+  criadoEm          DateTime               @default(now())
+  atualizadoEm      DateTime               @updatedAt
+
+  processosComoProdutor   Processo[] @relation("ProcessoProdutor")
+  processosComoImportador Processo[] @relation("ProcessoImportador")
+
+  @@index([tipo])
+  @@index([razaoSocial])
+  @@index([carNumero])
+  @@index([documento])
 }

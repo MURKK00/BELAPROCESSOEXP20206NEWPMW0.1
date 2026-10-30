@@ -11,7 +11,8 @@ import {
   FileSpreadsheet, 
   History,
   Receipt,
-  Sparkles
+  Sparkles,
+  Compass
 } from 'lucide-react';
 
 interface NegociacaoTabsProps {
@@ -30,6 +31,13 @@ export function NegociacaoTabs({ processoId, importadorPendente = false }: Negoc
       tag: 'Cockpit 360',
       icon: LayoutDashboard,
       color: 'text-blue-500' 
+    },
+    { 
+      href: `${base}/rastreabilidade`, 
+      label: 'Rastreabilidade & Trajeto', 
+      tag: 'Origem CAR',
+      icon: Compass,
+      color: 'text-amber-500' 
     },
     { 
       href: `${base}/importador`, 

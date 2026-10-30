@@ -1,93 +1,142 @@
-# Plano de Implementação — Módulo Backoffice TV (Painel de Exibição Contínua)
+# Plano de Implementação: Rastreabilidade do Trajeto do Grão & Central Unificada de Cadastros (Produtores, Importadores e Buyers)
 
-Este plano descreve a criação do módulo **Backoffice TV**, um painel executivo de monitoramento operacional e financeiro em tempo real projetado para espelhamento contínuo em televisores do escritório da Bela Cereais.
-
----
-
-## 1. Visão Geral e Decisões Confirmadas
-
-O módulo fornecerá visibilidade instantânea dos principais indicadores de exportação em uma interface de **modo escuro de alto contraste**, sem ruído visual, com atualização automática a cada **30 segundos** e botão de **Modo TV (Tela Cheia)** que recolhe a navegação para aproveitar 100% da área do monitor.
-
-### Resumo das Decisões de Design e UX:
-- **Estilo Visual**: Modo escuro de alto contraste (`#070B14` e `#0F172A`) com números tabulares em tipografia mono (`tabular-nums font-mono`) legíveis à distância.
-- **Modo Tela Cheia (TV Wallboard)**: Botão no cabeçalho para expandir para tela cheia nativa (`Fullscreen API`) e ocultar elementos colaterais de navegação.
-- **Atualização em Tempo Real**: Polling suave a cada 30 segundos com barra de pulsação discreta indicando funcionamento ativo.
-- **Acesso Dedicado / Perfil TV**: Configuração na matriz de perfis e permissões para permitir usuários com visualização exclusiva de TV.
+Este plano detalha a arquitetura, modelo de dados e componentes de interface para o cadastro unificado de parceiros comerciais e a rastreabilidade intermodal completa do grão na exportação da **Bela Cereais**.
 
 ---
 
-## 2. Arquitetura do Painel e Componentes
+## 1. Visão Geral da Solução
 
+O mecanismo atenderá a três pilares estratégicos:
+1. **Central Unificada de Cadastros na Visão Geral**: Botão de acesso rápido no cabeçalho do dashboard (`/`) abrindo um modal completo e ágil para gerenciar **Produtores Rurais**, **Importadores** e **Buyers (Compradores)**.
+2. **Integração na Aba do Importador (`/negociacoes/[id]/importador`)**: Seletor inteligente para puxar dados cadastrados, atalho direto para cadastrar novos importadores e opção de salvar/editar as informações diretamente no banco de dados.
+3. **Nova Aba: Rastreabilidade & Trajeto do Grão (`/negociacoes/[id]/rastreabilidade`)**: Mapeamento do fluxo intermodal da carga (Fazenda do Produtor com CAR e Inscrição Estadual $\rightarrow$ Silo/Armazém $\rightarrow$ Transbordo $\rightarrow$ Porto de Embarque $\rightarrow$ Porto de Destino Internacional).
+
+---
+
+## 2. Arquitetura de Dados (Prisma & Banco de Dados)
+
+### A. Novo Modelo: `CadastroEntidade`
+Criação de entidade unificada para cadastro comercial e conformidade socioambiental:
+```prisma
+enum TipoEntidadeComercial {
+  PRODUTOR
+  IMPORTADOR
+  BUYER
+}
+
+model CadastroEntidade {
+  id                    String                @id @default(cuid())
+  tipo                  TipoEntidadeComercial @default(PRODUTOR)
+  razaoSocial           String
+  nomeFantasia          String?
+  documentoIdentificacao String?               // CPF ou CNPJ (Brasil) ou Tax ID internacional
+  
+  // Dados de Rastreabilidade Agrícola (Produtor Rural)
+  inscricaoEstadual     String?               // Obrigatório para triangulação e notas fiscais
+  carNumero             String?               // Cadastro Ambiental Rural (conformidade EUDR / rastreabilidade)
+  nomePropriedade       String?               // Ex: Fazenda Bela Vista, Gleba X
+  municipio             String?               // Ex: Confresa, Querência, Sinop
+  uf                    String?               // Ex: MT, GO, TO
+  coordenadasGps        String?               // Lat/Long para georreferenciamento do grão
+  areaHectares          Decimal?              @db.Decimal(10, 2)
+  culturaPrincipal      String?               // Soja, Milho, Gergelim, Feijão, Algodão
+
+  // Dados de Comércio Exterior (Importador / Buyer)
+  pais                  String?               @default("Brasil")
+  endereco              String?
+  complemento           String?
+  bairro                String?
+  cep                   String?
+  cidadeInternacional   String?
+  iecTaxId              String?               // IEC Code (Índia/Ásia)
+  fassaiId              String?               // FASSAI (Alimentos/Índia)
+  panId                 String?               // PAN Card
+  gstId                 String?               // GST Number
+  email                 String?
+  telefone              String?
+  contatoResponsavel    String?
+
+  // Dados Bancários Vinculados (Destino / Liquidação)
+  bancoNome             String?
+  bancoSwift            String?
+  bancoConta            String?
+  bancoEndereco         String?
+
+  ativo                 Boolean               @default(true)
+  observacoes           String?               @db.Text
+  criadoEm              DateTime              @default(now())
+  atualizadoEm          DateTime              @updatedAt
+
+  processosComoProdutor    Processo[]         @relation("ProcessoProdutor")
+  processosComoImportador  Processo[]         @relation("ProcessoImportador")
+}
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        BACKOFFICE TV WALLBOARD                         │
-├────────────────────────────────────────────────────────────────────────┤
-│ 1. BARRA SUPERIOR: Relógios Mundiais com Bandeiras                     │
-│    🇧🇷 Santos/Sinop  🇺🇸 Chicago  🇦🇪 Dubai  🇧🇩 Dhaka  🇨🇳 Dalian/Xangai  │
-├────────────────────────────────────────────────────────────────────────┤
-│ 2. FAIXA DE CÂMBIO & MARGEM AO VIVO                                    │
-│    Dólar Comercial (PTAX) │ Dólar Spot Live │ Margem Cambial Estimada  │
-├────────────────────────────────────────────────────────────────────────┤
-│ 3. CARDS DE IMPACTO OPERACIONAL (KPIs)                                 │
-│  ┌──────────────────┐ ┌──────────────────┐ ┌─────────────────────────┐ │
-│  │ PRÓXIMO DEADLINE │ │  NEGOCIAÇÕES EM  │ │  NOTAS SEM AVERBAÇÃO   │ │
-│  │    DE EMBARQUE   │ │     EXECUÇÃO     │ │   Total s/ averbação    │ │
-│  │ Navio / Porto    │ │  Volume Total kg │ │  ⚠ Carga já embarcada  │ │
-│  │ Regressiva 2d 4h │ │  Contêineres     │ │     (Risco Fiscal)     │ │
-│  └──────────────────┘ └──────────────────┘ └─────────────────────────┘ │
-├────────────────────────────────────────────────────────────────────────┤
-│ 4. LISTA DE NEGOCIAÇÕES EM AUTO-SCROLL (PARTE INFERIOR)                │
-│    Rolagem lenta e contínua em loop com Contrato, Cliente, Volume,     │
-│    Status Operacional, Navio e Contêineres Estufados                   │
-└────────────────────────────────────────────────────────────────────────┘
-```
+
+### B. Vínculo no Modelo `Processo` (Negociação)
+Adição de chaves e campos de trajeto no modelo `Processo`:
+- `produtorId`: String? (relacionamento com `CadastroEntidade`)
+- `importadorId`: String? (relacionamento com `CadastroEntidade`)
+- `fazendaOrigemNome`: String? (cache rápido)
+- `produtorCarCache`: String? (cache do CAR)
+- `produtorIeCache`: String? (cache da Inscrição Estadual)
+- `trajetoStatus`: String? (`FAZENDA`, `SILO_ARMAZEM`, `TRANSBORDO_FERROVIA`, `TERMINAL_REDEX`, `PORTO_EMBARCADO`)
+- `siloArmazemOrigem`: String? (ex: Silo Bela Cereais Confresa)
+- `terminalTransbordo`: String? (ex: Pátio VLI Palmeirante / Rumo Rondonópolis)
 
 ---
 
-## 3. Especificação das Mudanças
+## 3. Componentes e Telas
 
-### A. Navegação Lateral e Permissões
-1. **`src/components/Sidebar.tsx`**:
-   - Adicionar o item **"Backoffice"** logo abaixo de **"Cotações Mercado"** e antes de **"Painel Admin"**.
-   - Ícone representativo (`Tv2` ou `MonitorPlay` do `lucide-react`) com badge `TV 4K` ou `WALLBOARD`.
-2. **`src/lib/permissions.ts`**:
-   - Criar permissão/helper `canAccessBackoffice(user)` e suporte ao perfil `BACKOFFICE_TV` para restringir ou liberar contas dedicadas de TV.
+### A. Central de Cadastros na "Visão Geral" (`/src/app/(dashboard)/page.tsx`)
+- **Botão "Cadastros"**: Localizado no cabeçalho superior direito da Visão Geral ao lado de `+ Nova Negociação`.
+- **Modal Unificado (`CentralCadastrosModal.tsx`)**:
+  - Segmented Switcher no topo: `[ 🌾 Produtor Rural ] [ 🏢 Importador ] [ 🌐 Buyer ]`.
+  - Barra de busca rápida com filtro por nome, CPF/CNPJ, CAR ou Tax ID.
+  - Tabela resumida dos registros ativos com botões para Editar e Criar Novo.
+  - Formulário dinâmico em 2 colunas com validações adequadas para cada perfil:
+    - *Produtor*: Razão Social, CNPJ/CPF, Inscrição Estadual, CAR da Propriedade, Nome da Fazenda, Município/UF, Área.
+    - *Importador/Buyer*: Razão Social, País, Endereço, IEC, FASSAI, PAN, GST, E-mail, Telefone, Banco e SWIFT.
 
-### B. Endpoint de Telemetria Consolidada (`/api/backoffice/metrics`)
-1. **`src/app/api/backoffice/metrics/route.ts`**:
-   - Retorna payload único otimizado para TV:
-     - **Próximo Deadline**: busca negociações ativas com menor `deadlineEmbarque` ou `deadlineCarga`, calculando tempo restante.
-     - **Contagem por Status**: negociações em execução (`EM_EXECUCAO`, `EM_NEGOCIACAO`), embarcadas (`EMBARCADO`, `FINALIZADO`), volume consolidado.
-     - **Auditoria Fiscal Crítica**:
-       - Total de NFs de exportação (Etapa 4) com `statusAverbacao !== 'AVERBADA'`.
-       - Quantidade crítica: NFs sem averbação cujo processo pai já tem status `EMBARCADO`.
-     - **Cotações e Câmbio**: Dólar comercial, PTAX oficial, variação diária e spread/margem de segurança.
-     - **Lista Completa de Processos**: com progresso de checklist e contêineres para o ticker inferior.
+### B. Integração e Sincronização na Aba do Importador (`ImportadorCard.tsx`)
+- **Seletor de Importador Cadastrado**:
+  - Dropdown inteligente no topo do card com pesquisa por nome ou país.
+  - Ao selecionar, preenche automaticamente todos os dados (`clienteFinal`, endereço, país, IEC, FASSAI, dados bancários).
+- **Atalho Rápido "+ Novo Importador"**:
+  - Abre modal direto sem sair do fluxo da negociação.
+- **Botão de Salvamento Duplo**:
+  - Permite salvar apenas na negociação ou salvar e sincronizar a alteração no cadastro geral da entidade.
 
-### C. Página Principal do Backoffice TV (`/src/app/(dashboard)/backoffice/page.tsx`)
-1. **Header do Painel**:
-   - Identificação corporativa "Bela Cereais | Backoffice Cockpit TV".
-   - Status de conexão ao vivo com indicador de auto-refresh de 30s.
-   - Botão **Modo TV (Expandir)** para ocultar cabeçalhos e ativar tela cheia.
-2. **Faixa de Relógios Mundiais**:
-   - Horários sincronizados para centros chave: Brasil (GMT-3), Estados Unidos/CBOT (GMT-5), Emirados Árabes (GMT+4), Bangladesh (GMT+6) e China (GMT+8).
-3. **Bloco de Câmbio & Margem Dólar**:
-   - Cotação Spot, PTAX oficial do Banco Central, Spread operacional da trading.
-4. **Cards de Acompanhamento Operacional**:
-   - **Próximo Deadline**: Destaque com alerta visual âmbar/vermelho se estiver a menos de 48h.
-   - **Em Execução vs. Embarcadas**: Métricas consolidadas de sacas, toneladas e contêineres.
-   - **Alerta de Averbação SEFAZ**: Alerta visual das NFs de exportação pendentes e embarcadas.
-5. **Ticker / Carrossel Inferior com Rolagem Automática (Auto-Scroll)**:
-   - Lista animada suavemente (CSS keyframe ou animação controlada por intervalo) exibindo os processos em andamento.
-   - Pausa sob interação do mouse e retoma automaticamente para a TV.
+### C. Nova Aba: "Rastreabilidade & Trajeto do Grão" (`/negociacoes/[id]/rastreabilidade`)
+- Inserida na navegação de abas (`NegociacaoTabs.tsx`) com ícone de rota.
+- **Mapeamento Visual do Trajeto Intermodal do Grão**:
+  - **Etapa 1 - Origem na Fazenda (Produtor Rural)**:
+    - Card com Produtor vinculado, Inscrição Estadual e **CAR (Cadastro Ambiental Rural)** com badge de conformidade.
+    - Localização geográfica (Município, UF, Coordenadas GPS).
+  - **Etapa 2 - Armazenagem & Classificação**:
+    - Silo / Armazém de consolidação e dados de umidade/impureza da safra.
+  - **Etapa 3 - Transporte & Transbordo**:
+    - Modal rodoviário até transbordo ferroviário (Rumo/VLI) ou direto ao Porto.
+  - **Etapa 4 - Porto de Embarque & Estufagem**:
+    - Terminal Portuário (Santos, Paranaguá, Barcarena), armador e contêineres vinculados.
+  - **Etapa 5 - Travessia Marítima & Destino Final**:
+    - Navio, Porto de Destino e Importador/Buyer consignatário.
 
 ---
 
-## 4. Plano de Verificação e Testes
+## 4. APIs e Server Actions
 
-- [ ] **Compilação e Tipagem**: Executar `compile_applet` para garantir que todas as rotas e tipos TypeScript compilam sem erro.
-- [ ] **Validação de ESLint**: Executar `lint_applet` para certificar ausência de advertências ou dependências faltantes em hooks.
-- [ ] **Comportamento TV**:
-  - Testar botão de tela cheia e retração de navegação.
-  - Verificar temporizador de 30 segundos e atualização de dados sem recarregar a página.
-  - Testar loop suave do auto-scroll na parte inferior.
+- `/api/cadastros`: Endpoints REST (`GET`, `POST`, `PUT`, `DELETE`) para o CRUD unificado de parceiros.
+- `/api/negociacoes/[id]/rastreabilidade`: Endpoint para vincular e atualizar dados de trajeto e produtor da negociação.
+- `src/server/actions/cadastrosActions.ts`: Server Actions para criar e atualizar parceiros diretamente via formulários do Next.js 15.
+
+---
+
+## 5. Sequência de Execução
+
+1. **Prisma Schema & Migração**: Adicionar `CadastroEntidade` e as relações no `Processo`. Executar `prisma generate` e `prisma db push`.
+2. **Seeds & Mock Data Inicial**: Alimentar alguns produtores rurais (com CAR e IE de MT/TO) e importadores conhecidos para teste imediato.
+3. **APIs e Server Actions**: Criar `cadastrosActions.ts` e `/api/cadastros/route.ts`.
+4. **Interface da Central de Cadastros**: Criar `CentralCadastrosModal.tsx` e integrar o botão na Visão Geral (`page.tsx`).
+5. **Aprimoramento da Aba Importador**: Atualizar `ImportadorCard.tsx` com o seletor de cadastrados e atalho de novo cadastro.
+6. **Implementação da Aba Rastreabilidade**: Criar a rota `/negociacoes/[id]/rastreabilidade` e o componente de trajeto intermodal.
+7. **Verificação & Testes**: Executar `lint_applet` e `compile_applet`, validando o fluxo completo de cadastro, vinculação e exibição do trajeto.

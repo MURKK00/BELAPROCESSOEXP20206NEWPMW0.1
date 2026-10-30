@@ -28,6 +28,12 @@ function matchesWhere(item: any, where?: Record<string, any>): boolean {
     if (key === 'statusAverbacao' && item.statusAverbacao !== val) return false;
     if (key === 'statusSefaz' && item.statusSefaz !== val) return false;
     if (key === 'chaveAcesso' && item.chaveAcesso !== val) return false;
+    if (key === 'tipo' && item.tipo !== val) return false;
+    if (key === 'ativo' && item.ativo !== val) return false;
+    if (key === 'carNumero' && item.carNumero !== val) return false;
+    if (key === 'produtorId' && item.produtorId !== val) return false;
+    if (key === 'importadorId' && item.importadorId !== val) return false;
+    if (key === 'razaoSocial' && !String(item.razaoSocial || '').toLowerCase().includes(String(val).toLowerCase())) return false;
     if (key === 'financeiroId_categoria') {
       if (item.financeiroId !== val.financeiroId || item.categoria !== val.categoria) return false;
     }
@@ -181,6 +187,14 @@ function resolveProcessoIncludes(processo: any, include?: Record<string, any>) {
   if (include.notasFiscais) {
     let nfs = store.notasFiscais.filter((n) => n.processoId === processo.id);
     copy.notasFiscais = nfs.map((nf) => resolveNotaFiscalIncludes(nf, typeof include.notasFiscais === 'object' ? include.notasFiscais.include : undefined));
+  }
+
+  if (include.produtor) {
+    copy.produtor = (store.cadastroEntidades || []).find((e: any) => e.id === processo.produtorId) ?? null;
+  }
+
+  if (include.importador) {
+    copy.importador = (store.cadastroEntidades || []).find((e: any) => e.id === processo.importadorId) ?? null;
   }
 
   return copy;
@@ -823,6 +837,55 @@ export function createMockPrismaClient() {
         store.notasFiscaisExportacaoItens = store.notasFiscaisExportacaoItens.filter((it) => !matchesWhere(it, where));
         return { count: initialLen - store.notasFiscaisExportacaoItens.length };
       },
+    },
+
+    cadastroEntidade: {
+      findMany: async (args: any = {}) => {
+        let list = (store.cadastroEntidades || []).filter((e: any) => matchesWhere(e, args.where));
+        if (args.orderBy?.razaoSocial === 'asc') {
+          list = [...list].sort((a: any, b: any) => (a.razaoSocial || '').localeCompare(b.razaoSocial || ''));
+        } else if (args.orderBy?.criadoEm === 'desc') {
+          list = [...list].sort((a: any, b: any) => new Date(b.criadoEm || 0).getTime() - new Date(a.criadoEm || 0).getTime());
+        }
+        if (args.take) list = list.slice(0, args.take);
+        return list.map(ensureDates);
+      },
+      findUnique: async ({ where }: any) => {
+        const item = (store.cadastroEntidades || []).find((e: any) => matchesWhere(e, where));
+        return item ? ensureDates({ ...item }) : null;
+      },
+      findFirst: async ({ where }: any) => {
+        const item = (store.cadastroEntidades || []).find((e: any) => matchesWhere(e, where));
+        return item ? ensureDates({ ...item }) : null;
+      },
+      create: async ({ data }: any) => {
+        const id = data.id || `ent_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const newItem = {
+          id,
+          ...data,
+          ativo: data.ativo ?? true,
+          criadoEm: new Date(),
+          atualizadoEm: new Date(),
+        };
+        if (!store.cadastroEntidades) store.cadastroEntidades = [];
+        store.cadastroEntidades.push(newItem);
+        return ensureDates({ ...newItem });
+      },
+      update: async ({ where, data }: any) => {
+        const item = (store.cadastroEntidades || []).find((e: any) => matchesWhere(e, where));
+        if (!item) throw new Error('Entidade não encontrada');
+        Object.assign(item, data, { atualizadoEm: new Date() });
+        return ensureDates({ ...item });
+      },
+      delete: async ({ where }: any) => {
+        const idx = (store.cadastroEntidades || []).findIndex((e: any) => matchesWhere(e, where));
+        if (idx !== -1) {
+          const [deleted] = store.cadastroEntidades.splice(idx, 1);
+          return deleted;
+        }
+        return {};
+      },
+      count: async (args: any = {}) => (store.cadastroEntidades || []).filter((e: any) => matchesWhere(e, args.where)).length,
     },
 
     $transaction: async (arg: any) => {

@@ -3,6 +3,7 @@ import path from 'path';
 import { Fase, TipoParceiro, CategoriaDocumento, Papel, CategoriaCusto, StatusNegociacao } from '@prisma/client';
 import { CHECKLIST_ETAPAS, TIPOS_DOCUMENTO_CHECKLIST } from '../../prisma/checklistData';
 import { getDemoNotasFiscaisData } from './demoNotasFiscaisData';
+import { getDemoCadastrosData } from './demoCadastrosData';
 
 export interface MockStore {
   isDemoMode?: boolean;
@@ -22,6 +23,7 @@ export interface MockStore {
   notasFiscais: any[];
   notasFiscaisRetorno: any[];
   notasFiscaisExportacaoItens: any[];
+  cadastroEntidades: any[];
 }
 
 const STORAGE_FILE_PATH = path.join(process.cwd(), 'prisma', 'dev-store.json');
@@ -33,6 +35,65 @@ function initMockStore(): MockStore {
       const raw = fs.readFileSync(STORAGE_FILE_PATH, 'utf-8');
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.processos)) {
+        // Garantir inicialização de cadastroEntidades caso ausente no json salvo
+        if (!Array.isArray(parsed.cadastroEntidades) || parsed.cadastroEntidades.length === 0) {
+          parsed.cadastroEntidades = getDemoCadastrosData();
+          try {
+            fs.writeFileSync(STORAGE_FILE_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
+          } catch {}
+        }
+
+        // Migração de dados de rastreabilidade para processos de exemplo
+        if (Array.isArray(parsed.processos)) {
+          let processoMudou = false;
+          for (const p of parsed.processos) {
+            if (p.numeroProcesso === 'BC26-005' && !p.produtorCarCache) {
+              p.produtorId = 'ent_prod_1';
+              p.importadorId = 'ent_imp_1';
+              p.fazendaOrigemNome = 'Fazenda Santa Maria - Gleba Araguaia';
+              p.produtorCarCache = 'MT-5103007-6B18.C94A.5D12.44A8.B268.31E0.8921';
+              p.produtorIeCache = '13.456.789-0';
+              p.trajetoStatus = 'TERMINAL_PORTUARIO';
+              p.siloArmazemOrigem = 'Silo Grãos Araguaia - Confresa/MT';
+              p.terminalTransbordo = 'Terminal Ferroviário Rondonópolis / Rumo';
+              p.laudoClassificacao = 'Milho Pipoca Butterfly Especial - Umidade 13.2% - Pureza 99.4%';
+              p.distanciaRodoviariaKm = 1680;
+              p.emissaoCO2EstimadaKg = 2150.0;
+              processoMudou = true;
+            } else if (p.numeroProcesso === 'BC26-002' && !p.produtorCarCache) {
+              p.produtorId = 'ent_prod_2';
+              p.importadorId = 'ent_imp_2';
+              p.fazendaOrigemNome = 'Fazenda Primavera - Talhão Safra Sul';
+              p.produtorCarCache = 'MT-5107909-7C29.D81B.4E31.89C1.A119.55F2.4401';
+              p.produtorIeCache = '13.987.654-2';
+              p.trajetoStatus = 'EMBARCADO_NAVIO';
+              p.siloArmazemOrigem = 'Armazém Grãos Sinop Central';
+              p.terminalTransbordo = 'Terminal Multimodal Santos BTP';
+              p.laudoClassificacao = 'Soja Não-Transgênica (IP Non-GMO) - Umidade 12.5%';
+              p.distanciaRodoviariaKm = 2140;
+              p.emissaoCO2EstimadaKg = 3420.0;
+              processoMudou = true;
+            } else if (p.numeroProcesso === 'BC26-001' && !p.produtorCarCache) {
+              p.produtorId = 'ent_prod_3';
+              p.importadorId = 'ent_buy_1';
+              p.fazendaOrigemNome = 'Fazenda Vale Verde - Módulo Cerrado';
+              p.produtorCarCache = 'TO-1718204-1A99.88F0.22D3.77E1.C810.9902.1147';
+              p.produtorIeCache = '29.384.102-8';
+              p.trajetoStatus = 'TRANSBORDO_RODOVIARIO';
+              p.siloArmazemOrigem = 'Silo Grãos Palmas';
+              p.terminalTransbordo = 'Pátio Integrado Porto Franco / VLI';
+              p.laudoClassificacao = 'Feijão Preto Tipo Extra - Safra 2026';
+              p.distanciaRodoviariaKm = 1120;
+              p.emissaoCO2EstimadaKg = 1890.0;
+              processoMudou = true;
+            }
+          }
+          if (processoMudou) {
+            try {
+              fs.writeFileSync(STORAGE_FILE_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
+            } catch {}
+          }
+        }
         // Migração de campos novos em usuários (username e primeiroAcesso)
         if (Array.isArray(parsed.usuarios)) {
           let mudou = false;
@@ -128,6 +189,7 @@ function initMockStore(): MockStore {
     notasFiscais: [],
     notasFiscaisRetorno: [],
     notasFiscaisExportacaoItens: [],
+    cadastroEntidades: getDemoCadastrosData(),
   };
 
   // Tipos de documento base
@@ -226,6 +288,9 @@ export function getMockStore(): MockStore {
   if (!Array.isArray(globalStore.notasFiscais)) globalStore.notasFiscais = [];
   if (!Array.isArray(globalStore.notasFiscaisRetorno)) globalStore.notasFiscaisRetorno = [];
   if (!Array.isArray(globalStore.notasFiscaisExportacaoItens)) globalStore.notasFiscaisExportacaoItens = [];
+  if (!Array.isArray(globalStore.cadastroEntidades) || globalStore.cadastroEntidades.length === 0) {
+    globalStore.cadastroEntidades = getDemoCadastrosData();
+  }
 
   // Se o sistema está em modo demonstração (ou com processos de exemplo) e ainda não tem notas fiscais, injeta os dados de exemplo
   if (
@@ -264,6 +329,7 @@ export function resetMockStore(): void {
   globalStore.notasFiscais = [];
   globalStore.notasFiscaisRetorno = [];
   globalStore.notasFiscaisExportacaoItens = [];
+  globalStore.cadastroEntidades = getDemoCadastrosData();
   saveMockStoreToFile(globalStore);
 }
 
@@ -286,6 +352,9 @@ export function enableDemoMode(): void {
         globalStore.documentos = demoData.documentos || [];
         globalStore.chatMessages = demoData.chatMessages || [];
         globalStore.auditLogs = demoData.auditLogs || [];
+        globalStore.cadastroEntidades = Array.isArray(demoData.cadastroEntidades) && demoData.cadastroEntidades.length > 0
+          ? demoData.cadastroEntidades
+          : getDemoCadastrosData();
         
         // Carrega notas fiscais de exemplo
         globalStore.notasFiscais = (Array.isArray(demoData.notasFiscais) && demoData.notasFiscais.length > 0)

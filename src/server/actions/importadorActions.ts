@@ -132,7 +132,11 @@ export async function atualizarImportadorAction(formData: FormData) {
     }
   );
 
-  const novosDados = {
+  const importadorId = (formData.get('importadorId') as string) || null;
+  const clienteFinalForm = (formData.get('clienteFinal') as string) || (formData.get('importadorNome') as string) || null;
+  const sincronizarCatalogo = formData.get('sincronizarCatalogo') === 'true';
+
+  const novosDados: any = {
     enderecoBuyer: (formData.get('enderecoBuyer') as string) || null,
     complementoBuyer: complementoFinal || null,
     cidadeBuyer: (formData.get('cidadeBuyer') as string) || null,
@@ -145,6 +149,13 @@ export async function atualizarImportadorAction(formData: FormData) {
     telefoneBuyer: (formData.get('telefoneBuyer') as string) || null,
   };
 
+  if (importadorId) {
+    novosDados.importadorId = importadorId;
+  }
+  if (clienteFinalForm && !compradorDiferente) {
+    novosDados.clienteFinal = clienteFinalForm;
+  }
+
   const alteracoes = calcularAlteracoesCampos(processoAntigo, novosDados);
 
   // Atualiza os dados no banco usando as variáveis exatas do nosso schema.prisma
@@ -152,6 +163,51 @@ export async function atualizarImportadorAction(formData: FormData) {
     where: { id: processoId },
     data: novosDados,
   });
+
+  // Se solicitado ou se importadorId estiver ativo, sincroniza/atualiza o catálogo central
+  if (sincronizarCatalogo || importadorId) {
+    try {
+      const nomeEntidade = clienteFinalForm || processoAntigo.clienteFinal;
+      const targetId = importadorId || undefined;
+      const entidadeData = {
+        razaoSocial: nomeEntidade,
+        pais: novosDados.paisBuyer || 'Exterior',
+        cidade: novosDados.cidadeBuyer,
+        endereco: novosDados.enderecoBuyer,
+        complemento: complementoBase,
+        email: novosDados.emailBuyer,
+        telefone: novosDados.telefoneBuyer,
+        iecTaxId: novosDados.iecBuyer,
+        fassaiId: novosDados.fassaiBuyer,
+        panId: novosDados.panBuyer,
+        gstId: novosDados.gstBuyer,
+        bancoNome: bancoNome || null,
+        bancoEndereco: bancoEndereco || null,
+        bancoConta: bancoConta || null,
+        bancoSwift: bancoSwift ? bancoSwift.toUpperCase() : null,
+        bancoEmail: bancoEmail || null,
+        bancoTelefone: bancoTelefone || null,
+        tipo: 'IMPORTADOR' as const,
+      };
+
+      if (targetId) {
+        await prisma.cadastroEntidade.update({
+          where: { id: targetId },
+          data: entidadeData,
+        });
+      } else {
+        const novaEnt = await prisma.cadastroEntidade.create({
+          data: entidadeData,
+        });
+        await prisma.processo.update({
+          where: { id: processoId },
+          data: { importadorId: novaEnt.id },
+        });
+      }
+    } catch (e) {
+      console.warn('[atualizarImportadorAction] Sincronização central falhou não-bloqueante:', e);
+    }
+  }
 
   if (Object.keys(alteracoes).length > 0) {
     await registrarLogAuditoria({

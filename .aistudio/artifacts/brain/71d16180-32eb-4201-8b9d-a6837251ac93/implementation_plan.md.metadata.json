@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de implementação do módulo 'Backoffice TV' para exibição contínua em televisores corporativos da Bela Cereais, com métricas de deadlines, triangulação fiscal sem averbação, câmbio ao vivo, relógios mundiais e ticker de negociações em rolagem automática.",
-  "updatedAt":  "2026-10-29T19:38:28.363169245Z",
+  "summary":  "Plano detalhado de arquitetura e implementação da Central Unificada de Cadastros (Produtores com CAR/IE, Importadores e Buyers) na Visão Geral, integração direta na aba de Importador com sincronização e nova aba de Rastreabilidade e Mapeamento do Trajeto do Grão nas negociações.",
+  "updatedAt":  "2026-10-30T19:24:39.765259970Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

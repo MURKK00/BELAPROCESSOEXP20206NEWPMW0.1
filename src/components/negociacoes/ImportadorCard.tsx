@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { atualizarImportadorAction, toggleCompradorDiferenteAction } from '@/server/actions/importadorActions';
 import type { Processo } from '@prisma/client';
 import { parseCompradorInfo } from '@/lib/compradorHelper';
@@ -26,9 +26,11 @@ import {
   FileSpreadsheet,
   Search,
   Sparkles,
-  X
+  X,
+  Plus
 } from 'lucide-react';
 import { buscarBancos, DIRETORIO_BANCOS, type BancoInfo } from '@/lib/bancosDiretorio';
+import { CentralCadastrosModal } from '@/components/cadastros/CentralCadastrosModal';
 
 interface ImportadorCardProps {
   processo: Processo;
@@ -41,8 +43,27 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
   const [salvandoToggle, setSalvandoToggle] = useState(false);
   const [toggleMsg, setToggleMsg] = useState<string | null>(null);
 
+  // Vínculo com a Central de Cadastros de Importadores / Buyers
+  const [selectedImportadorId, setSelectedImportadorId] = useState<string>((processo as any).importadorId || '');
+  const [listaImportadores, setListaImportadores] = useState<any[]>([]);
+  const [modalImportadorAberto, setModalImportadorAberto] = useState(false);
+  const [sincronizarCatalogo, setSincronizarCatalogo] = useState(true);
+
   // Extrai informações salvas de Comprador e Banco de Destino
   const { complementoLimpo, comprador, bancoComprador } = parseCompradorInfo(processo.complementoBuyer);
+
+  // Estados dos campos do Importador / Consignee
+  const [clienteFinalVal, setClienteFinalVal] = useState(processo.clienteFinal || '');
+  const [enderecoBuyerVal, setEnderecoBuyerVal] = useState(processo.enderecoBuyer || '');
+  const [complementoBuyerVal, setComplementoBuyerVal] = useState(complementoLimpo || '');
+  const [cidadeBuyerVal, setCidadeBuyerVal] = useState(processo.cidadeBuyer || '');
+  const [paisBuyerVal, setPaisBuyerVal] = useState(processo.paisBuyer || '');
+  const [iecBuyerVal, setIecBuyerVal] = useState(processo.iecBuyer || '');
+  const [fassaiBuyerVal, setFassaiBuyerVal] = useState(processo.fassaiBuyer || '');
+  const [panBuyerVal, setPanBuyerVal] = useState(processo.panBuyer || '');
+  const [gstBuyerVal, setGstBuyerVal] = useState(processo.gstBuyer || '');
+  const [emailBuyerVal, setEmailBuyerVal] = useState(processo.emailBuyer || '');
+  const [telefoneBuyerVal, setTelefoneBuyerVal] = useState(processo.telefoneBuyer || '');
 
   // Controle se o comprador é diferente do importador
   const [compradorDiferente, setCompradorDiferente] = useState<boolean>(comprador.diferente);
@@ -56,6 +77,68 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
   const [compradorTaxId, setCompradorTaxId] = useState(comprador.taxId || '');
   const [compradorEmail, setCompradorEmail] = useState(comprador.email || '');
   const [compradorTelefone, setCompradorTelefone] = useState(comprador.telefone || '');
+
+  useEffect(() => {
+    carregarImportadores();
+  }, []);
+
+  async function carregarImportadores() {
+    try {
+      const res = await fetch('/api/cadastros');
+      if (res.ok) {
+        const data = await res.json();
+        const apenasInternacionais = (Array.isArray(data) ? data : []).filter(
+          (e: any) => e.tipo === 'IMPORTADOR' || e.tipo === 'BUYER'
+        );
+        setListaImportadores(apenasInternacionais);
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar lista de importadores:', e);
+    }
+  }
+
+  function handleSelecionarImportador(entidadeId: string) {
+    setSelectedImportadorId(entidadeId);
+    const ent = listaImportadores.find((item) => item.id === entidadeId);
+    if (!ent) return;
+
+    setClienteFinalVal(ent.razaoSocial);
+    setImportadorNome(ent.razaoSocial);
+    if (ent.endereco) setEnderecoBuyerVal(ent.endereco);
+    if (ent.complemento) setComplementoBuyerVal(ent.complemento);
+    if (ent.cidade) setCidadeBuyerVal(ent.cidade);
+    if (ent.pais) setPaisBuyerVal(ent.pais);
+    if (ent.iecTaxId) setIecBuyerVal(ent.iecTaxId);
+    if (ent.fassaiId) setFassaiBuyerVal(ent.fassaiId);
+    if (ent.panId) setPanBuyerVal(ent.panId);
+    if (ent.gstId) setGstBuyerVal(ent.gstId);
+    if (ent.email) setEmailBuyerVal(ent.email);
+    if (ent.telefone) setTelefoneBuyerVal(ent.telefone);
+
+    if (ent.bancoNome) setBancoNome(ent.bancoNome);
+    if (ent.bancoEndereco) setBancoEndereco(ent.bancoEndereco);
+    if (ent.bancoConta) setBancoConta(ent.bancoConta);
+    if (ent.bancoSwift) setBancoSwift(ent.bancoSwift);
+    if (ent.bancoEmail) setBancoEmail(ent.bancoEmail);
+    if (ent.bancoTelefone) setBancoTelefone(ent.bancoTelefone);
+
+    if (ent.tipo === 'BUYER' && !compradorDiferente) {
+      setCompradorDiferente(true);
+      setCompradorNome(ent.razaoSocial);
+      if (ent.endereco) setCompradorEndereco(ent.endereco);
+      if (ent.cidade) setCompradorCidade(ent.cidade);
+      if (ent.pais) setCompradorPais(ent.pais);
+      if (ent.iecTaxId) setCompradorTaxId(ent.iecTaxId);
+      if (ent.email) setCompradorEmail(ent.email);
+      if (ent.telefone) setCompradorTelefone(ent.telefone);
+    }
+  }
+
+  function handleImportadorCriadoModal(novaEnt: any) {
+    carregarImportadores().then(() => {
+      handleSelecionarImportador(novaEnt.id);
+    });
+  }
 
   // Estado dos Dados do Banco de Destino (Comprador)
   const [bancoNome, setBancoNome] = useState(bancoComprador.nomeBanco || '');
@@ -465,6 +548,50 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <input type="hidden" name="compradorDiferente" value={compradorDiferente ? 'true' : 'false'} />
+        <input type="hidden" name="importadorId" value={selectedImportadorId} />
+        <input type="hidden" name="sincronizarCatalogo" value={sincronizarCatalogo ? 'true' : 'false'} />
+        <input type="hidden" name="clienteFinal" value={clienteFinalVal} />
+
+        {/* BARRA DE VÍNCULO RÁPIDO COM A CENTRAL DE CADASTROS */}
+        <div className="bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-transparent border border-purple-500/20 dark:border-purple-500/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-400 shrink-0">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-xs font-black text-slate-900 dark:text-white block">
+                Vincular Importador / Buyer Cadastrado
+              </span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                Selecione um parceiro internacional pré-cadastrado ou adicione um novo diretamente.
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <select
+              value={selectedImportadorId}
+              onChange={(e) => handleSelecionarImportador(e.target.value)}
+              className="px-3 py-2 text-xs rounded-xl border border-purple-300 dark:border-purple-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500/30 outline-none max-w-xs font-semibold cursor-pointer"
+            >
+              <option value="">— Selecionar Parceiro da Base —</option>
+              {listaImportadores.map((imp) => (
+                <option key={imp.id} value={imp.id}>
+                  {imp.razaoSocial} ({imp.pais || 'Exterior'})
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setModalImportadorAberto(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer whitespace-nowrap"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Novo Importador</span>
+            </button>
+          </div>
+        </div>
 
         {/* ============================================================== */}
         {/* CARD 1: DADOS DO IMPORTADOR (CONSIGNEE NO DESTINO) */}
@@ -508,20 +635,24 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
               <div className="relative">
                 <input 
                   type="text" 
-                  value={processo.clienteFinal}
-                  disabled
-                  className="w-full bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-sm font-semibold cursor-not-allowed shadow-2xs" 
-                  title="Comprador e Importador unificados"
+                  name="clienteFinal"
+                  value={clienteFinalVal}
+                  onChange={(e) => {
+                    setClienteFinalVal(e.target.value);
+                    setImportadorNome(e.target.value);
+                  }}
+                  className="w-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-semibold focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none shadow-2xs" 
+                  title="Comprador e Importador unificados - editável"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                  Unificado ao Comprador
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                  Unificado / Editável
                 </span>
               </div>
             )}
             <span className="text-[11px] text-slate-400 mt-1 block">
               {compradorDiferente 
                 ? 'Nome que constará no Bill of Lading (BL) e Certificado Fitossanitário.'
-                : 'Nome registrado na abertura. Para alterar a razão social quando unificados, atualize os dados gerais do processo.'}
+                : 'Nome registrado no processo. As alterações serão salvas diretamente na base de dados.'}
             </span>
           </div>
 
@@ -541,7 +672,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   type="text" 
                   name="enderecoBuyer" 
                   required
-                  defaultValue={processo.enderecoBuyer || ''} 
+                  value={enderecoBuyerVal}
+                  onChange={(e) => setEnderecoBuyerVal(e.target.value)}
                   className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
                   placeholder="Ex: 123 Industrial Area, Phase 2, GIDC" 
                 />
@@ -566,7 +698,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   type="text" 
                   name="complementoBuyer" 
                   disabled={naoTemComplemento}
-                  defaultValue={naoTemComplemento ? '' : complementoLimpo} 
+                  value={naoTemComplemento ? '' : complementoBuyerVal}
+                  onChange={(e) => setComplementoBuyerVal(e.target.value)}
                   className={`w-full border rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all font-medium ${
                     naoTemComplemento 
                       ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' 
@@ -584,7 +717,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   type="text" 
                   name="cidadeBuyer" 
                   required
-                  defaultValue={processo.cidadeBuyer || ''} 
+                  value={cidadeBuyerVal}
+                  onChange={(e) => setCidadeBuyerVal(e.target.value)}
                   className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
                   placeholder="Ex: Gandhidham / Gujarat / Rotterdam" 
                 />
@@ -598,7 +732,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   type="text" 
                   name="paisBuyer" 
                   required
-                  defaultValue={processo.paisBuyer || ''} 
+                  value={paisBuyerVal}
+                  onChange={(e) => setPaisBuyerVal(e.target.value)}
                   className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
                   placeholder="Ex: India, PIN 370201 / Netherlands, 3011" 
                 />
@@ -633,7 +768,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                 <input 
                   type="text" 
                   name="iecBuyer" 
-                  defaultValue={processo.iecBuyer || ''} 
+                  value={iecBuyerVal}
+                  onChange={(e) => setIecBuyerVal(e.target.value)}
                   className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-semibold focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none uppercase transition-all shadow-2xs" 
                   placeholder={labelsRegiao.docPrincipalPlaceholder}
                   title={labelsRegiao.docPrincipalHint}
@@ -660,7 +796,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   type="text" 
                   name="panBuyer" 
                   disabled={naoTemSecundario}
-                  defaultValue={naoTemSecundario ? '' : (processo.panBuyer || '')} 
+                  value={naoTemSecundario ? '' : panBuyerVal}
+                  onChange={(e) => setPanBuyerVal(e.target.value)}
                   className={`w-full border rounded-xl px-3 py-2 text-xs font-mono outline-none transition-all shadow-2xs ${
                     naoTemSecundario 
                       ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' 
@@ -691,7 +828,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   type="text" 
                   name="fassaiBuyer" 
                   disabled={naoTemSanitaria}
-                  defaultValue={naoTemSanitaria ? '' : (processo.fassaiBuyer || '')} 
+                  value={naoTemSanitaria ? '' : fassaiBuyerVal}
+                  onChange={(e) => setFassaiBuyerVal(e.target.value)}
                   className={`w-full border rounded-xl px-3 py-2 text-xs font-mono outline-none transition-all shadow-2xs ${
                     naoTemSanitaria 
                       ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' 
@@ -722,7 +860,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   type="text" 
                   name="gstBuyer" 
                   disabled={naoTemEstadual}
-                  defaultValue={naoTemEstadual ? '' : (processo.gstBuyer || '')} 
+                  value={naoTemEstadual ? '' : gstBuyerVal}
+                  onChange={(e) => setGstBuyerVal(e.target.value)}
                   className={`w-full border rounded-xl px-3 py-2 text-xs font-mono outline-none transition-all shadow-2xs ${
                     naoTemEstadual 
                       ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' 
@@ -752,7 +891,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   type="email" 
                   name="emailBuyer" 
                   required
-                  defaultValue={processo.emailBuyer || ''} 
+                  value={emailBuyerVal}
+                  onChange={(e) => setEmailBuyerVal(e.target.value)}
                   className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 outline-none transition-all placeholder:text-slate-400 font-medium" 
                   placeholder="import@company.com / clearance@broker.com"
                 />
@@ -777,7 +917,8 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
                   type="text" 
                   name="telefoneBuyer" 
                   disabled={naoTemTelefone}
-                  defaultValue={naoTemTelefone ? '' : (processo.telefoneBuyer || '')} 
+                  value={naoTemTelefone ? '' : telefoneBuyerVal}
+                  onChange={(e) => setTelefoneBuyerVal(e.target.value)}
                   className={`w-full border rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all font-medium ${
                     naoTemTelefone 
                       ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' 
@@ -1341,22 +1482,34 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
         </div>
 
         {/* BARRA DE AÇÃO / SALVAMENTO DESTACADA */}
-        <div className="flex items-center justify-between gap-3 pt-2">
-          {sucesso ? (
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 animate-fadeIn">
-              <Check className="w-4 h-4" />
-              Alterações salvas com sucesso!
-            </span>
-          ) : (
-            <span className="text-xs text-slate-400">
-              * Campos obrigatórios para emissão documental
-            </span>
-          )}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200/80 dark:border-slate-800">
+          <div className="flex flex-col gap-1">
+            {sucesso ? (
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 animate-fadeIn">
+                <Check className="w-4 h-4" />
+                Alterações salvas com sucesso no banco de dados!
+              </span>
+            ) : (
+              <span className="text-xs text-slate-400">
+                * Campos obrigatórios para emissão documental e conformidade aduaneira
+              </span>
+            )}
+
+            <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer pt-0.5">
+              <input
+                type="checkbox"
+                checked={sincronizarCatalogo}
+                onChange={(e) => setSincronizarCatalogo(e.target.checked)}
+                className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 w-3.5 h-3.5 cursor-pointer"
+              />
+              <span>Sincronizar e salvar alterações também na Central de Cadastros</span>
+            </label>
+          </div>
 
           <button 
             type="submit" 
             disabled={loading} 
-            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-98 text-white px-7 py-3 rounded-xl font-bold text-sm transition-all shadow-md shadow-orange-500/25 disabled:opacity-50 cursor-pointer"
+            className="flex items-center justify-center gap-2 bg-[#f58220] hover:bg-orange-600 active:scale-98 text-white px-7 py-3 rounded-xl font-bold text-sm transition-all shadow-md shadow-orange-500/25 disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -1372,6 +1525,15 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
           </button>
         </div>
       </form>
+
+      {/* MODAL CENTRAL DE CADASTROS */}
+      <CentralCadastrosModal
+        isOpen={modalImportadorAberto}
+        onClose={() => setModalImportadorAberto(false)}
+        tipoInicial="IMPORTADOR"
+        onEntidadeSelecionada={handleImportadorCriadoModal}
+        modoSelecao={true}
+      />
     </div>
   );
 }
