@@ -8,7 +8,9 @@
       "papel": "ADMIN",
       "ativo": true,
       "criadoEm": "2026-09-01T08:00:00.000Z",
-      "atualizadoEm": "2026-09-01T08:00:00.000Z"
+      "atualizadoEm": "2026-09-01T08:00:00.000Z",
+      "username": "ACEREAIS",
+      "primeiroAcesso": false
     },
     {
       "id": "usr_dev_admin",
@@ -18,7 +20,9 @@
       "papel": "ADMIN",
       "ativo": true,
       "criadoEm": "2026-09-01T08:00:00.000Z",
-      "atualizadoEm": "2026-09-01T08:00:00.000Z"
+      "atualizadoEm": "2026-09-01T08:00:00.000Z",
+      "username": "ADEV",
+      "primeiroAcesso": false
     }
   ],
   "parceiros": [
