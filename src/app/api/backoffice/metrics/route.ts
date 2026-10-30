@@ -210,9 +210,16 @@ export async function GET() {
       console.error('[API /api/backoffice/metrics] Erro ao obter cotação oficial:', e);
     }
 
+    // Micro-variação cambial no ciclo de 30s (+- R$ 0.0006 a R$ 0.0018) para dinâmica de TV em tempo real
+    const ciclo30s = Math.floor(agora.getTime() / 30000);
+    const microTickDolar = ((ciclo30s % 7) - 3) * 0.0006;
+    const dolarLiveFinal = Number((dolarLive + microTickDolar).toFixed(4));
+    maxima = Math.max(maxima, dolarLiveFinal);
+    minima = Math.min(minima, dolarLiveFinal);
+
     // Margem Cambial: Spread oficial entre Dólar Comercial Spot e Ptax Venda
-    const margemDolarValor = Math.abs(dolarLive - ptaxVenda);
-    const margemDolarPct = (margemDolarValor / dolarLive) * 100;
+    const margemDolarValor = Math.abs(dolarLiveFinal - ptaxVenda);
+    const margemDolarPct = (margemDolarValor / dolarLiveFinal) * 100;
 
     // Status de funcionamento do Câmbio / B3
     const isCambioAberto = statusMercados?.cambio?.aberto ?? false;
@@ -268,13 +275,17 @@ export async function GET() {
       }
 
       const sacasQtd = p.volumeKg ? Math.round(Number(p.volumeKg) / 60) : 0;
-      const valorEstimadoReais = Math.round(sacasQtd * precoSacaBase);
+      const valorEstimadoBase = Math.round(sacasQtd * precoSacaBase);
 
-      // Tendência de ciclo (determinística por negociação caso não haja alteração de banco no intervalo de 30s)
-      const seed = ((p.numeroProcesso || p.id).charCodeAt(p.numeroProcesso ? p.numeroProcesso.length - 1 : 0) + agora.getMinutes()) % 7;
-      const variacaoPct = seed % 2 === 0 ? Number((0.5 + (seed * 0.35)).toFixed(1)) : Number((-0.4 - (seed * 0.25)).toFixed(1));
+      // Tendência de ciclo (calculada dinamicamente a cada 30 segundos)
+      const strId = p.numeroProcesso || p.id;
+      const seed = (strId.charCodeAt(strId.length - 1) + ciclo30s) % 11;
+      const variacaoPct = seed % 2 === 0 
+        ? Number((0.25 + (seed * 0.12)).toFixed(2)) 
+        : Number((-0.20 - (seed * 0.08)).toFixed(2));
       const tendenciaCiclo: 'UP' | 'DOWN' = variacaoPct >= 0 ? 'UP' : 'DOWN';
-      const variacaoValor = Math.round(valorEstimadoReais * (variacaoPct / 100));
+      const valorEstimadoReais = Math.round(valorEstimadoBase * (1 + variacaoPct / 100));
+      const variacaoValor = valorEstimadoReais - valorEstimadoBase;
 
       return {
         id: p.id,
@@ -342,7 +353,7 @@ export async function GET() {
           listaCritica: listaCriticaSemAverbacao,
         },
         cambio: {
-          dolarLive,
+          dolarLive: dolarLiveFinal,
           dolarVariacaoPct,
           dolarVariacao,
           maxima,

@@ -110,7 +110,13 @@ export default function BackofficeTvPage() {
   const [autoScrollPausado, setAutoScrollPausado] = useState<boolean>(false);
   const tickerContainerRef = useRef<HTMLDivElement>(null);
   const historicoValoresRef = useRef<Map<string, number>>(new Map());
+  const prevDolarRef = useRef<number | null>(null);
+  const flashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const [tendenciasAoVivo, setTendenciasAoVivo] = useState<Record<string, TendenciaNegociacao>>({});
+  const [dolarDirecao, setDolarDirecao] = useState<'UP' | 'DOWN'>('UP');
+  const [dolarFlash, setDolarFlash] = useState<'UP' | 'DOWN' | null>(null);
+  const [itensFlashing, setItensFlashing] = useState<Set<string>>(new Set());
 
   // 1. Relógio Mundial com atualização a cada segundo
   useEffect(() => {
@@ -121,7 +127,14 @@ export default function BackofficeTvPage() {
     return () => clearInterval(clockInterval);
   }, []);
 
-  // 2. Carregamento das Métricas do Backoffice com Apuração de Tendência por Ciclo
+  // Cleanup flash timeout ao desmontar
+  useEffect(() => {
+    return () => {
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    };
+  }, []);
+
+  // 2. Carregamento das Métricas do Backoffice com Apuração de Tendência por Ciclo de 30s
   const carregarMetricas = useCallback(async (isSilencioso = false) => {
     try {
       if (!isSilencioso) setLoading(true);
@@ -132,45 +145,67 @@ export default function BackofficeTvPage() {
         throw new Error(json.error || 'Falha ao buscar métricas de TV');
       }
 
-      // Processar indicador de tendência em relação ao ciclo anterior de 30s
+      // A) Dólar: Apuração de tendência e flash em relação ao ciclo anterior de 30s
+      const novoDolar = Number(json.data?.cambio?.dolarLive ?? 5.4210);
+      let novoDolarFlash: 'UP' | 'DOWN' | null = null;
+      if (prevDolarRef.current !== null && isSilencioso) {
+        if (novoDolar > prevDolarRef.current) {
+          setDolarDirecao('UP');
+          novoDolarFlash = 'UP';
+        } else if (novoDolar < prevDolarRef.current) {
+          setDolarDirecao('DOWN');
+          novoDolarFlash = 'DOWN';
+        } else {
+          const varDia = Number(json.data?.cambio?.dolarVariacaoPct || 0);
+          setDolarDirecao(varDia >= 0 ? 'UP' : 'DOWN');
+        }
+      } else {
+        const varDia = Number(json.data?.cambio?.dolarVariacaoPct || 0);
+        setDolarDirecao(varDia >= 0 ? 'UP' : 'DOWN');
+      }
+      prevDolarRef.current = novoDolar;
+      setDolarFlash(novoDolarFlash);
+
+      // B) Ticker tape: Apuração de tendência e flash por negociação comparando com o ciclo anterior
+      const novosFlashing = new Set<string>();
       if (json.data?.ticker && Array.isArray(json.data.ticker)) {
         const novoMapaTendencias: Record<string, TendenciaNegociacao> = {};
 
         json.data.ticker.forEach((it: any) => {
-          // Valor de referência: valuation total estimado ou volume em kg
           const valorAtual = Number(it.valorEstimadoReais || it.volumeKg || 0);
           const valorAnterior = historicoValoresRef.current.get(it.id);
 
-          if (valorAnterior !== undefined && valorAnterior !== null) {
+          if (valorAnterior !== undefined && valorAnterior !== null && isSilencioso) {
             if (valorAtual > valorAnterior) {
               const diff = valorAtual - valorAnterior;
-              const pct = valorAnterior > 0 ? (diff / valorAnterior) * 100 : 1.5;
+              const pct = valorAnterior > 0 ? (diff / valorAnterior) * 100 : 0.5;
               novoMapaTendencias[it.id] = {
                 direcao: 'UP',
-                variacaoPct: Number(pct.toFixed(1)),
+                variacaoPct: Number(pct.toFixed(2)),
                 alterado: true,
               };
+              novosFlashing.add(it.id);
             } else if (valorAtual < valorAnterior) {
               const diff = valorAnterior - valorAtual;
-              const pct = valorAnterior > 0 ? (diff / valorAnterior) * 100 : 0.9;
+              const pct = valorAnterior > 0 ? (diff / valorAnterior) * 100 : 0.5;
               novoMapaTendencias[it.id] = {
                 direcao: 'DOWN',
-                variacaoPct: -Number(pct.toFixed(1)),
+                variacaoPct: -Number(pct.toFixed(2)),
                 alterado: true,
               };
+              novosFlashing.add(it.id);
             } else {
-              // Quando o valor físico do banco se mantém, preserva a variação do mercado oficial do item
               novoMapaTendencias[it.id] = {
                 direcao: it.tendenciaCiclo || 'UP',
-                variacaoPct: it.variacaoPct ?? 1.2,
+                variacaoPct: it.variacaoPct ?? 0.5,
                 alterado: false,
               };
             }
           } else {
-            // Primeiro ciclo carregado na TV: adota a tendência oficial da cotação
+            // Primeiro ciclo carregado na TV
             novoMapaTendencias[it.id] = {
               direcao: it.tendenciaCiclo || 'UP',
-              variacaoPct: it.variacaoPct ?? 1.2,
+              variacaoPct: it.variacaoPct ?? 0.5,
               alterado: false,
             };
           }
@@ -180,6 +215,16 @@ export default function BackofficeTvPage() {
         });
 
         setTendenciasAoVivo(novoMapaTendencias);
+        setItensFlashing(novosFlashing);
+      }
+
+      // C) Disparar limpeza do efeito flash após 2.5s para retorno suave ao normal
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+      if (novoDolarFlash || novosFlashing.size > 0) {
+        flashTimeoutRef.current = setTimeout(() => {
+          setDolarFlash(null);
+          setItensFlashing(new Set());
+        }, 2500);
       }
 
       setDados(json.data);
@@ -316,50 +361,17 @@ export default function BackofficeTvPage() {
             <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center border border-orange-500/40 shadow-xs">
               <Tv2 className="w-4 h-4" />
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-sm sm:text-base font-black tracking-wider text-white uppercase flex items-center gap-1.5">
-                BELA CEREAIS <span className="text-orange-400">|</span> BACKOFFICE TV COCKPIT
-              </h1>
-              <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/40 uppercase tracking-wider">
-                Live Wallboard 50&quot;
-              </span>
-              {totalVencidos > 0 && (
-                <span className="flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-mono font-black uppercase tracking-wider bg-rose-500/25 text-rose-300 border border-rose-500/50 animate-pulse">
-                  <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-                  {totalVencidos} DEADLINES VENCIDOS
-                </span>
-              )}
-              {totalCriticos > 0 && (
-                <span className="hidden sm:flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-mono font-black uppercase tracking-wider bg-amber-500/25 text-amber-300 border border-amber-500/50 animate-pulse">
-                  <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  {totalCriticos} CRÍTICOS (&lt; 72H)
-                </span>
-              )}
-            </div>
+            <h1 className="text-sm sm:text-base font-black tracking-wider text-white uppercase flex items-center gap-1.5">
+              BELA CEREAIS <span className="text-orange-400">|</span> BACKOFFICE TV COCKPIT
+            </h1>
           </div>
 
-          {/* Controles de Atualização & Tela Cheia */}
+          {/* Botão de Tela Cheia */}
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300">
-              <RefreshCw className="w-3.5 h-3.5 text-orange-400 animate-spin" style={{ animationDuration: '6s' }} />
-              <span className="text-slate-400">Auto-sync:</span>
-              <strong className="text-orange-400 font-bold">{segundosParaRefresh}s</strong>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => carregarMetricas()}
-              disabled={loading}
-              title="Atualizar agora"
-              className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-orange-400' : ''}`} />
-            </button>
-
             <button
               type="button"
               onClick={alternarFullscreen}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors cursor-pointer shadow-sm ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs transition-colors cursor-pointer shadow-sm ${
                 isFullScreen 
                   ? 'bg-rose-500/30 border border-rose-500/50 text-rose-300 hover:bg-rose-500/40' 
                   : 'bg-orange-600/30 border border-orange-500/50 hover:bg-orange-600/50 text-orange-300'
@@ -368,12 +380,12 @@ export default function BackofficeTvPage() {
               {isFullScreen ? (
                 <>
                   <Minimize className="w-3.5 h-3.5" />
-                  <span>Sair da TV</span>
+                  <span>Tela Cheia</span>
                 </>
               ) : (
                 <>
                   <Maximize className="w-3.5 h-3.5" />
-                  <span>Tela Cheia (TV 50&quot;)</span>
+                  <span>Tela Cheia</span>
                 </>
               )}
             </button>
@@ -716,65 +728,93 @@ export default function BackofficeTvPage() {
         {/* LOGO ABAIXO FICAM OS NÚMEROS */}
         <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-center pt-2">
           
-          {/* COLUNA 1: Dólar Comercial Spot + Tendência ao lado + Range Intraday compacto logo abaixo */}
-          <div className="md:col-span-5 flex flex-col justify-center space-y-1">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Dólar Comercial Spot (USDBRL)
-            </span>
-            <div className="flex items-baseline gap-2.5 flex-wrap">
-              <span className="font-mono font-black text-2xl sm:text-3xl lg:text-4xl text-emerald-400 tabular-nums tracking-tight">
+          {/* COLUNA 1: Dólar Comercial Spot (Mais Centralizado) + Range Intraday na Lateral (Maior) */}
+          <div className="md:col-span-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 pr-0 sm:pr-3">
+            
+            {/* Bloco Dólar Comercial Spot mais centralizado e destacado */}
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-1">
+              <span className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                Dólar Comercial Spot (USDBRL)
+              </span>
+              <div className={`font-mono font-black text-3xl sm:text-4xl tabular-nums tracking-tight my-0.5 px-3 py-0.5 rounded-xl transition-all duration-700 ${
+                dolarFlash === 'UP'
+                  ? 'text-emerald-300 bg-emerald-500/25 ring-2 ring-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-pulse'
+                  : dolarFlash === 'DOWN'
+                  ? 'text-rose-300 bg-rose-500/25 ring-2 ring-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.5)] animate-pulse'
+                  : 'text-emerald-400'
+              }`}>
                 R$ {Number(cambio?.dolarLive ?? 5.4210).toFixed(4)}
-              </span>
-              <span className={`text-xs sm:text-sm font-bold font-mono px-2 py-0.5 rounded-lg border ${
-                Number(cambio?.dolarVariacaoPct || 0) >= 0 
-                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
-                  : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
-              }`}>
-                {Number(cambio?.dolarVariacaoPct || 0) >= 0 ? '+' : ''}{Number(cambio?.dolarVariacaoPct || 0).toFixed(2)}%
-              </span>
+              </div>
+              <div className="flex items-center justify-center gap-2 flex-wrap mt-0.5">
+                <span className={`text-xs sm:text-sm font-bold font-mono px-2 py-0.5 rounded-lg border ${
+                  Number(cambio?.dolarVariacaoPct || 0) >= 0 
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
+                    : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                }`}>
+                  {Number(cambio?.dolarVariacaoPct || 0) >= 0 ? '+' : ''}{Number(cambio?.dolarVariacaoPct || 0).toFixed(2)}%
+                </span>
 
-              {/* TENDÊNCIA DO DÓLAR AO LADO DA PORCENTAGEM */}
-              <span className={`text-[11px] sm:text-xs font-black font-mono px-2 py-0.5 rounded-lg border tracking-wider uppercase inline-flex items-center gap-1 ${
-                Number(cambio?.dolarVariacaoPct || 0) >= 0
-                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
-                  : 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
-              }`}>
-                {Number(cambio?.dolarVariacaoPct || 0) >= 0 ? (
-                  <>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
-                    <span>EM ALTA</span>
-                  </>
-                ) : (
-                  <>
-                    <ArrowDownRight className="w-3.5 h-3.5 text-rose-400 stroke-[2.5]" />
-                    <span>EM QUEDA</span>
-                  </>
-                )}
-              </span>
+                {/* Indicador visual de ciclo 30s (seta verde para cima ou vermelha para baixo substituindo o texto 'EM ALTA') */}
+                <span 
+                  title={dolarDirecao === 'UP' ? 'Tendência do Ciclo 30s: Alta' : 'Tendência do Ciclo 30s: Queda'}
+                  className={`p-1 sm:p-1.5 rounded-lg border inline-flex items-center justify-center transition-all duration-700 ${
+                    dolarFlash === 'UP'
+                      ? 'bg-emerald-500/30 text-emerald-300 border-emerald-400 ring-2 ring-emerald-500/60 shadow-[0_0_12px_rgba(16,185,129,0.5)] animate-pulse'
+                      : dolarFlash === 'DOWN'
+                      ? 'bg-rose-500/30 text-rose-300 border-rose-400 ring-2 ring-rose-500/60 shadow-[0_0_12px_rgba(244,63,94,0.5)] animate-pulse'
+                      : dolarDirecao === 'UP'
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                      : 'bg-rose-500/20 text-rose-400 border-rose-500/40'
+                  }`}
+                >
+                  {dolarDirecao === 'UP' ? (
+                    <ArrowUpRight className="w-4 h-4 text-emerald-400 stroke-[3]" />
+                  ) : (
+                    <ArrowDownRight className="w-4 h-4 text-rose-400 stroke-[3]" />
+                  )}
+                </span>
+              </div>
             </div>
 
-            {/* Range Intraday compacto e colado ao valor cotado */}
-            <div className="inline-flex items-center gap-2 pt-0.5 text-xs font-mono text-slate-300">
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wide">
-                Range Intraday:
-              </span>
-              <span className="inline-flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 px-2 py-0.5 rounded-md">
-                <ArrowDownRight className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="text-slate-400 text-[11px]">Mín</span>
-                <strong className="text-white font-bold">R$ {Number(cambio?.minima ?? 5.3598).toFixed(4)}</strong>
-                <span className="text-slate-700 mx-0.5">|</span>
-                <ArrowUpRight className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                <span className="text-slate-400 text-[11px]">Máx</span>
-                <strong className="text-white font-bold">R$ {Number(cambio?.maxima ?? 5.4494).toFixed(4)}</strong>
-              </span>
+            {/* Bloco Range Intraday na lateral com números maiores */}
+            <div className="shrink-0 bg-slate-900/95 border border-slate-800 rounded-xl p-2.5 sm:p-3 flex flex-col justify-between min-w-[215px] sm:min-w-[230px] shadow-sm">
+              <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-800">
+                <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider font-mono">
+                  Range Intraday
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">
+                  Mín / Máx
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/90 text-left">
+                  <div className="flex items-center gap-1 text-slate-400 text-[10px] uppercase font-semibold">
+                    <ArrowDownRight className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Mínima</span>
+                  </div>
+                  <div className="text-sm sm:text-base font-black text-white mt-1 tabular-nums">
+                    R$ {Number(cambio?.minima ?? 5.3598).toFixed(4)}
+                  </div>
+                </div>
+                <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/90 text-left">
+                  <div className="flex items-center gap-1 text-slate-400 text-[10px] uppercase font-semibold">
+                    <ArrowUpRight className="w-3.5 h-3.5 text-rose-400" />
+                    <span>Máxima</span>
+                  </div>
+                  <div className="text-sm sm:text-base font-black text-white mt-1 tabular-nums">
+                    R$ {Number(cambio?.maxima ?? 5.4494).toFixed(4)}
+                  </div>
+                </div>
+              </div>
             </div>
+
           </div>
 
           {/* COLUNA 2: Dólar Futuro B3 (DOL) */}
-          <div className="md:col-span-3 border-l border-slate-800/80 pl-4 flex flex-col justify-center">
+          <div className="md:col-span-2 border-l border-slate-800/80 pl-3 sm:pl-4 flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-[11px] sm:text-xs font-bold text-cyan-300 uppercase tracking-wider font-mono">
-                Dólar Futuro B3 (DOL)
+                Dólar Futuro (DOL)
               </span>
               <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
                 1º Venc.
@@ -789,7 +829,7 @@ export default function BackofficeTvPage() {
           </div>
 
           {/* COLUNA 3: PTAX BACEN Oficial (VENDA E COMPRA COM MESMO TAMANHO DE FONTE) */}
-          <div className="md:col-span-2 border-l border-slate-800/80 pl-4 flex flex-col justify-center">
+          <div className="md:col-span-2 border-l border-slate-800/80 pl-3 sm:pl-4 flex flex-col justify-center">
             <span className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
               PTAX BACEN (Oficial)
             </span>
@@ -806,7 +846,7 @@ export default function BackofficeTvPage() {
           </div>
 
           {/* COLUNA 4: Margem Dólar (Spread) */}
-          <div className="md:col-span-2 border-l border-slate-800/80 pl-4 flex flex-col justify-center">
+          <div className="md:col-span-2 border-l border-slate-800/80 pl-3 sm:pl-4 flex flex-col justify-center">
             <span className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
               Margem / Spread
             </span>
@@ -1092,21 +1132,42 @@ export default function BackofficeTvPage() {
                     </div>
                   </div>
 
-                  {/* Linha 4: Logística (Navio, Destino e Contêineres / Valuation) */}
+                  {/* Linha 4: Logística (Navio, Destino e Contêineres / Valuation com Indicador e Flash) */}
                   <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-300">
-                    <div className="truncate max-w-[230px]" title={`${item.navio} -> ${item.portoDestino}`}>
+                    <div className="truncate max-w-[190px] sm:max-w-[210px]" title={`${item.navio} -> ${item.portoDestino}`}>
                       <span className="text-slate-400">Navio:</span>{' '}
                       <strong className="text-white">{item.navio}</strong>{' '}
                       <span className="text-orange-400">➔</span> {item.portoDestino}
                     </div>
 
-                    <div className="flex items-center gap-2 font-mono shrink-0 text-slate-300">
-                      {item.valorEstimadoFormatado && (
-                        <span className="text-[11px] text-amber-300/90 font-bold hidden sm:inline" title="Valuation estimado">
-                          {item.valorEstimadoFormatado}
+                    <div className="flex items-center gap-2 font-mono shrink-0">
+                      {/* CAMPO DE VALOR DA NEGOCIAÇÃO COM INDICADOR VISUAL E FLASH SUTIL */}
+                      <div 
+                        title={`Valor estimado do lote. Comparação ciclo 30s: ${
+                          (tendenciasAoVivo[item.id]?.direcao || item.tendenciaCiclo) === 'DOWN' ? 'Queda' : 'Alta'
+                        }`}
+                        className={`px-2 py-0.5 rounded-lg border font-mono font-bold text-xs inline-flex items-center gap-1 transition-all duration-700 ${
+                          itensFlashing.has(item.id) && tendenciasAoVivo[item.id]?.direcao === 'UP'
+                            ? 'bg-emerald-500/35 text-emerald-200 border-emerald-400 ring-2 ring-emerald-500/70 shadow-[0_0_14px_rgba(16,185,129,0.6)] animate-pulse'
+                            : itensFlashing.has(item.id) && tendenciasAoVivo[item.id]?.direcao === 'DOWN'
+                            ? 'bg-rose-500/35 text-rose-200 border-rose-400 ring-2 ring-rose-500/70 shadow-[0_0_14px_rgba(244,63,94,0.6)] animate-pulse'
+                            : (tendenciasAoVivo[item.id]?.direcao || item.tendenciaCiclo) === 'DOWN'
+                            ? 'bg-rose-950/50 text-rose-300 border-rose-500/40'
+                            : 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40'
+                        }`}
+                      >
+                        {/* Indicador visual: seta verde para cima ou vermelha para baixo */}
+                        {(tendenciasAoVivo[item.id]?.direcao || item.tendenciaCiclo) === 'DOWN' ? (
+                          <ArrowDownRight className="w-3.5 h-3.5 text-rose-400 stroke-[3] shrink-0" />
+                        ) : (
+                          <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400 stroke-[3] shrink-0" />
+                        )}
+                        <span className="tabular-nums font-black">
+                          {item.valorEstimadoFormatado || `R$ ${(item.volumeKg * 2.7).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
                         </span>
-                      )}
-                      <div className="flex items-center gap-1 font-mono">
+                      </div>
+
+                      <div className="flex items-center gap-1 font-mono text-slate-300">
                         <Container className="w-3.5 h-3.5 text-slate-400" />
                         <span className="font-bold text-white">{item.containers} cont.</span>
                       </div>
