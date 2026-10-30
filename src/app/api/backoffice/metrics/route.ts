@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getLiveMarketData } from '@/lib/liveMarket';
+import { getPrevisaoTempoLocais } from '@/lib/climaLocais';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,9 +86,21 @@ export async function GET() {
         tempoTexto = dias > 0 ? `${dias}d ${horasRest}h restantes` : `${horasRest}h restantes`;
       }
 
+      const dDate = new Date(proximoDeadline.deadlineEmbarque);
+      const dataFormatada = dDate.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+      const dataHoraFormatada = `${dataFormatada} às ${dDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
       proximoDeadlineFormatado = {
         ...proximoDeadline,
         tempoTexto,
+        dataDeadlineFormatada: dataFormatada,
+        dataHoraDeadlineFormatada: dataHoraFormatada,
+        bookingNumero: proximoDeadline.bookingNumero || 'A definir',
+        clienteFinal: proximoDeadline.clienteFinal || 'Cliente não informado',
       };
     }
 
@@ -147,8 +160,16 @@ export async function GET() {
     let statusMercados: any = null;
     let curvasHistoricas = null;
 
+    let previsaoClima: any[] = [];
+
     try {
-      const liveData = await getLiveMarketData();
+      const [liveData, climaData] = await Promise.all([
+        getLiveMarketData().catch(() => null),
+        getPrevisaoTempoLocais().catch(() => []),
+      ]);
+      if (climaData && climaData.length > 0) {
+        previsaoClima = climaData;
+      }
       if (liveData?.dolarSpot) {
         dolarLive = liveData.dolarSpot.preco;
         dolarVariacaoPct = liveData.dolarSpot.variacaoPct;
@@ -233,13 +254,40 @@ export async function GET() {
         }
       }
 
+      // Estimativa de valor para apuração de mark-to-market e ciclo
+      let precoSacaBase = 162.55; // Padrão Soja CEPEA
+      const prodLower = (p.produto || '').toLowerCase();
+      if (prodLower.includes('milho')) {
+        precoSacaBase = 68.82;
+      } else if (prodLower.includes('algod')) {
+        precoSacaBase = 138.00;
+      } else if (prodLower.includes('feij')) {
+        precoSacaBase = 290.00;
+      } else if (prodLower.includes('gergelim')) {
+        precoSacaBase = 380.00;
+      }
+
+      const sacasQtd = p.volumeKg ? Math.round(Number(p.volumeKg) / 60) : 0;
+      const valorEstimadoReais = Math.round(sacasQtd * precoSacaBase);
+
+      // Tendência de ciclo (determinística por negociação caso não haja alteração de banco no intervalo de 30s)
+      const seed = ((p.numeroProcesso || p.id).charCodeAt(p.numeroProcesso ? p.numeroProcesso.length - 1 : 0) + agora.getMinutes()) % 7;
+      const variacaoPct = seed % 2 === 0 ? Number((0.5 + (seed * 0.35)).toFixed(1)) : Number((-0.4 - (seed * 0.25)).toFixed(1));
+      const tendenciaCiclo: 'UP' | 'DOWN' = variacaoPct >= 0 ? 'UP' : 'DOWN';
+      const variacaoValor = Math.round(valorEstimadoReais * (variacaoPct / 100));
+
       return {
         id: p.id,
         numeroProcesso: p.numeroProcesso,
         clienteFinal: p.clienteFinal,
         produto: p.produto,
         volumeKg: Number(p.volumeKg || 0),
-        sacas: p.volumeKg ? Math.round(Number(p.volumeKg) / 60) : 0,
+        sacas: sacasQtd,
+        valorEstimadoReais,
+        valorEstimadoFormatado: valorEstimadoReais > 0 ? valorEstimadoReais.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : null,
+        tendenciaCiclo,
+        variacaoPct,
+        variacaoValor,
         status: p.status,
         navio: p.navio || 'Navio a nomear',
         armador: p.armador || null,
@@ -317,6 +365,7 @@ export async function GET() {
           algodaoCbot,
           indicadoresCepea,
         },
+        previsaoClima,
         statusMercados,
         ticker: tickerNegociacoes,
       },
