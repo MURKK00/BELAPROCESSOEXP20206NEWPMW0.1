@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { 
@@ -27,13 +28,24 @@ interface DashboardShellProps {
 }
 
 export function DashboardShell({ children }: DashboardShellProps) {
+  const pathname = usePathname();
+  const isBackoffice = pathname === '/backoffice';
   const { data: session } = useSession();
   const [localUser, setLocalUser] = useState<any>(null);
   // Estado para recolher/minimizar sidebar no desktop via setinha
   const [isCollapsed, setIsCollapsed] = useState(false);
   // Estado para abrir/fechar drawer no mobile
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const handleFs = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFs);
+    return () => document.removeEventListener('fullscreenchange', handleFs);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -82,6 +94,14 @@ export function DashboardShell({ children }: DashboardShellProps) {
       return next;
     });
   };
+
+  if (isBackoffice && isFullscreen) {
+    return (
+      <main className="w-screen h-screen overflow-hidden bg-[#060913] text-slate-100">
+        {children}
+      </main>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[#0b1120] text-slate-800 dark:text-slate-100 transition-colors">
