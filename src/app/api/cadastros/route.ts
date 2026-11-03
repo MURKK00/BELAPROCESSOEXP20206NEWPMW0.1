@@ -7,8 +7,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const tipo = searchParams.get('tipo');
     const q = searchParams.get('q')?.toLowerCase();
+    const incluirInativos = searchParams.get('incluirInativos') === 'true';
 
-    const where: any = { ativo: true };
+    const where: any = {};
+    if (!incluirInativos) {
+      where.ativo = true;
+    }
     if (tipo && tipo !== 'ALL') {
       where.tipo = tipo as TipoEntidadeComercial;
     }

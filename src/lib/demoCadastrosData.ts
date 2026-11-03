@@ -1,6 +1,6 @@
 export interface CadastroEntidadeItem {
   id: string;
-  tipo: 'PRODUTOR' | 'IMPORTADOR' | 'BUYER';
+  tipo: 'PRODUTOR' | 'IMPORTADOR' | 'BUYER' | 'ARMAZEM';
   razaoSocial: string;
   nomeFantasia?: string | null;
   documento?: string | null;
@@ -224,6 +224,40 @@ export function getDemoCadastrosData(): CadastroEntidadeItem[] {
       bancoEmail: 'mersin.dis.ticaret@ziraatbank.com.tr',
       bancoTelefone: '+90 324 233 1122',
       observacoes: 'Importador especializado em leguminosas e feijões (Carioca e Preto).',
+      ativo: true,
+      criadoEm: agora,
+      atualizadoEm: agora,
+    },
+    {
+      id: 'ent_arm_1',
+      tipo: 'ARMAZEM',
+      razaoSocial: 'Silo & Armazéns Grãos Araguaia Ltda',
+      nomeFantasia: 'Silo Central Confresa',
+      documento: '08.912.430/0001-55',
+      pais: 'Brasil',
+      uf: 'MT',
+      cidade: 'Confresa',
+      endereco: 'Rodovia BR-158, Km 120, Distrito Agroindustrial',
+      email: 'operacoes@siloaraguaia.com.br',
+      telefone: '+55 66 3564-9010',
+      observacoes: 'Capacidade estática de 45.000 toneladas, tombador bitrem e secador a biomassa.',
+      ativo: true,
+      criadoEm: agora,
+      atualizadoEm: agora,
+    },
+    {
+      id: 'ent_arm_2',
+      tipo: 'ARMAZEM',
+      razaoSocial: 'Terminal e Armazéns Gerais Rota Norte S/A',
+      nomeFantasia: 'Armazém Rota 163 Sinop',
+      documento: '14.281.990/0002-88',
+      pais: 'Brasil',
+      uf: 'MT',
+      cidade: 'Sinop',
+      endereco: 'Rodovia BR-163, Km 825, Setor Industrial',
+      email: 'contato@rotanortearmazens.com.br',
+      telefone: '+55 66 3511-7700',
+      observacoes: 'Unidade credenciada MAPA para exportação com laboratório de classificação física e pureza.',
       ativo: true,
       criadoEm: agora,
       atualizadoEm: agora,

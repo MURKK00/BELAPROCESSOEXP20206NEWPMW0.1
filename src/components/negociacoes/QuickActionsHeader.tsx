@@ -4,41 +4,39 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   Ship, 
-  Calendar, 
   Clock, 
   AlertTriangle, 
   CheckCircle2, 
   ArrowLeft,
   Edit3,
   Globe2,
-  Box,
   Layers,
-  ChevronRight,
-  FileText,
   Printer
 } from 'lucide-react';
 import { formatDateBR } from '@/lib/formatters';
 import { StatusSelect } from '@/components/negociacoes/StatusSelect';
 
-interface QuickActionsHeaderProps {
-  processo: {
-    id: string;
-    numeroProcesso: string;
-    clienteFinal: string;
-    produto: string;
-    incoterm?: string | null;
-    portoOrigem?: string | null;
-    portoDestino: string;
-    status: string;
-    bookingNumero?: string | null;
-    navio?: string | null;
-    deadlineEmbarque?: string | Date | null;
-    deadlineDraftBl?: string | Date | null;
-    deadlineDraftVgm?: string | Date | null;
-    deadlineCarga?: string | Date | null;
-    estufagemInicio?: string | Date | null;
-    estufagemFim?: string | Date | null;
-  };
+export interface QuickActionsProcessoProps {
+  id: string;
+  numeroProcesso: string;
+  clienteFinal: string;
+  produto: string;
+  incoterm?: string | null;
+  portoOrigem?: string | null;
+  portoDestino: string;
+  status: string;
+  bookingNumero?: string | null;
+  navio?: string | null;
+  deadlineEmbarque?: string | Date | null;
+  deadlineDraftBl?: string | Date | null;
+  deadlineDraftVgm?: string | Date | null;
+  deadlineCarga?: string | Date | null;
+  estufagemInicio?: string | Date | null;
+  estufagemFim?: string | Date | null;
+}
+
+export interface QuickActionsHeaderProps {
+  processo: QuickActionsProcessoProps;
   totalEtapas: number;
   etapasConcluidas: number;
 }
@@ -53,59 +51,19 @@ const MARCOS_EXPORTACAO = [
   { chave: 'FINALIZADO', num: '06', label: 'Finalizado' },
 ];
 
-export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: QuickActionsHeaderProps) {
+/**
+ * 1. TOPO DA PÁGINA: ITENS MARCADOS
+ * Breadcrumbs (← Negociações / Nº / Cliente), Título Principal, Incoterm/Rota, Subtítulo, Status da Operação e Ações
+ */
+export function ProcessoTopHeader({ processo }: { processo: QuickActionsProcessoProps }) {
   const router = useRouter();
 
-  // Avaliar o próximo deadline mais urgente entre a Tríade (Draft BL, Draft VGM, Draft Carga)
-  const deadlinesArr = [
-    { label: 'Draft BL', data: processo.deadlineDraftBl },
-    { label: 'Draft VGM', data: processo.deadlineDraftVgm },
-    { label: 'Draft Carga', data: processo.deadlineCarga || processo.deadlineEmbarque },
-  ]
-    .filter((d) => Boolean(d.data))
-    .map((d) => {
-      const diffMs = new Date(d.data!).getTime() - Date.now();
-      const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-      return { ...d, diffHours };
-    })
-    .sort((a, b) => a.diffHours - b.diffHours);
-
-  const maisUrgente = deadlinesArr[0] ?? null;
-  const deadlineCritico = maisUrgente && maisUrgente.diffHours <= 24 && maisUrgente.diffHours >= 0;
-  const deadlineVencido = maisUrgente && maisUrgente.diffHours < 0;
-
-  const isEmbarcadoOuFinalizado =
-    processo.status === 'EMBARCADO' || processo.status === 'FINALIZADO' || processo.status === 'CONCLUIDO';
-  const isFinalizado = processo.status === 'FINALIZADO' || processo.status === 'CONCLUIDO';
-  const isEmExecucaoOuNegociacao =
-    processo.status === 'EM_NEGOCIACAO' || processo.status === 'EM_EXECUCAO';
-
-  const progressoPercent = totalEtapas > 0 ? Math.round((etapasConcluidas / totalEtapas) * 100) : 0;
-
-  // Inferência do marco ativo baseado no status
-  let marcoAtivoIndex = 0;
-  if (isFinalizado) {
-    marcoAtivoIndex = 5;
-  } else if (processo.status === 'EMBARCADO') {
-    marcoAtivoIndex = 4; // Em Dossiê & Câmbio
-  } else if (processo.estufagemFim || processo.deadlineCarga) {
-    marcoAtivoIndex = 3; // Em Embarque Marítimo
-  } else if (processo.bookingNumero) {
-    marcoAtivoIndex = 2; // Em Estufagem & Gate
-  } else if (processo.status === 'EM_EXECUCAO') {
-    marcoAtivoIndex = 1; // Em Booking
-  } else {
-    marcoAtivoIndex = 0; // Em Contrato
-  }
-
   return (
-    <header className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-sm p-6 mb-6 transition-all">
-      
-      {/* LINHA SUPERIOR: BREADCRUMBS, IDENTIDADE DA OPERAÇÃO, STATUS & AÇÕES */}
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 pb-6 border-b border-slate-100 dark:border-slate-800/80">
+    <header className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-sm p-5 sm:p-6 mb-4 transition-all">
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
         
-        {/* Lado Esquerdo: Navegação rápida, Título do Processo e Rota */}
-        <div className="space-y-3">
+        {/* Lado Esquerdo: Breadcrumb, Processo, Cliente, Incoterm e Produto */}
+        <div className="space-y-2.5">
           {/* Breadcrumb suave */}
           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <button
@@ -153,11 +111,11 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
           </p>
         </div>
 
-        {/* Lado Direito: Status da Operação e Ações Rápidas */}
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 self-start lg:self-auto">
+        {/* Lado Direito: Status da Operação e Prévia de Contrato (PDF) Alinhados & Justificados */}
+        <div className="flex items-center gap-3 self-stretch lg:self-center shrink-0 justify-end">
           {/* Card de Status da Operação */}
-          <div className="bg-slate-50 dark:bg-slate-850 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-750 shadow-xs flex flex-col gap-1 min-w-[200px]">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pl-1">
+          <div className="bg-slate-50 dark:bg-slate-850 px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-750 shadow-xs flex flex-col justify-center gap-1 shrink-0 whitespace-nowrap min-w-[200px]">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pl-0.5 whitespace-nowrap">
               Status da Operação
             </span>
             <StatusSelect processoId={processo.id} status={processo.status} />
@@ -167,28 +125,69 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
           <Link
             href={`/contrato-preview/${processo.id}`}
             target="_blank"
-            className="px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer hover:scale-[1.02]"
+            className="px-4 py-3.5 h-[58px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] shrink-0 whitespace-nowrap"
             title="Visualizar e Imprimir Prévia do Contrato / Confirmação de Negócio em PDF"
           >
-            <Printer className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Prévia Contrato (PDF)</span>
-            <span className="sm:hidden">Contrato PDF</span>
-          </Link>
-
-          {/* Botão de Edição Completa */}
-          <Link
-            href={`/negociacoes/${processo.id}/editar`}
-            className="px-4 py-3 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer hover:border-slate-300"
-            title="Editar todos os campos desta negociação"
-          >
-            <Edit3 className="w-3.5 h-3.5 text-orange-500" />
-            <span>Editar Dados</span>
+            <Printer className="w-4 h-4 shrink-0" />
+            <span className="whitespace-nowrap font-bold">Prévia Contrato (PDF)</span>
           </Link>
         </div>
-      </div>
 
-      {/* LINHA DO MEIO: STEPPER VISUAL DOS 5 MARCOS DO CICLO */}
-      <div className="py-4">
+      </div>
+    </header>
+  );
+}
+
+/**
+ * 2. STEPPER DOS 6 MARCOS DO CICLO & RESUMO LOGÍSTICO (Posicionado abaixo das Abas)
+ */
+export function ProcessoCicloStepper({ processo, totalEtapas, etapasConcluidas }: QuickActionsHeaderProps) {
+  // Avaliar o próximo deadline mais urgente entre a Tríade (Draft BL, Draft VGM, Draft Carga)
+  const deadlinesArr = [
+    { label: 'Draft BL', data: processo.deadlineDraftBl },
+    { label: 'Draft VGM', data: processo.deadlineDraftVgm },
+    { label: 'Draft Carga', data: processo.deadlineCarga || processo.deadlineEmbarque },
+  ]
+    .filter((d) => Boolean(d.data))
+    .map((d) => {
+      const diffMs = new Date(d.data!).getTime() - Date.now();
+      const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+      return { ...d, diffHours };
+    })
+    .sort((a, b) => a.diffHours - b.diffHours);
+
+  const maisUrgente = deadlinesArr[0] ?? null;
+  const deadlineCritico = maisUrgente && maisUrgente.diffHours <= 24 && maisUrgente.diffHours >= 0;
+  const deadlineVencido = maisUrgente && maisUrgente.diffHours < 0;
+
+  const isEmbarcadoOuFinalizado =
+    processo.status === 'EMBARCADO' || processo.status === 'FINALIZADO' || processo.status === 'CONCLUIDO';
+  const isFinalizado = processo.status === 'FINALIZADO' || processo.status === 'CONCLUIDO';
+  const isEmExecucaoOuNegociacao =
+    processo.status === 'EM_NEGOCIACAO' || processo.status === 'EM_EXECUCAO';
+
+  const progressoPercent = totalEtapas > 0 ? Math.round((etapasConcluidas / totalEtapas) * 100) : 0;
+
+  // Inferência do marco ativo baseado no status
+  let marcoAtivoIndex = 0;
+  if (isFinalizado) {
+    marcoAtivoIndex = 5;
+  } else if (processo.status === 'EMBARCADO') {
+    marcoAtivoIndex = 4; // Em Dossiê & Câmbio
+  } else if (processo.estufagemFim || processo.deadlineCarga) {
+    marcoAtivoIndex = 3; // Em Embarque Marítimo
+  } else if (processo.bookingNumero) {
+    marcoAtivoIndex = 2; // Em Estufagem & Gate
+  } else if (processo.status === 'EM_EXECUCAO') {
+    marcoAtivoIndex = 1; // Em Booking
+  } else {
+    marcoAtivoIndex = 0; // Em Contrato
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-sm p-4 sm:p-5 mb-6 transition-all">
+      {/* LINHA DO STEPPER DOS 6 MARCOS DO CICLO */}
+      <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-slate-400" />
@@ -258,8 +257,8 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
         </div>
       </div>
 
-      {/* LINHA INFERIOR: RESUMO LOGÍSTICO & ALERTA DE DEADLINE MAIS URGENTE */}
-      <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+      {/* LINHA INFERIOR: RESUMO LOGÍSTICO, DEADLINE & ATALHO PARA LINHA DO TEMPO */}
+      <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
             <Ship className="w-3.5 h-3.5 text-blue-500" />
@@ -281,31 +280,54 @@ export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: 
           </div>
         </div>
 
-        {/* ALERTA DO PRÓXIMO DEADLINE */}
-        <div className="flex items-center gap-2">
-          <span className="text-slate-400">
-            {maisUrgente ? `Próximo Prazo (${maisUrgente.label}):` : 'Deadline de Carga:'}
-          </span>
-          <span className="font-bold text-slate-900 dark:text-white font-mono">
-            {formatDateBR(maisUrgente ? maisUrgente.data : processo.deadlineEmbarque)}
-          </span>
+        <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap justify-between md:justify-end">
+          {/* ALERTA DO PRÓXIMO DEADLINE */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">
+              {maisUrgente ? `Próximo Prazo (${maisUrgente.label}):` : 'Deadline de Carga:'}
+            </span>
+            <span className="font-bold text-slate-900 dark:text-white font-mono">
+              {formatDateBR(maisUrgente ? maisUrgente.data : processo.deadlineEmbarque)}
+            </span>
 
-          {isEmbarcadoOuFinalizado ? (
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-[10px] flex items-center gap-1 border border-emerald-200 dark:border-emerald-800">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Embarcado
-            </span>
-          ) : isEmExecucaoOuNegociacao && deadlineVencido && maisUrgente ? (
-            <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 font-bold text-[10px] flex items-center gap-1 border border-rose-200 dark:border-rose-800 animate-pulse">
-              <AlertTriangle className="w-3 h-3 text-rose-600" /> Atrasado
-            </span>
-          ) : isEmExecucaoOuNegociacao && deadlineCritico && maisUrgente ? (
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-bold text-[10px] flex items-center gap-1 border border-amber-200 dark:border-amber-800">
-              <Clock className="w-3 h-3 text-amber-600" /> Faltam {maisUrgente.diffHours}h
-            </span>
-          ) : null}
+            {isEmbarcadoOuFinalizado ? (
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-[10px] flex items-center gap-1 border border-emerald-200 dark:border-emerald-800">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Embarcado
+              </span>
+            ) : isEmExecucaoOuNegociacao && deadlineVencido && maisUrgente ? (
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 font-bold text-[10px] flex items-center gap-1 border border-rose-200 dark:border-rose-800 animate-pulse">
+                <AlertTriangle className="w-3 h-3 text-rose-600" /> Atrasado
+              </span>
+            ) : isEmExecucaoOuNegociacao && deadlineCritico && maisUrgente ? (
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-bold text-[10px] flex items-center gap-1 border border-amber-200 dark:border-amber-800">
+                <Clock className="w-3 h-3 text-amber-600" /> Faltam {maisUrgente.diffHours}h
+              </span>
+            ) : null}
+          </div>
+
+          {/* ATALHO NO RODAPÉ PARA ALTERAR CICLO NA LINHA DO TEMPO */}
+          <Link
+            href={`/negociacoes/${processo.id}/checklist`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/50 text-[#f58220] hover:text-[#d96e14] dark:text-orange-400 font-bold text-xs border border-orange-200 dark:border-orange-800/80 transition-all shadow-xs cursor-pointer shrink-0"
+            title="Ir para a Linha do Tempo e Etapas para alterar o ciclo operacional e marcar tarefas"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span className="whitespace-nowrap">Alterar Ciclo na Linha do Tempo &rarr;</span>
+          </Link>
         </div>
       </div>
+    </div>
+  );
+}
 
-    </header>
+/**
+ * Componente combinado original (mantido para compatibilidade)
+ */
+export function QuickActionsHeader({ processo, totalEtapas, etapasConcluidas }: QuickActionsHeaderProps) {
+  return (
+    <>
+      <ProcessoTopHeader processo={processo} />
+      <ProcessoCicloStepper processo={processo} totalEtapas={totalEtapas} etapasConcluidas={etapasConcluidas} />
+    </>
   );
 }

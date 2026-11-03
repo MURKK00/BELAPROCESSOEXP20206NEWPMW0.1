@@ -1,3 +1,4 @@
+@import "leaflet/dist/leaflet.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -125,3 +126,37 @@
   overflow-wrap: break-word;
   overflow-wrap: anywhere;
 }
+
+/* Customizações Leaflet para o Mapeamento de Rastreabilidade */
+.custom-leaflet-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-bela-popup .leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+  padding: 0.5rem !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.custom-bela-popup .leaflet-popup-tip {
+  background: #ffffff !important;
+}
+
+.dark .custom-bela-popup .leaflet-popup-content-wrapper {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+}
+
+.dark .custom-bela-popup .leaflet-popup-tip {
+  background: #0f172a !important;
+}
+
+.leaflet-container {
+  font-family: inherit !important;
+}
+

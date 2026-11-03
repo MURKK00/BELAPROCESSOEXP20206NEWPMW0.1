@@ -200,6 +200,32 @@ function resolveProcessoIncludes(processo: any, include?: Record<string, any>) {
   return copy;
 }
 
+function resolveProcessoEtapaIncludes(etapa: any, include?: Record<string, any>) {
+  if (!etapa) return etapa;
+  const store = getMockStore();
+  const copy = ensureDates({ ...etapa });
+  if (!include) return copy;
+
+  if (include.etapaTemplate) {
+    const tmpl = store.etapasTemplate.find((t) => t.id === etapa.etapaTemplateId);
+    let parceiro = null;
+    if (include.etapaTemplate.include?.parceiro && tmpl?.parceiroId) {
+      parceiro = store.parceiros.find((p) => p.id === tmpl.parceiroId) ?? null;
+    }
+    copy.etapaTemplate = tmpl ? { ...tmpl, parceiro } : null;
+  }
+
+  if (include.responsavel) {
+    copy.responsavel = store.usuarios.find((u) => u.id === etapa.responsavelId) ?? null;
+  }
+
+  if (include.processo) {
+    copy.processo = store.processos.find((p) => p.id === etapa.processoId) ?? null;
+  }
+
+  return copy;
+}
+
 function resolveNotaFiscalIncludes(nf: any, include?: Record<string, any>) {
   if (!nf) return nf;
   const store = getMockStore();
@@ -475,12 +501,14 @@ export function createMockPrismaClient() {
         const item = store.processos.find((p) => matchesWhere(p, where));
         if (!item) throw new Error(`Processo not found`);
         Object.assign(item, data, { atualizadoEm: new Date() });
+        saveMockStoreToFile(store);
         return resolveProcessoIncludes(item, include);
       },
       delete: async ({ where }: any) => {
         const idx = store.processos.findIndex((p) => matchesWhere(p, where));
         if (idx !== -1) {
           const deleted = store.processos.splice(idx, 1)[0];
+          saveMockStoreToFile(store);
           return deleted;
         }
         return {};
@@ -488,13 +516,28 @@ export function createMockPrismaClient() {
     },
 
     processoEtapa: {
-      findMany: async ({ where }: any = {}) => store.processoEtapas.filter((e) => matchesWhere(e, where)),
-      findUnique: async ({ where }: any) => store.processoEtapas.find((e) => matchesWhere(e, where)) ?? null,
-      update: async ({ where, data }: any) => {
+      findMany: async ({ where, include, orderBy }: any = {}) => {
+        const list = store.processoEtapas.filter((e) => matchesWhere(e, where));
+        const mapped = list.map((e) => resolveProcessoEtapaIncludes(e, include));
+        if (orderBy?.etapaTemplate?.ordem === 'asc') {
+          mapped.sort((a, b) => (a.etapaTemplate?.ordem ?? 0) - (b.etapaTemplate?.ordem ?? 0));
+        }
+        return mapped;
+      },
+      findUnique: async ({ where, include }: any) => {
+        const item = store.processoEtapas.find((e) => matchesWhere(e, where)) ?? null;
+        return resolveProcessoEtapaIncludes(item, include);
+      },
+      findFirst: async ({ where, include }: any = {}) => {
+        const item = store.processoEtapas.find((e) => matchesWhere(e, where)) ?? null;
+        return resolveProcessoEtapaIncludes(item, include);
+      },
+      update: async ({ where, data, include }: any) => {
         const item = store.processoEtapas.find((e) => matchesWhere(e, where));
         if (!item) throw new Error(`ProcessoEtapa not found`);
         Object.assign(item, data, { atualizadoEm: new Date() });
-        return item;
+        saveMockStoreToFile(store);
+        return resolveProcessoEtapaIncludes(item, include);
       },
       updateMany: async ({ where, data }: any) => {
         let count = 0;

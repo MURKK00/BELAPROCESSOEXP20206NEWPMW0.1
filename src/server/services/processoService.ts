@@ -41,6 +41,7 @@ export async function criarProcesso(input: {
   paisBuyer?: string;
   cidadeBuyer?: string;
   enderecoBuyer?: string;
+  importadorId?: string;
   criadoPorId: string;
 }) {
   // Pega o ano atual (ex: 2026) e o início do ano para contar os processos anuais
@@ -108,6 +109,7 @@ export async function criarProcesso(input: {
             paisBuyer: input.paisBuyer,
             cidadeBuyer: input.cidadeBuyer,
             enderecoBuyer: input.enderecoBuyer,
+            importadorId: input.importadorId,
             criadoPorId: input.criadoPorId,
             statusCache: 'Criado',
             etapas: {

@@ -6,7 +6,7 @@ import type { TipoEntidadeComercial } from '@prisma/client';
 
 export interface CadastroEntidadeInput {
   id?: string;
-  tipo: 'PRODUTOR' | 'IMPORTADOR' | 'BUYER';
+  tipo: 'PRODUTOR' | 'IMPORTADOR' | 'BUYER' | 'ARMAZEM';
   razaoSocial: string;
   nomeFantasia?: string | null;
   documento?: string | null;
@@ -139,9 +139,26 @@ export async function excluirCadastroEntidadeAction(id: string) {
   }
 }
 
-export async function buscarCadastrosAction(tipo?: 'PRODUTOR' | 'IMPORTADOR' | 'BUYER' | 'ALL', termo?: string) {
+export async function toggleAtivarCadastroEntidadeAction(id: string, ativo: boolean) {
   try {
-    const where: any = { ativo: true };
+    const updated = await prisma.cadastroEntidade.update({
+      where: { id },
+      data: { ativo },
+    });
+
+    revalidatePath('/');
+    revalidatePath('/negociacoes');
+
+    return { success: true, entidade: updated };
+  } catch (error: any) {
+    console.error('[toggleAtivarCadastroEntidadeAction] Erro:', error);
+    return { success: false, error: error?.message || 'Falha ao atualizar status do cadastro.' };
+  }
+}
+
+export async function buscarCadastrosAction(tipo?: 'PRODUTOR' | 'IMPORTADOR' | 'BUYER' | 'ARMAZEM' | 'ALL', termo?: string) {
+  try {
+    const where: any = {};
     if (tipo && tipo !== 'ALL') {
       where.tipo = tipo as TipoEntidadeComercial;
     }
@@ -180,6 +197,12 @@ export async function vincularProdutorTrajetoAction(
     produtorIeCache?: string | null;
     trajetoStatus?: string | null;
     siloArmazemOrigem?: string | null;
+    armazemCnpj?: string | null;
+    armazemUf?: string | null;
+    armazemCidade?: string | null;
+    armazemEndereco?: string | null;
+    coletaDiretaLavoura?: boolean | null;
+    armazemId?: string | null;
     terminalTransbordo?: string | null;
     laudoClassificacao?: string | null;
     distanciaRodoviariaKm?: number | null;
@@ -203,6 +226,12 @@ export async function vincularProdutorTrajetoAction(
         produtorIeCache: dados.produtorIeCache || produtorInfo?.inscricaoEstadual || null,
         trajetoStatus: dados.trajetoStatus || 'FAZENDA',
         siloArmazemOrigem: dados.siloArmazemOrigem || null,
+        armazemCnpj: dados.armazemCnpj || null,
+        armazemUf: dados.armazemUf || null,
+        armazemCidade: dados.armazemCidade || null,
+        armazemEndereco: dados.armazemEndereco || null,
+        coletaDiretaLavoura: dados.coletaDiretaLavoura !== undefined ? Boolean(dados.coletaDiretaLavoura) : false,
+        armazemId: dados.armazemId || null,
         terminalTransbordo: dados.terminalTransbordo || null,
         laudoClassificacao: dados.laudoClassificacao || null,
         distanciaRodoviariaKm: dados.distanciaRodoviariaKm !== undefined ? dados.distanciaRodoviariaKm : null,

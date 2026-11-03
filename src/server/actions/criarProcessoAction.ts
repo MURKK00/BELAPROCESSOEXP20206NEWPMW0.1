@@ -22,6 +22,11 @@ export async function criarProcessoAction(formData: FormData) {
 
   const compradorDiferente = formData.get('compradorDiferente') === 'sim';
   const clienteFinal = String(formData.get('clienteFinal') ?? '').trim();
+  const compradorNome = String(formData.get('compradorNome') ?? '').trim();
+  const importadorId = String(formData.get('importadorId') ?? '').trim() || undefined;
+  const enderecoBuyer = String(formData.get('enderecoBuyer') ?? '').trim() || undefined;
+  const cidadeBuyer = String(formData.get('cidadeBuyer') ?? '').trim() || undefined;
+  const paisBuyer = String(formData.get('paisBuyer') ?? '').trim() || undefined;
 
   const temProforma = formData.get('temProforma') === 'sim' || formData.get('temProforma') === 'true';
   const diasLiquidacao = Number(formData.get('diasLiquidacao')) || (temProforma ? 10 : 20);
@@ -37,7 +42,7 @@ export async function criarProcessoAction(formData: FormData) {
     '',
     {
       diferente: compradorDiferente,
-      nome: '',
+      nome: compradorNome,
       importadorNome: clienteFinal,
     },
     {
@@ -54,6 +59,10 @@ export async function criarProcessoAction(formData: FormData) {
 
   const processo = await criarProcesso({
     clienteFinal,
+    importadorId,
+    enderecoBuyer,
+    cidadeBuyer,
+    paisBuyer,
     traderIntermedio: String(formData.get('traderIntermedio') ?? '') || undefined,
     produto: String(formData.get('produto') ?? ''),
     volumeKg: Number(formData.get('volumeKg') ?? 0),

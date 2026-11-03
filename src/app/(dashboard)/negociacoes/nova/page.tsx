@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -14,7 +14,11 @@ import {
   AlertCircle,
   Search,
   Sparkles,
-  X
+  X,
+  Plus,
+  Building2,
+  Globe2,
+  ChevronDown
 } from 'lucide-react';
 import { buscarBancos, DIRETORIO_BANCOS, type BancoInfo } from '@/lib/bancosDiretorio';
 import { criarProcessoAction } from '@/server/actions/criarProcessoAction';
@@ -28,13 +32,36 @@ import {
   EMBALAGENS_OPTIONS 
 } from '@/components/negociacoes/FormFields';
 import { IncotermSelectField } from '@/components/negociacoes/IncotermSelectField';
+import { CentralCadastrosModal } from '@/components/cadastros/CentralCadastrosModal';
 
 export default function NovaNegociacaoPage() {
   const router = useRouter();
 
-  // Estado para controlar se o comprador é diferente do importador
+  // 1. Estado do Switch: Comprador diferente do importador (PRIMEIRA INFORMAÇÃO)
   const [compradorDiferente, setCompradorDiferente] = useState(false);
+
+  // 2. Estados para Cliente Final / Importador (Consignee) com busca em formato lista
   const [clienteFinal, setClienteFinal] = useState('');
+  const [importadorId, setImportadorId] = useState('');
+  const [importadorSelecionado, setImportadorSelecionado] = useState<any | null>(null);
+  const [importadorDropdownAberto, setImportadorDropdownAberto] = useState(false);
+  const [cadastrosImportadores, setCadastrosImportadores] = useState<any[]>([]);
+
+  // 3. Estados para Comprador (Buyer) quando diferente do importador com busca em lista
+  const [compradorNome, setCompradorNome] = useState('');
+  const [buyerId, setBuyerId] = useState('');
+  const [buyerSelecionado, setBuyerSelecionado] = useState<any | null>(null);
+  const [buyerDropdownAberto, setBuyerDropdownAberto] = useState(false);
+  const [cadastrosBuyers, setCadastrosBuyers] = useState<any[]>([]);
+
+  // Estados do Modal de Cadastros
+  const [modalCadastroAberto, setModalCadastroAberto] = useState(false);
+  const [modalTipoInicial, setModalTipoInicial] = useState<'IMPORTADOR' | 'BUYER'>('IMPORTADOR');
+  const [modalAlvo, setModalAlvo] = useState<'IMPORTADOR' | 'BUYER'>('IMPORTADOR');
+
+  // Refs para fechar dropdowns ao clicar fora
+  const importadorRef = useRef<HTMLDivElement>(null);
+  const buyerRef = useRef<HTMLDivElement>(null);
 
   // Estado para controlar se a fumigação é sim ou não
   const [fumigacao, setFumigacao] = useState('sim');
@@ -55,17 +82,15 @@ export default function NovaNegociacaoPage() {
   const [multaAtrasoPerc, setMultaAtrasoPerc] = useState<string>('5');
   const [adiantamentoPerc, setAdiantamentoPerc] = useState<string>('10');
   
-  // Dados bancários opcionais na criação (podem ser preenchidos ou finalizados na aba Importador)
+  // Dados bancários opcionais na criação
   const [mostrarDadosBanco, setMostrarDadosBanco] = useState<boolean>(false);
   const [bancoNome, setBancoNome] = useState<string>('');
   const [bancoEndereco, setBancoEndereco] = useState<string>('');
   const [bancoConta, setBancoConta] = useState<string>('');
   const [bancoSwift, setBancoSwift] = useState<string>('');
 
-  // Máscara e sanitização para o código SWIFT (apenas letras maiúsculas e números, máx 11 caracteres)
+  // Máscara e sanitização para o código SWIFT
   const maskSwift = (val: string) => val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
-
-  // Validação em tempo real do SWIFT/BIC (ISO 9362: 8 ou 11 caracteres alfanuméricos)
   const swiftTrim = bancoSwift.trim().toUpperCase();
   const swiftLen = swiftTrim.length;
   const isSwiftFormatoValido = /^[A-Z0-9]+$/.test(swiftTrim);
@@ -76,6 +101,115 @@ export default function NovaNegociacaoPage() {
   const [bancosSugeridos, setBancosSugeridos] = useState<BancoInfo[]>([]);
   const [mostrarModalBancos, setMostrarModalBancos] = useState(false);
   const [feedbackBanco, setFeedbackBanco] = useState<string | null>(null);
+
+  // Carrega importadores e buyers cadastrados
+  useEffect(() => {
+    carregarCadastros();
+  }, []);
+
+  async function carregarCadastros() {
+    try {
+      const res = await fetch('/api/cadastros');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setCadastrosImportadores(data.filter((item: any) => item.tipo === 'IMPORTADOR' || item.tipo === 'BUYER'));
+          setCadastrosBuyers(data.filter((item: any) => item.tipo === 'BUYER' || item.tipo === 'IMPORTADOR'));
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao carregar lista de cadastros:', e);
+    }
+  }
+
+  // Listener para fechar dropdowns ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (importadorRef.current && !importadorRef.current.contains(event.target as Node)) {
+        setImportadorDropdownAberto(false);
+      }
+      if (buyerRef.current && !buyerRef.current.contains(event.target as Node)) {
+        setBuyerDropdownAberto(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  function handleSelecionarImportador(entidade: any) {
+    setClienteFinal(entidade.razaoSocial || entidade.nomeFantasia || '');
+    setImportadorId(entidade.id);
+    setImportadorSelecionado(entidade);
+    setImportadorDropdownAberto(false);
+
+    // Se o banco ainda não estiver preenchido e a entidade tiver banco cadastrado, auto-preenche
+    if (entidade.bancoNome && !bancoNome) {
+      setBancoNome(entidade.bancoNome);
+      if (entidade.bancoEndereco) setBancoEndereco(entidade.bancoEndereco);
+      if (entidade.bancoConta) setBancoConta(entidade.bancoConta);
+      if (entidade.bancoSwift) setBancoSwift(entidade.bancoSwift);
+      setMostrarDadosBanco(true);
+    }
+  }
+
+  function handleSelecionarBuyer(entidade: any) {
+    setCompradorNome(entidade.razaoSocial || entidade.nomeFantasia || '');
+    setBuyerId(entidade.id);
+    setBuyerSelecionado(entidade);
+    setBuyerDropdownAberto(false);
+
+    if (entidade.bancoNome && !bancoNome) {
+      setBancoNome(entidade.bancoNome);
+      if (entidade.bancoEndereco) setBancoEndereco(entidade.bancoEndereco);
+      if (entidade.bancoConta) setBancoConta(entidade.bancoConta);
+      if (entidade.bancoSwift) setBancoSwift(entidade.bancoSwift);
+      setMostrarDadosBanco(true);
+    }
+  }
+
+  function abrirModalCadastro(alvo: 'IMPORTADOR' | 'BUYER') {
+    setModalAlvo(alvo);
+    setModalTipoInicial(alvo);
+    setModalCadastroAberto(true);
+    setImportadorDropdownAberto(false);
+    setBuyerDropdownAberto(false);
+  }
+
+  function handleEntidadeCriadaNoModal(novaEntidade: any) {
+    carregarCadastros().then(() => {
+      if (modalAlvo === 'IMPORTADOR') {
+        handleSelecionarImportador(novaEntidade);
+      } else {
+        handleSelecionarBuyer(novaEntidade);
+      }
+    });
+  }
+
+  // Filtra importadores pelo termo digitado
+  const importadoresFiltrados = cadastrosImportadores.filter((item) => {
+    const termo = clienteFinal.trim().toLowerCase();
+    if (!termo) return true;
+    return (
+      item.razaoSocial?.toLowerCase().includes(termo) ||
+      item.nomeFantasia?.toLowerCase().includes(termo) ||
+      item.pais?.toLowerCase().includes(termo) ||
+      item.cidade?.toLowerCase().includes(termo) ||
+      item.documento?.toLowerCase().includes(termo)
+    );
+  });
+
+  // Filtra buyers pelo termo digitado
+  const buyersFiltrados = cadastrosBuyers.filter((item) => {
+    const termo = compradorNome.trim().toLowerCase();
+    if (!termo) return true;
+    return (
+      item.razaoSocial?.toLowerCase().includes(termo) ||
+      item.nomeFantasia?.toLowerCase().includes(termo) ||
+      item.pais?.toLowerCase().includes(termo) ||
+      item.cidade?.toLowerCase().includes(termo) ||
+      item.documento?.toLowerCase().includes(termo)
+    );
+  });
 
   function handleBuscarDadosBanco(termoBusca?: string) {
     const q = termoBusca !== undefined ? termoBusca : bancoNome;
@@ -94,7 +228,6 @@ export default function NovaNegociacaoPage() {
       setMostrarModalBancos(true);
       setFeedbackBanco(null);
     } else {
-      // Se não encontrou ou termo vazio, exibe sugestões de bancos populares de comércio exterior
       setBancosSugeridos(DIRETORIO_BANCOS.slice(0, 8));
       setMostrarModalBancos(true);
       setFeedbackBanco(
@@ -114,7 +247,6 @@ export default function NovaNegociacaoPage() {
     setFeedbackBanco(`Dados preenchidos com sucesso: ${banco.nome}!`);
   }
 
-  // Quando alterna pro-forma, ajusta os dias de liquidação padrão (20 para sem pro-forma, 10 para com pro-forma)
   const handleToggleProforma = (comProforma: boolean) => {
     setTemProforma(comProforma);
     if (comProforma) {
@@ -124,13 +256,11 @@ export default function NovaNegociacaoPage() {
     }
   };
 
-  // Efeito para cálculo automático: volumeKg / containerQtd / pesoSaca
   useEffect(() => {
     const vol = parseFloat(volumeKg);
     const qtd = parseInt(containerQtd, 10);
 
     if (vol > 0 && qtd > 0) {
-      // Extrai o peso da saca da embalagem (ex: 30 de "Sacaria 30kg", default 30)
       const match = embalagemTipo.match(/(\d+)\s*kg/i);
       const pesoSaca = match ? parseFloat(match[1]) : 30;
 
@@ -148,7 +278,7 @@ export default function NovaNegociacaoPage() {
 
   return (
     <div className="max-w-3xl">
-      {/* CABEÇALHO COM SETINHA DE VOLTAR */}
+      {/* CABEÇALHO */}
       <div className="flex items-center gap-3.5 mb-6">
         <button
           type="button"
@@ -169,43 +299,33 @@ export default function NovaNegociacaoPage() {
       <form action={criarProcessoAction} className="space-y-6">
 
         <Section title="Dados do contrato">
-          <Field
-            label="Cliente final"
-            name="clienteFinal"
-            placeholder="Ex: AKSHAR AGRI INDIA PRIVATE LIMITED"
-            required
-            value={clienteFinal}
-            onChange={(e) => setClienteFinal(e.target.value)}
-          />
-          <Field label="Trader / Intermédio" name="traderIntermedio" placeholder="Ex: AgriTrading Partners SA" />
-
-          {/* PERGUNTA: O COMPRADOR (BUYER) É DIFERENTE DO IMPORTADOR (CONSIGNEE)? */}
-          <div className={`col-span-full rounded-xl border p-3.5 sm:p-4 transition-all duration-300 ease-in-out ${
+          {/* 1. PRIMEIRA INFORMAÇÃO SELECIONÁVEL: COMPRADOR (BUYER) DIFERENTE DO IMPORTADOR (CONSIGNEE) */}
+          <div className={`col-span-full rounded-2xl border p-4 sm:p-4.5 transition-all duration-300 ease-in-out ${
             compradorDiferente 
               ? 'bg-orange-50/70 dark:bg-orange-950/20 border-orange-400/80 dark:border-orange-600/80 ring-2 ring-orange-500/15 shadow-sm' 
               : 'bg-slate-50/80 dark:bg-slate-850/60 border-slate-200 dark:border-slate-800'
           }`}>
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-300 ${
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300 ${
                   compradorDiferente 
                     ? 'bg-orange-500 text-white shadow-xs shadow-orange-500/30' 
                     : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 }`}>
-                  <Users className="w-4 h-4" />
+                  <Users className="w-4.5 h-4.5" />
                 </div>
                 <div className="min-w-0">
-                  <label className="text-xs font-bold text-slate-900 dark:text-slate-100 block tracking-tight">
+                  <label className="text-xs font-black text-slate-900 dark:text-slate-100 block tracking-tight">
                     Comprador (Buyer) diferente do Importador (Consignee)
                   </label>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                    Ative se o faturamento for para trading ou empresa distinta da que recebe no destino.
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Ative se o faturamento/pagamento for emitido para uma trading ou empresa distinta da que recebe o grão no destino.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-[11px] font-bold transition-colors ${
+              <div className="flex items-center gap-2.5 shrink-0">
+                <span className={`text-xs font-bold transition-colors ${
                   compradorDiferente ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400'
                 }`}>
                   {compradorDiferente ? 'Sim' : 'Não'}
@@ -236,9 +356,279 @@ export default function NovaNegociacaoPage() {
             />
           </div>
 
+          {/* 2. LOGO APÓS: CLIENTE FINAL / IMPORTADOR (CONSIGNEE) EM FORMATO DE LISTA COM DIGITAÇÃO E SUGESTÃO */}
+          <div className="col-span-full" ref={importadorRef}>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                Cliente final / Importador (Consignee) <span className="text-rose-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => abrirModalCadastro('IMPORTADOR')}
+                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Cadastrar Importador</span>
+              </button>
+            </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                required
+                name="clienteFinal"
+                value={clienteFinal}
+                autoComplete="off"
+                placeholder="Digite ou selecione da lista (Ex: AKSHAR AGRI INDIA / VINA AGRI...)"
+                onFocus={() => setImportadorDropdownAberto(true)}
+                onChange={(e) => {
+                  setClienteFinal(e.target.value);
+                  setImportadorId('');
+                  setImportadorSelecionado(null);
+                  setImportadorDropdownAberto(true);
+                }}
+                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/40 outline-none pr-10 font-medium"
+              />
+              <button
+                type="button"
+                onClick={() => setImportadorDropdownAberto(!importadorDropdownAberto)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <ChevronDown className={`w-4 h-4 transition-transform ${importadorDropdownAberto ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* LISTA SUSPENSA COM SUGESTÕES DO MESMO NOME / PESQUISA */}
+              {importadorDropdownAberto && (
+                <div className="absolute z-30 left-0 right-0 mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-fadeIn">
+                  <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-850/60 flex items-center justify-between text-[11px] text-slate-500">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                      Importadores Cadastrados ({importadoresFiltrados.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setImportadorDropdownAberto(false)}
+                      className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                    {importadoresFiltrados.length > 0 ? (
+                      importadoresFiltrados.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleSelecionarImportador(item)}
+                          className="w-full text-left p-3 hover:bg-blue-50/70 dark:hover:bg-slate-800/80 transition-colors flex items-center justify-between gap-3 group cursor-pointer"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
+                              {item.razaoSocial}
+                            </div>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                              <span className="flex items-center gap-1">
+                                <Globe2 className="w-3 h-3 text-slate-400" />
+                                {item.cidade ? `${item.cidade}, ` : ''}{item.pais || 'Exterior'}
+                              </span>
+                              {item.documento && (
+                                <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                  ID: {item.documento}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <span className="shrink-0 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 px-2 py-1 rounded-lg">
+                            Selecionar
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center space-y-2">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Nenhum importador encontrado com &ldquo;{clienteFinal}&rdquo;.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => abrirModalCadastro('IMPORTADOR')}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Cadastrar &ldquo;{clienteFinal || 'Novo Importador'}&rdquo;</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* DADOS DO IMPORTADOR SELECIONADO (SE HOUVER) */}
+            {importadorSelecionado && (
+              <div className="mt-2 p-2.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 flex items-center justify-between text-xs animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-slate-700 dark:text-slate-300">
+                    Importador vinculado da base: <strong className="text-slate-900 dark:text-white">{importadorSelecionado.razaoSocial}</strong> ({importadorSelecionado.pais || 'Exterior'})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportadorId('');
+                    setImportadorSelecionado(null);
+                  }}
+                  className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  Desvincular
+                </button>
+              </div>
+            )}
+
+            {/* INPUT OCULTO COM O ID */}
+            <input type="hidden" name="importadorId" value={importadorId} />
+            <input type="hidden" name="enderecoBuyer" value={importadorSelecionado?.endereco || ''} />
+            <input type="hidden" name="cidadeBuyer" value={importadorSelecionado?.cidade || ''} />
+            <input type="hidden" name="paisBuyer" value={importadorSelecionado?.pais || ''} />
+          </div>
+
+          {/* 3. SE COMPRADOR FOR DIFERENTE DO IMPORTADOR: CAMPO COMPRADOR (BUYER) EM FORMATO DE LISTA COM DIGITAÇÃO E SUGESTÃO */}
+          {compradorDiferente && (
+            <div className="col-span-full pt-1" ref={buyerRef}>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-orange-950 dark:text-orange-200">
+                  Comprador (Buyer) / Faturamento Comercial <span className="text-orange-600">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => abrirModalCadastro('BUYER')}
+                  className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Cadastrar Comprador (Buyer)</span>
+                </button>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  required={compradorDiferente}
+                  name="compradorNome"
+                  value={compradorNome}
+                  autoComplete="off"
+                  placeholder="Digite ou selecione da lista (Ex: Trading Internacional / Faturamento)"
+                  onFocus={() => setBuyerDropdownAberto(true)}
+                  onChange={(e) => {
+                    setCompradorNome(e.target.value);
+                    setBuyerId('');
+                    setBuyerSelecionado(null);
+                    setBuyerDropdownAberto(true);
+                  }}
+                  className="w-full bg-white dark:bg-slate-900 border border-orange-300 dark:border-orange-700/70 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500/40 outline-none pr-10 font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => setBuyerDropdownAberto(!buyerDropdownAberto)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform ${buyerDropdownAberto ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* LISTA SUSPENSA COM SUGESTÕES DO BUYER */}
+                {buyerDropdownAberto && (
+                  <div className="absolute z-30 left-0 right-0 mt-1.5 bg-white dark:bg-slate-900 border border-orange-200 dark:border-orange-900/60 rounded-2xl shadow-xl overflow-hidden animate-fadeIn">
+                    <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-orange-50/50 dark:bg-orange-950/30 flex items-center justify-between text-[11px] text-slate-500">
+                      <span className="font-bold flex items-center gap-1.5 text-orange-800 dark:text-orange-300">
+                        <Users className="w-3.5 h-3.5 text-orange-600" />
+                        Compradores / Buyers Cadastrados ({buyersFiltrados.length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setBuyerDropdownAberto(false)}
+                        className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                      {buyersFiltrados.length > 0 ? (
+                        buyersFiltrados.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleSelecionarBuyer(item)}
+                            className="w-full text-left p-3 hover:bg-orange-50/70 dark:hover:bg-slate-800/80 transition-colors flex items-center justify-between gap-3 group cursor-pointer"
+                          >
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 truncate">
+                                {item.razaoSocial}
+                              </div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                                <span className="flex items-center gap-1">
+                                  <Globe2 className="w-3 h-3 text-slate-400" />
+                                  {item.cidade ? `${item.cidade}, ` : ''}{item.pais || 'Exterior'}
+                                </span>
+                                {item.documento && (
+                                  <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                    ID: {item.documento}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="shrink-0 text-[10px] font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-900 px-2 py-1 rounded-lg">
+                              Selecionar
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center space-y-2">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Nenhum comprador encontrado com &ldquo;{compradorNome}&rdquo;.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => abrirModalCadastro('BUYER')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs transition-colors cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Cadastrar &ldquo;{compradorNome || 'Novo Buyer'}&rdquo;</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {buyerSelecionado && (
+                <div className="mt-2 p-2.5 rounded-xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900 flex items-center justify-between text-xs animate-fadeIn">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                    <span className="text-slate-700 dark:text-slate-300">
+                      Comprador vinculado: <strong className="text-slate-900 dark:text-white">{buyerSelecionado.razaoSocial}</strong> ({buyerSelecionado.pais || 'Exterior'})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBuyerId('');
+                      setBuyerSelecionado(null);
+                    }}
+                    className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    Desvincular
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <Field label="Trader / Intermédio" name="traderIntermedio" placeholder="Ex: AgriTrading Partners SA" />
+
           <IncotermSelectField defaultValue="CFR" required />
           
-          {/* Porto de Origem como lista suspensa */}
           <SelectField
             label="Porto de Origem (Saída)"
             name="portoOrigem"
@@ -260,7 +650,7 @@ export default function NovaNegociacaoPage() {
           />
         </Section>
 
-        {/* NOVA SEÇÃO: CONDIÇÃO DE PAGAMENTO & COBRANÇA CAD (CARTA BORDERÔ) */}
+        {/* SEÇÃO: CONDIÇÃO DE PAGAMENTO & COBRANÇA CAD (CARTA BORDERÔ) */}
         <Section title="Condição de Pagamento & Cobrança Bancária (Carta Borderô)">
           <div className="col-span-full space-y-4">
             
@@ -311,7 +701,6 @@ export default function NovaNegociacaoPage() {
                 </button>
               </div>
 
-              {/* INPUTS OCULTOS / ENVIADOS NO FORMDATA */}
               <input type="hidden" name="temProforma" value={temProforma ? 'sim' : 'nao'} />
             </div>
 
@@ -374,7 +763,7 @@ export default function NovaNegociacaoPage() {
               )}
             </div>
 
-            {/* OPÇÃO DE INFORMAR DADOS BANCÁRIOS DO COMPRADOR AGORA OU DEPOIS */}
+            {/* DADOS BANCÁRIOS OPCIONAIS */}
             <div className="pt-2">
               <button
                 type="button"
@@ -400,7 +789,7 @@ export default function NovaNegociacaoPage() {
                         type="button"
                         onClick={() => handleBuscarDadosBanco()}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-all shadow-2xs cursor-pointer active:scale-98"
-                        title="Buscar endereço e código SWIFT automaticamente com base no nome do banco"
+                        title="Buscar endereço e código SWIFT automaticamente"
                       >
                         <Search className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                         <span>Buscar dados do banco</span>
@@ -421,7 +810,6 @@ export default function NovaNegociacaoPage() {
                       />
                     </div>
 
-                    {/* Feedback inline caso preenchido */}
                     {feedbackBanco && (
                       <div className="mt-1.5 flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 animate-fadeIn">
                         <span className="flex items-center gap-1 font-medium">
@@ -438,7 +826,6 @@ export default function NovaNegociacaoPage() {
                       </div>
                     )}
 
-                    {/* Dropdown de seleção de bancos sugeridos / encontrados */}
                     {mostrarModalBancos && (
                       <div className="mt-2 p-3 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-900 rounded-xl shadow-lg animate-fadeIn z-10 relative">
                         <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
@@ -562,7 +949,6 @@ export default function NovaNegociacaoPage() {
                       </div>
                     </div>
 
-                    {/* Feedback em tempo real */}
                     {isSwiftCompleto && (
                       <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 mt-1">
                         ✓ Padrão SWIFT internacional válido ({swiftLen} caracteres).
@@ -586,10 +972,10 @@ export default function NovaNegociacaoPage() {
           </div>
         </Section>
 
+        {/* INFORMAÇÕES DE CARGA & CONTÊINERES */}
         <Section title="Informações de Carga & Contêineres">
           <Field label="Local de estufagem / REDEX" name="localEstufagem" placeholder="Ex: CRAGEA" required />
           
-          {/* Volume Contratado (KG) */}
           <Field
             label="Volume (KG)"
             name="volumeKg"
@@ -600,7 +986,6 @@ export default function NovaNegociacaoPage() {
             onChange={(e) => setVolumeKg(e.target.value)}
           />
 
-          {/* Quantidade de Contêineres */}
           <Field
             label="Contêineres (quantidade)"
             name="containerQtd"
@@ -613,7 +998,6 @@ export default function NovaNegociacaoPage() {
 
           <Field label="Tipo de contêiner" name="containerTipo" defaultValue="20' DRY" readOnly required />
 
-          {/* Tipo de Embalagem */}
           <SelectField
             label="Tipo de embalagem"
             name="embalagemTipo"
@@ -623,7 +1007,6 @@ export default function NovaNegociacaoPage() {
             onChange={(e) => setEmbalagemTipo(e.target.value)}
           />
 
-          {/* Quantidade por Contêiner (Calculado automaticamente, mas editável) */}
           <Field
             label="Quantidade por contêiner (sacas)"
             name="sacasPorContainer"
@@ -653,7 +1036,6 @@ export default function NovaNegociacaoPage() {
             onChange={(e: any) => setFumigacao(e.target.value)}
           />
           
-          {/* Só mostra esses campos se a fumigação for SIM */}
           {fumigacao === 'sim' && (
             <>
               <SelectField
@@ -680,6 +1062,7 @@ export default function NovaNegociacaoPage() {
           <Field label="Deadline de Embarque / Carga (se já definido)" name="deadlineCarga" type="date" />
         </Section>
 
+        {/* CARACTERÍSTICAS & PLANEJAMENTO INICIAL */}
         <Section title="Características & Planejamento Inicial">
           <SelectField
             label="Produto"
@@ -702,12 +1085,21 @@ export default function NovaNegociacaoPage() {
         <div className="pt-2">
           <button
             type="submit"
-            className="bg-[#1a365d] hover:bg-blue-900 text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-colors shadow-2xs cursor-pointer"
+            className="bg-[#1a365d] hover:bg-blue-900 text-white px-8 py-3 rounded-xl font-black text-sm transition-all shadow-md hover:shadow-lg cursor-pointer"
           >
             Lançar Negociação
           </button>
         </div>
       </form>
+
+      {/* MODAL DE CADASTRO RÁPIDO DE IMPORTADOR / BUYER */}
+      <CentralCadastrosModal
+        isOpen={modalCadastroAberto}
+        onClose={() => setModalCadastroAberto(false)}
+        tipoInicial={modalTipoInicial}
+        onEntidadeSelecionada={handleEntidadeCriadaNoModal}
+        modoSelecao={true}
+      />
     </div>
   );
 }

@@ -27,12 +27,14 @@ export async function marcarEtapaAction(formData: FormData) {
     include: { etapaTemplate: true },
   });
 
+  const nomeEtapa = etapa?.etapaTemplate?.etapa || 'Etapa Operacional';
+
   await prisma.auditLog.create({
     data: {
       processoId,
       usuarioId: user.id,
       acao: novoStatus === 'CONCLUIDA' ? 'ETAPA_CONCLUIDA' : 'ETAPA_REABERTA',
-      detalhe: `Etapa "${etapa.etapaTemplate.etapa}" marcada como ${
+      detalhe: `Etapa "${nomeEtapa}" marcada como ${
         novoStatus === 'CONCLUIDA' ? 'concluída' : 'pendente'
       }.`,
     },

@@ -57,7 +57,7 @@ export function InfoOperacaoCard(props: Props) {
 
   if (!editando) {
     return (
-      <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-6 shadow-sm relative transition-all">
+      <div className="w-full bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-6 shadow-sm relative transition-all">
         {/* Header do Card com Botão de Edição */}
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
@@ -229,7 +229,7 @@ export function InfoOperacaoCard(props: Props) {
   return (
     <form
       action={handleSubmit}
-      className="lg:col-span-2 bg-white dark:bg-slate-900 border-2 border-orange-500/50 rounded-3xl p-6 shadow-md transition-all"
+      className="w-full bg-white dark:bg-slate-900 border-2 border-orange-500/50 rounded-3xl p-6 shadow-md transition-all"
     >
       <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
         <div>

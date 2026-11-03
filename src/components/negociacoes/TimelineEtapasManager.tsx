@@ -87,10 +87,10 @@ interface MarcoDef {
 const MARCOS: MarcoDef[] = [
   {
     id: 1,
-    chave: 'CONTRATO',
+    chave: 'NEGOCIACAO',
     numero: '1',
-    titulo: 'Contrato',
-    subtitulo: 'Fechamento Comercial & Dados do Comprador',
+    titulo: 'Etapa 1: Negociação',
+    subtitulo: 'Importador, Rastreabilidade, E-mail Nomeação e Emissão Booking',
     statusAssociado: 'EM_NEGOCIACAO',
     fasesAssociadas: ['COMERCIAL', 'PRODUTOR_VENDEDOR', 'ADMINISTRATIVO'],
     icon: FileText,
@@ -104,29 +104,12 @@ const MARCOS: MarcoDef[] = [
   },
   {
     id: 2,
-    chave: 'BOOKING',
-    numero: '2',
-    titulo: 'Booking & Industrialização',
-    subtitulo: 'Reserva Marítima, Industrialização & Contratação de Transporte',
-    statusAssociado: 'EM_EXECUCAO',
-    fasesAssociadas: ['BOOKING_TRANSPORTE'],
-    icon: Anchor,
-    cor: {
-      bg: 'bg-indigo-500/10 dark:bg-indigo-500/20',
-      border: 'border-indigo-500/30',
-      text: 'text-indigo-700 dark:text-indigo-400',
-      badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300',
-      ring: 'ring-indigo-500',
-    },
-  },
-  {
-    id: 3,
     chave: 'ESTUFAGEM',
-    numero: '3',
-    titulo: 'Estufagem',
-    subtitulo: 'Beneficiamento, Ensaque, REDEX & Contêineres',
+    numero: '2',
+    titulo: 'Etapa 2: Estufagem',
+    subtitulo: 'Transporte, NF #1 Formação Lote, REDEX, Etiquetagem, Fumigação, Contêineres, MAPA e Drafts',
     statusAssociado: 'EM_EXECUCAO',
-    fasesAssociadas: ['INDUSTRIA_BENEFICIAMENTO', 'CARREGAMENTO', 'CARREGAMENTO_REDEX'],
+    fasesAssociadas: ['CARREGAMENTO_REDEX', 'BOOKING_TRANSPORTE', 'INDUSTRIA_BENEFICIAMENTO', 'CARREGAMENTO'],
     icon: ContainerIcon,
     cor: {
       bg: 'bg-orange-500/10 dark:bg-orange-500/20',
@@ -137,11 +120,11 @@ const MARCOS: MarcoDef[] = [
     },
   },
   {
-    id: 4,
+    id: 3,
     chave: 'EMBARQUE',
     numero: '4',
-    titulo: 'Embarque',
-    subtitulo: 'Gate Terminal, Despacho Aduaneiro & A bordo',
+    titulo: 'Etapa 4: Embarque',
+    subtitulo: 'NF #2 Retorno de Lote e NF #3 Exportação (DU-E)',
     statusAssociado: 'EMBARCADO',
     fasesAssociadas: ['TERMINAL_PORTO'],
     icon: Ship,
@@ -154,11 +137,11 @@ const MARCOS: MarcoDef[] = [
     },
   },
   {
-    id: 5,
-    chave: 'CAMBIO',
+    id: 4,
+    chave: 'DOCUMENTACAO',
     numero: '5',
-    titulo: 'Documentação & Câmbio',
-    subtitulo: 'BL Original, Certificados & Fechamento Bancário',
+    titulo: 'Etapa 5: Documentação Aprovadas',
+    subtitulo: '12 Documentos de Exportação (DU-E, BL, Invoice, Packing List, Certificados) & Câmbio',
     statusAssociado: 'FINALIZADO',
     fasesAssociadas: ['DOCUMENTACAO_EXPORTACAO', 'FECHAMENTO_BANCARIO'],
     icon: DollarSign,
@@ -179,17 +162,14 @@ export function TimelineEtapasManager({ processo, etapas }: TimelineEtapasManage
   let defaultMarcoIndex = 0;
   if (processo.status === 'EM_NEGOCIACAO' || processo.status === 'PENDENTE') {
     defaultMarcoIndex = 0;
-  } else if (!processo.bookingNumero) {
-    defaultMarcoIndex = 1;
   } else if (processo.status === 'EM_EXECUCAO') {
-    // Se tem booking mas não embarcou, está em estufagem
-    defaultMarcoIndex = 2;
+    defaultMarcoIndex = 1;
   } else if (processo.status === 'EMBARCADO') {
-    defaultMarcoIndex = 3;
-  } else if (processo.status === 'FINALIZADO') {
-    defaultMarcoIndex = 4;
-  } else {
     defaultMarcoIndex = 2;
+  } else if (processo.status === 'FINALIZADO') {
+    defaultMarcoIndex = 3;
+  } else {
+    defaultMarcoIndex = 0;
   }
 
   // Marco que o usuário está visualizando/interagindo no momento
@@ -213,8 +193,8 @@ export function TimelineEtapasManager({ processo, etapas }: TimelineEtapasManage
     };
   });
 
-  const marcoAtual = marcoData[marcoVisualizadoIndex];
-  const proximoMarco = marcoVisualizadoIndex < 4 ? marcoData[marcoVisualizadoIndex + 1] : null;
+  const marcoAtual = marcoData[marcoVisualizadoIndex] || marcoData[0];
+  const proximoMarco = marcoVisualizadoIndex < 3 ? marcoData[marcoVisualizadoIndex + 1] : null;
 
   return (
     <div className="space-y-6">

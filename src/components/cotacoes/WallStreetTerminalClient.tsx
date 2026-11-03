@@ -385,7 +385,14 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
           {/* 1. BRASIL / B3 (SP) */}
           <div className="bg-gradient-to-b from-slate-900/95 via-[#0c1322] to-slate-950 border border-slate-800/90 hover:border-emerald-500/40 rounded-2xl p-3 sm:p-3.5 shadow-lg flex items-center justify-between gap-3 transition-all group">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="Brasil">🇧🇷</span>
+              <div className="w-8 h-5.5 min-w-[32px] min-h-[22px] rounded overflow-hidden border border-slate-700/80 shadow-xs shrink-0 bg-slate-900">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/assets/aistudio/BRASIL_07f5fbf4.png"
+                  alt="Brasil"
+                  className="w-full h-full object-cover block"
+                />
+              </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${statusMercado.b3.aberto ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
@@ -411,7 +418,14 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
           {/* 2. EUA / CBOT CHICAGO */}
           <div className="bg-gradient-to-b from-slate-900/95 via-[#0c1322] to-slate-950 border border-slate-800/90 hover:border-amber-500/40 rounded-2xl p-3 sm:p-3.5 shadow-lg flex items-center justify-between gap-3 transition-all group">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="Estados Unidos">🇺🇸</span>
+              <div className="w-8 h-5.5 min-w-[32px] min-h-[22px] rounded overflow-hidden border border-slate-700/80 shadow-xs shrink-0 bg-slate-900">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/assets/aistudio/EUA_184fb482.png"
+                  alt="Estados Unidos"
+                  className="w-full h-full object-cover block"
+                />
+              </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${statusMercado.cbot.aberto ? 'bg-emerald-400 animate-pulse' : statusMercado.cbot.tipoPregao === 'PAUSA' ? 'bg-amber-400' : 'bg-slate-500'}`}></span>
@@ -447,7 +461,14 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
           {/* 3. ÍNDIA / MUMBAI */}
           <div className="bg-gradient-to-b from-slate-900/95 via-[#0c1322] to-slate-950 border border-slate-800/90 hover:border-blue-500/40 rounded-2xl p-3 sm:p-3.5 shadow-lg flex items-center justify-between gap-3 transition-all group">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="Índia">🇮🇳</span>
+              <div className="w-8 h-5.5 min-w-[32px] min-h-[22px] rounded overflow-hidden border border-slate-700/80 shadow-xs shrink-0 bg-slate-900">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/assets/aistudio/INDIA_3785c9da.png"
+                  alt="Índia"
+                  className="w-full h-full object-cover block"
+                />
+              </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${statusMercado.ncdex.aberto ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
@@ -473,7 +494,14 @@ Data: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString(
           {/* 4. CHINA / DALIAN & XANGAI */}
           <div className="bg-gradient-to-b from-slate-900/95 via-[#0c1322] to-slate-950 border border-slate-800/90 hover:border-rose-500/40 rounded-2xl p-3 sm:p-3.5 shadow-lg flex items-center justify-between gap-3 transition-all group">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-2xl sm:text-3xl leading-none select-none shrink-0" role="img" aria-label="China">🇨🇳</span>
+              <div className="w-8 h-5.5 min-w-[32px] min-h-[22px] rounded overflow-hidden border border-slate-700/80 shadow-xs shrink-0 bg-slate-900">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/assets/aistudio/CHINA_b1993b91.png"
+                  alt="China"
+                  className="w-full h-full object-cover block"
+                />
+              </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${statusMercado.dce.aberto ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>

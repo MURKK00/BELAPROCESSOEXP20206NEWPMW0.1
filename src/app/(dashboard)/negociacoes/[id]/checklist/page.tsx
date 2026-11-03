@@ -29,8 +29,8 @@ export default async function ChecklistPage({ params }: { params: Promise<{ id: 
   const etapasSimplificadas: EtapaItem[] = processo.etapas.map((e) => ({
     id: e.id,
     status: e.status,
-    fase: e.etapaTemplate.fase,
-    etapa: e.etapaTemplate.etapa,
+    fase: e.etapaTemplate?.fase || 'COMERCIAL',
+    etapa: e.etapaTemplate?.etapa || 'Etapa Operacional',
   }));
 
   // Métricas do processo para alimentar o painel dos marcos

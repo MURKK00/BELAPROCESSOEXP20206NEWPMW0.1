@@ -129,6 +129,57 @@ function initMockStore(): MockStore {
             } catch {}
           }
         }
+
+        // Migração do novo checklist operacional (4 macro-etapas e 27 micro-etapas)
+        const precisaMigrarChecklist = !parsed.etapasTemplate || 
+          parsed.etapasTemplate.length !== CHECKLIST_ETAPAS.length || 
+          !parsed.etapasTemplate.some((t: any) => t.etapa.includes('Importador'));
+
+        if (precisaMigrarChecklist) {
+          let tmplIdCounter = 1;
+          const novosTemplates: any[] = [];
+          for (const etapa of CHECKLIST_ETAPAS) {
+            novosTemplates.push({
+              id: `tmpl_${tmplIdCounter++}`,
+              numero: etapa.numero,
+              ordem: etapa.ordem,
+              fase: etapa.fase,
+              etapa: etapa.etapa,
+              raiaResponsavel: etapa.raiaResponsavel,
+              geraDocumento: Boolean(etapa.geraDocumento),
+              tipoDocNome: etapa.tipoDocNome ?? null,
+              parceiroId: null,
+              parceiro: null,
+              criadoEm: new Date(),
+            });
+          }
+          parsed.etapasTemplate = novosTemplates;
+
+          // Atualiza as processoEtapas de cada processo
+          const novasProcessoEtapas: any[] = [];
+          if (Array.isArray(parsed.processos)) {
+            for (const p of parsed.processos) {
+              novosTemplates.forEach((t, idx) => {
+                const antiga = (parsed.processoEtapas || []).find((pe: any) => pe.processoId === p.id && pe.etapaTemplateId === t.id);
+                novasProcessoEtapas.push({
+                  id: `pe_${p.id}_${idx + 1}`,
+                  processoId: p.id,
+                  etapaTemplateId: t.id,
+                  status: antiga?.status ?? 'PENDENTE',
+                  concluidaEm: antiga?.concluidaEm ?? null,
+                  responsavelId: antiga?.responsavelId ?? null,
+                  criadoEm: new Date(),
+                  atualizadoEm: new Date(),
+                });
+              });
+            }
+          }
+          parsed.processoEtapas = novasProcessoEtapas;
+          try {
+            fs.writeFileSync(STORAGE_FILE_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
+          } catch {}
+        }
+
         return parsed;
       }
     } catch (err) {
