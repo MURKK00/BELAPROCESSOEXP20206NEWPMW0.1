@@ -395,14 +395,14 @@ export default function BackofficeTvPage() {
 
   return (
     <div
-      className={`w-full bg-[#060913] text-slate-100 flex flex-col justify-between p-2.5 sm:p-3.5 overflow-hidden select-none font-sans ${
+      className={`w-full bg-[#060913] text-slate-100 flex flex-col justify-between p-2 sm:p-2.5 overflow-hidden select-none font-sans ${
         isFullScreen ? 'fixed inset-0 z-[99999] h-screen w-screen' : 'h-screen max-h-screen'
       }`}
     >
       {/* ========================================================================= */}
-      {/* 1. TOPO: HEADER + 7 RELÓGIOS MUNDIAIS + PREVISÃO DO TEMPO DOS 4 PÓLOS     */}
+      {/* 1. TOPO: HEADER + 7 RELÓGIOS MUNDIAIS AMPLIADOS VERTICALMENTE             */}
       {/* ========================================================================= */}
-      <header className="shrink-0 space-y-2">
+      <header className="shrink-0 space-y-1.5">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center border border-orange-500/40 shadow-xs">
@@ -439,7 +439,7 @@ export default function BackofficeTvPage() {
           </div>
         </div>
 
-        {/* 7 RELÓGIOS MUNDIAIS AMPLIADOS VERTICALMENTE (OCUPANDO ESPAÇO COM DESTAQUE) */}
+        {/* 7 RELÓGIOS MUNDIAIS AMPLIADOS VERTICALMENTE */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5 pt-0.5">
           {WORLD_CLOCKS.map((clock) => {
             const hora = formatarHoraFuso(clock.timeZone);
@@ -449,14 +449,14 @@ export default function BackofficeTvPage() {
             return (
               <div
                 key={clock.pais}
-                className={`px-3 py-2.5 sm:py-3 rounded-xl border flex items-center justify-between transition-colors shadow-sm min-h-[58px] sm:min-h-[64px] ${
+                className={`px-3 py-2.5 sm:py-3 rounded-xl border flex items-center justify-between transition-colors shadow-sm h-[72px] min-h-[72px] max-h-[72px] overflow-hidden ${
                   isBrasil
                     ? 'bg-gradient-to-r from-[#0d1e17] to-[#0b1522] border-emerald-500/50 ring-1 ring-emerald-500/20'
                     : 'bg-[#0b1120] border-slate-800/90 hover:border-slate-700'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-5.5 min-w-[32px] min-h-[22px] rounded overflow-hidden border border-slate-700 shadow-xs shrink-0 bg-slate-900">
+                  <div className="w-8.5 h-6 min-w-[34px] min-h-[24px] rounded overflow-hidden border border-slate-700 shadow-xs shrink-0 bg-slate-900">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={clock.bandeiraImg}
@@ -469,17 +469,17 @@ export default function BackofficeTvPage() {
                     <span className="text-xs sm:text-sm font-black text-white block truncate leading-tight">
                       {clock.pais}
                     </span>
-                    <span className="text-[10px] sm:text-[11px] text-slate-400 block truncate font-medium">
+                    <span className="text-[10px] sm:text-[11px] text-slate-400 block truncate font-medium mt-0.5">
                       {clock.cidade}
                     </span>
                   </div>
                 </div>
 
                 <div className="text-right shrink-0 pl-1.5">
-                  <span className="text-sm sm:text-base font-black text-white font-mono tracking-tight block leading-tight tabular-nums">
+                  <span className="text-base sm:text-lg font-black text-white font-mono tracking-tight block leading-tight tabular-nums">
                     {hora}
                   </span>
-                  <div className="flex items-center justify-end gap-1 text-[9px] font-mono text-slate-400 mt-0.5">
+                  <div className="flex items-center justify-end gap-1 text-[9px] sm:text-[10px] font-mono text-slate-400 mt-1">
                     <span className="text-slate-300 font-semibold">{clock.fuso}</span>
                     <span className="text-slate-600">·</span>
                     <span className="text-slate-400">{dataFuso}</span>
@@ -492,13 +492,13 @@ export default function BackofficeTvPage() {
       </header>
 
       {/* ========================================================================= */}
-      {/* 2. LINHA DE CARDS PRINCIPAIS: KPIS AMPLIADOS VERTICALMENTE (min-h: 195-210px) */}
+      {/* 2. LINHA DE CARDS PRINCIPAIS: KPIS AMPLIADOS VERTICALMENTE (h-[230px])    */}
       {/* ========================================================================= */}
-      <section className="shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 my-1">
+      <section className="shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
         
-        {/* CARD 1: PRÓXIMO DEADLINE (ALTURA FIXA E TRAVADA) */}
+        {/* CARD 1: PRÓXIMO DEADLINE (ALTURA FIXA AMPLIADA) */}
         <div
-          className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col justify-between shadow-lg h-[195px] min-h-[195px] max-h-[195px] overflow-hidden ${
+          className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col justify-between shadow-lg h-[225px] min-h-[225px] max-h-[225px] overflow-hidden ${
             proximoDeadline?.atrasado
               ? 'animate-pulse-danger bg-gradient-to-br from-[#280d16] via-[#1a0a10] to-[#0b1120]'
               : proximoDeadline?.urgente
@@ -524,7 +524,7 @@ export default function BackofficeTvPage() {
             </div>
             {proximoDeadline && (
               <span
-                className={`px-2.5 py-0.5 rounded text-xs font-mono font-black uppercase tracking-wider ${
+                className={`px-2.5 py-1 rounded text-xs font-mono font-black uppercase tracking-wider ${
                   proximoDeadline.atrasado
                     ? 'bg-rose-500/30 text-rose-300 border border-rose-500/60 animate-pulse'
                     : 'bg-amber-500/25 text-amber-300 border border-amber-500/50 animate-pulse'
@@ -537,7 +537,7 @@ export default function BackofficeTvPage() {
 
           {/* Número do Processo + Volume */}
           <div className="flex items-baseline justify-between mt-1">
-            <div className="font-mono font-black text-2xl sm:text-3xl text-amber-400 tracking-tight">
+            <div className="font-mono font-black text-3xl sm:text-4xl text-amber-400 tracking-tight">
               {proximoDeadline?.numeroProcesso || 'Sem processos'}
             </div>
             <div className="font-mono font-bold text-xs sm:text-sm text-slate-200">
@@ -546,7 +546,7 @@ export default function BackofficeTvPage() {
           </div>
 
           {/* BOX DESTACADO: NÚMERO DO BOOKING E DATA DO DEADLINE */}
-          <div className="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs font-mono my-1">
+          <div className="px-3.5 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs sm:text-sm font-mono my-1">
             <div className="flex items-center gap-1.5 text-slate-300 truncate max-w-[200px]">
               <Bookmark className="w-4 h-4 text-amber-400 shrink-0" />
               <span className="text-slate-400 text-[11px] font-semibold">Booking:</span>
@@ -570,7 +570,7 @@ export default function BackofficeTvPage() {
           </div>
 
           {/* Rodapé: Navio e Destino */}
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-300 font-medium">
+          <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-300 font-medium">
             <div className="truncate max-w-[210px]">
               <span className="text-slate-400">Navio:</span>{' '}
               <strong className="text-white">{proximoDeadline?.navio || 'Nomear'}</strong>
@@ -581,8 +581,8 @@ export default function BackofficeTvPage() {
           </div>
         </div>
 
-        {/* CARD 2: NEGOCIAÇÕES EM EXECUÇÃO (ALTURA FIXA E TRAVADA) */}
-        <div className="p-3.5 sm:p-4 bg-[#0b1120] border border-slate-800 rounded-2xl flex flex-col justify-between shadow-lg h-[195px] min-h-[195px] max-h-[195px] overflow-hidden">
+        {/* CARD 2: NEGOCIAÇÕES EM EXECUÇÃO (ALTURA FIXA AMPLIADA) */}
+        <div className="p-3.5 sm:p-4 bg-[#0b1120] border border-slate-800 rounded-2xl flex flex-col justify-between shadow-lg h-[225px] min-h-[225px] max-h-[225px] overflow-hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-orange-500/15 text-orange-400">
@@ -592,13 +592,13 @@ export default function BackofficeTvPage() {
                 Em Execução
               </span>
             </div>
-            <span className="px-2 py-0.5 rounded text-[10px] sm:text-xs font-mono font-black uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/30">
+            <span className="px-2.5 py-1 rounded text-[10px] sm:text-xs font-mono font-black uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/30">
               Operações Ativas
             </span>
           </div>
 
           <div className="my-1.5 flex items-baseline justify-between">
-            <div className="text-4xl sm:text-5xl font-black text-white font-mono tabular-nums">
+            <div className="text-5xl sm:text-6xl font-black text-white font-mono tabular-nums">
               {emExecucao?.total || 0}{' '}
               <span className="text-xs sm:text-sm font-bold text-slate-400">contratos</span>
             </div>
@@ -607,10 +607,10 @@ export default function BackofficeTvPage() {
             </span>
           </div>
 
-          <div className="space-y-1.5 text-xs text-slate-300">
+          <div className="space-y-2 text-xs sm:text-sm text-slate-300">
             <div className="flex items-center justify-between">
               <span>Volume Total em Lote:</span>
-              <strong className="text-white font-mono text-sm">{emExecucao?.volumeToneladas || 0} Toneladas</strong>
+              <strong className="text-white font-mono text-sm sm:text-base">{emExecucao?.volumeToneladas || 0} Toneladas</strong>
             </div>
             <div className="flex items-center justify-between text-slate-400 text-xs font-mono">
               <span>Sacaria Estimada:</span>
@@ -618,14 +618,14 @@ export default function BackofficeTvPage() {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
             <span>Fase 1 a 3 (Indústria e REDEX)</span>
             <span className="text-emerald-400 font-bold">Fluxo Normal</span>
           </div>
         </div>
 
-        {/* CARD 3: NEGOCIAÇÕES EMBARCADAS (ALTURA FIXA E TRAVADA) */}
-        <div className="p-3.5 sm:p-4 bg-[#0b1120] border border-slate-800 rounded-2xl flex flex-col justify-between shadow-lg h-[195px] min-h-[195px] max-h-[195px] overflow-hidden">
+        {/* CARD 3: NEGOCIAÇÕES EMBARCADAS (ALTURA FIXA AMPLIADA) */}
+        <div className="p-3.5 sm:p-4 bg-[#0b1120] border border-slate-800 rounded-2xl flex flex-col justify-between shadow-lg h-[225px] min-h-[225px] max-h-[225px] overflow-hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400">
@@ -635,13 +635,13 @@ export default function BackofficeTvPage() {
                 Negociações Embarcadas
               </span>
             </div>
-            <span className="px-2 py-0.5 rounded text-[10px] sm:text-xs font-mono font-black uppercase tracking-wider bg-blue-500/15 text-blue-400 border border-blue-500/30">
+            <span className="px-2.5 py-1 rounded text-[10px] sm:text-xs font-mono font-black uppercase tracking-wider bg-blue-500/15 text-blue-400 border border-blue-500/30">
               No Mar / BL
             </span>
           </div>
 
           <div className="my-1.5 flex items-baseline justify-between">
-            <div className="text-4xl sm:text-5xl font-black text-white font-mono tabular-nums">
+            <div className="text-5xl sm:text-6xl font-black text-white font-mono tabular-nums">
               {embarcadas?.total || 0}{' '}
               <span className="text-xs sm:text-sm font-bold text-slate-400">embarcadas</span>
             </div>
@@ -650,10 +650,10 @@ export default function BackofficeTvPage() {
             </span>
           </div>
 
-          <div className="space-y-1.5 text-xs text-slate-300">
+          <div className="space-y-2 text-xs sm:text-sm text-slate-300">
             <div className="flex items-center justify-between">
               <span>Volume Despachado:</span>
-              <strong className="text-white font-mono text-sm">{embarcadas?.volumeToneladas || 0} Toneladas</strong>
+              <strong className="text-white font-mono text-sm sm:text-base">{embarcadas?.volumeToneladas || 0} Toneladas</strong>
             </div>
             <div className="flex items-center justify-between text-slate-400 text-xs font-mono">
               <span>Sacaria Embarcada:</span>
@@ -661,15 +661,15 @@ export default function BackofficeTvPage() {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
             <span>Fase 4 (Exportação Marítima)</span>
             <span className="text-blue-400 font-bold">Em Trânsito / BL</span>
           </div>
         </div>
 
-        {/* CARD 4: AVERBAÇÃO SEFAZ & ALERTA FISCAL (ALTURA FIXA E TRAVADA) */}
+        {/* CARD 4: AVERBAÇÃO SEFAZ & ALERTA FISCAL (ALTURA FIXA AMPLIADA) */}
         <div
-          className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col justify-between shadow-lg h-[195px] min-h-[195px] max-h-[195px] overflow-hidden ${
+          className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col justify-between shadow-lg h-[225px] min-h-[225px] max-h-[225px] overflow-hidden ${
             fiscal?.semAverbacaoEEmbarcadas > 0
               ? 'animate-pulse-warning bg-gradient-to-br from-[#26170a] to-[#0b1120]'
               : 'bg-[#0b1120] border-slate-800'
@@ -694,13 +694,13 @@ export default function BackofficeTvPage() {
                 Averbação SEFAZ
               </span>
             </div>
-            <span className="px-2 py-0.5 rounded text-[10px] sm:text-xs font-mono font-black uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
+            <span className="px-2.5 py-1 rounded text-[10px] sm:text-xs font-mono font-black uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
               Etapa 4 NFe
             </span>
           </div>
 
           <div className="my-1.5 flex items-baseline justify-between">
-            <div className="text-4xl sm:text-5xl font-black text-white font-mono tabular-nums">
+            <div className="text-5xl sm:text-6xl font-black text-white font-mono tabular-nums">
               {fiscal?.semAverbacaoTotal || 0}{' '}
               <span className="text-xs sm:text-sm font-bold text-slate-400">sem averbar</span>
             </div>
@@ -709,23 +709,23 @@ export default function BackofficeTvPage() {
             </span>
           </div>
 
-          <div className="space-y-1.5 text-xs">
+          <div className="space-y-2 text-xs sm:text-sm">
             <div className="flex items-center justify-between">
               <span className="text-amber-300 flex items-center gap-1.5 font-bold">
                 <AlertTriangle className="w-4 h-4 text-amber-400" />
                 Embarcadas s/ averbação:
               </span>
-              <strong className="text-amber-400 font-mono font-black text-base">
+              <strong className="text-amber-400 font-mono font-black text-base sm:text-lg">
                 {fiscal?.semAverbacaoEEmbarcadas || 0} NFs
               </strong>
             </div>
             <div className="flex items-center justify-between text-slate-400 text-xs">
               <span>Índice Geral de Averbação:</span>
-              <span className="text-emerald-400 font-bold font-mono text-sm">{fiscal?.percAverbado ? fiscal.percAverbado.toFixed(0) : 81}%</span>
+              <span className="text-emerald-400 font-bold font-mono text-sm sm:text-base">{fiscal?.percAverbado ? fiscal.percAverbado.toFixed(0) : 81}%</span>
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
             <span>Auditoria Fiscal SEFAZ</span>
             <span className={fiscal?.semAverbacaoEEmbarcadas > 0 ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>
               {fiscal?.semAverbacaoEEmbarcadas > 0 ? 'Atenção Requerida' : 'Conformidade Fiscal'}
@@ -1109,15 +1109,15 @@ export default function BackofficeTvPage() {
           </div>
         </div>
 
-        {/* CONTAINER COM ROLAGEM AUTOMÁTICA EM LOOP */}
+        {/* CONTAINER COM ROLAGEM AUTOMÁTICA EM LOOP (ALTURA AMPLIADA: 235px) */}
         <div
           ref={tickerContainerRef}
           onMouseEnter={() => setAutoScrollPausado(true)}
           onMouseLeave={() => setAutoScrollPausado(false)}
-          className="bg-[#0b1120] border border-slate-800/90 rounded-2xl p-2.5 sm:p-3 overflow-x-auto no-scrollbar shadow-2xl h-[195px] min-h-[195px] max-h-[195px]"
+          className="bg-[#0b1120] border border-slate-800/90 rounded-2xl p-2.5 sm:p-3 overflow-x-auto no-scrollbar shadow-2xl h-[235px] min-h-[235px] max-h-[235px]"
         >
           <div
-            className={`flex items-stretch gap-3.5 h-[170px] ${
+            className={`flex items-stretch gap-3.5 h-[210px] ${
               autoScrollPausado ? '' : 'animate-marquee'
             }`}
             style={{ width: 'max-content' }}
@@ -1130,7 +1130,7 @@ export default function BackofficeTvPage() {
               return (
                 <div
                   key={`${item.id}-${idx}`}
-                  className={`ticker-item w-[390px] sm:w-[430px] h-[170px] min-h-[170px] max-h-[170px] p-3 sm:p-3.5 rounded-xl transition-colors flex flex-col justify-between shrink-0 shadow-lg group relative overflow-hidden ${
+                  className={`ticker-item w-[410px] sm:w-[450px] h-[210px] min-h-[210px] max-h-[210px] p-3.5 sm:p-4 rounded-xl transition-colors flex flex-col justify-between shrink-0 shadow-lg group relative overflow-hidden ${
                     isAtrasado
                       ? 'animate-pulse-danger bg-gradient-to-b from-[#280d16] via-[#1a0a10] to-[#0d1424]'
                       : isCritico
@@ -1138,10 +1138,10 @@ export default function BackofficeTvPage() {
                       : 'bg-[#0e172a] border border-slate-800 hover:border-orange-500/50'
                   }`}
                 >
-                  {/* Linha 1: Processo + Status da Negociação + Alerta de Deadline (SEMPRE MOSTRA OS DOIS!) */}
+                  {/* Linha 1: Processo + Status da Negociação + Alerta de Deadline */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-black text-lg sm:text-xl text-white group-hover:text-orange-400 transition-colors">
+                      <span className="font-mono font-black text-xl sm:text-2xl text-white group-hover:text-orange-400 transition-colors">
                         {item.numeroProcesso}
                       </span>
                       {isAtrasado && (
@@ -1154,17 +1154,17 @@ export default function BackofficeTvPage() {
 
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       {/* STATUS OFICIAL DA NEGOCIAÇÃO */}
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${getStatusBadgeStyle(item.status)}`}>
+                      <span className={`px-2.5 py-1 rounded text-[11px] font-black uppercase tracking-wider border ${getStatusBadgeStyle(item.status)}`}>
                         {getStatusLabel(item.status)}
                       </span>
 
                       {/* BADGE DE DEADLINE VENCIDO OU CRÍTICO AO LADO */}
                       {isAtrasado ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider bg-rose-500/30 text-rose-300 border border-rose-500/60 animate-pulse">
+                        <span className="px-2.5 py-1 rounded text-[11px] font-mono font-black uppercase tracking-wider bg-rose-500/30 text-rose-300 border border-rose-500/60 animate-pulse">
                           {item.deadlineTexto || 'Vencido'}
                         </span>
                       ) : isCritico ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider bg-amber-500/30 text-amber-300 border border-amber-500/60 animate-pulse">
+                        <span className="px-2.5 py-1 rounded text-[11px] font-mono font-black uppercase tracking-wider bg-amber-500/30 text-amber-300 border border-amber-500/60 animate-pulse">
                           {item.deadlineTexto || 'Crítico'}
                         </span>
                       ) : null}
@@ -1172,8 +1172,8 @@ export default function BackofficeTvPage() {
                   </div>
 
                   {/* Linha 2: BOX DESTACADO COM BOOKING E DATA DO DEADLINE */}
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs font-mono">
-                    <div className="flex items-center gap-1.5 text-slate-300 truncate max-w-[200px]">
+                  <div className="px-3.5 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs sm:text-sm font-mono my-1">
+                    <div className="flex items-center gap-1.5 text-slate-300 truncate max-w-[210px]">
                       <Bookmark className="w-4 h-4 text-amber-400 shrink-0" />
                       <span className="text-[11px] text-slate-400 font-semibold">BKG:</span>
                       <strong className="text-amber-300 font-bold truncate">
@@ -1191,13 +1191,13 @@ export default function BackofficeTvPage() {
                   </div>
 
                   {/* Linha 3: Cliente & Produto / Volume */}
-                  <div className="space-y-0.5">
-                    <div className="text-xs sm:text-sm font-bold text-slate-100 truncate" title={item.clienteFinal}>
+                  <div className="space-y-1">
+                    <div className="text-sm sm:text-base font-bold text-slate-100 truncate" title={item.clienteFinal}>
                       {item.clienteFinal}
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-300">
-                      <span className="truncate max-w-[230px] text-slate-200" title={item.produto}>{item.produto}</span>
+                    <div className="flex items-center justify-between text-xs sm:text-sm text-slate-300">
+                      <span className="truncate max-w-[240px] text-slate-200" title={item.produto}>{item.produto}</span>
                       <span className="font-mono font-bold text-white shrink-0">
                         {(item.volumeKg / 1000).toFixed(0)} t{' '}
                         {item.sacas ? `(${item.sacas.toLocaleString('pt-BR')} sc)` : ''}
@@ -1206,8 +1206,8 @@ export default function BackofficeTvPage() {
                   </div>
 
                   {/* Linha 4: Logística (Navio, Destino e Contêineres / Valuation com Indicador e Flash) */}
-                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-300">
-                    <div className="truncate max-w-[190px] sm:max-w-[210px]" title={`${item.navio} -> ${item.portoDestino}`}>
+                  <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs sm:text-sm text-slate-300">
+                    <div className="truncate max-w-[200px] sm:max-w-[220px]" title={`${item.navio} -> ${item.portoDestino}`}>
                       <span className="text-slate-400">Navio:</span>{' '}
                       <strong className="text-white">{item.navio}</strong>{' '}
                       <span className="text-orange-400">➔</span> {item.portoDestino}
@@ -1219,7 +1219,7 @@ export default function BackofficeTvPage() {
                         title={`Valor estimado do lote. Comparação ciclo 30s: ${
                           (tendenciasAoVivo[item.id]?.direcao || item.tendenciaCiclo) === 'DOWN' ? 'Queda' : 'Alta'
                         }`}
-                        className={`px-2 py-0.5 rounded-lg border font-mono font-bold text-xs inline-flex items-center gap-1 transition-colors duration-500 ${
+                        className={`px-2.5 py-1 rounded-lg border font-mono font-bold text-xs sm:text-sm inline-flex items-center gap-1.5 transition-colors duration-500 ${
                           itensFlashing.has(item.id) && tendenciasAoVivo[item.id]?.direcao === 'UP'
                             ? 'bg-emerald-500/35 text-emerald-200 border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
                             : itensFlashing.has(item.id) && tendenciasAoVivo[item.id]?.direcao === 'DOWN'
@@ -1231,9 +1231,9 @@ export default function BackofficeTvPage() {
                       >
                         {/* Indicador visual: seta verde para cima ou vermelha para baixo */}
                         {(tendenciasAoVivo[item.id]?.direcao || item.tendenciaCiclo) === 'DOWN' ? (
-                          <ArrowDownRight className="w-3.5 h-3.5 text-rose-400 stroke-[3] shrink-0" />
+                          <ArrowDownRight className="w-4 h-4 text-rose-400 stroke-[3] shrink-0" />
                         ) : (
-                          <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400 stroke-[3] shrink-0" />
+                          <ArrowUpRight className="w-4 h-4 text-emerald-400 stroke-[3] shrink-0" />
                         )}
                         <span className="tabular-nums font-black">
                           {item.valorEstimadoFormatado || `R$ ${(item.volumeKg * 2.7).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
@@ -1241,7 +1241,7 @@ export default function BackofficeTvPage() {
                       </div>
 
                       <div className="flex items-center gap-1 font-mono text-slate-300">
-                        <Container className="w-3.5 h-3.5 text-slate-400" />
+                        <Container className="w-4 h-4 text-slate-400" />
                         <span className="font-bold text-white">{item.containers} cont.</span>
                       </div>
                     </div>
