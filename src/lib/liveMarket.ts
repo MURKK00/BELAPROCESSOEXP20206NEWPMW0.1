@@ -286,74 +286,115 @@ async function fetchBacenPtax() {
   }
 }
 
-async function fetchDolarHistoricalCurves(currentDolar: number): Promise<CurvasHistoricasDolar> {
+async function fetchRealDolarDailyHistory(currentDolar: number): Promise<Array<{ label: string; valor: number }>> {
+  // 1. Tentar AwesomeAPI pública (histórico dos últimos 25 dias úteis do USD-BRL)
   try {
-    const [rDay, rIntra] = await Promise.all([
-      fetch('https://query1.finance.yahoo.com/v8/finance/chart/USDBRL=X?interval=1d&range=1mo', {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        next: { revalidate: 60 },
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-      fetch('https://query1.finance.yahoo.com/v8/finance/chart/USDBRL=X?interval=30m&range=1d', {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        next: { revalidate: 30 },
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-    ]);
+    const resAwesome = await fetch('https://economia.awesomeapi.com.br/json/daily/USD-BRL/25', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      next: { revalidate: 60 },
+    });
+    if (resAwesome.ok) {
+      const data = await resAwesome.json();
+      if (Array.isArray(data) && data.length >= 15) {
+        // AwesomeAPI retorna do mais recente para o mais antigo, invertemos para ordem cronológica
+        const items = [...data].reverse().map((item: any) => {
+          const dt = item.timestamp ? new Date(Number(item.timestamp) * 1000) : new Date(item.create_date);
+          const label = !isNaN(dt.getTime())
+            ? dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+            : '';
+          const valor = Number(Number(item.bid || item.ask || currentDolar).toFixed(4));
+          return { label, valor };
+        }).filter((p) => p.label && !isNaN(p.valor) && p.valor > 0);
 
-    const dayResult = rDay?.chart?.result?.[0];
-    const dayTs = dayResult?.timestamp || [];
-    const dayCloses = dayResult?.indicators?.quote?.[0]?.close || [];
-    let allDaily: Array<{ label: string; valor: number }> = [];
-
-    if (dayTs.length > 0) {
-      allDaily = dayTs
-        .map((t: number, i: number) => ({
-          label: new Date(t * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-          valor: dayCloses[i] ? Number(Number(dayCloses[i]).toFixed(4)) : null,
-        }))
-        .filter((p: any): p is { label: string; valor: number } => p.valor !== null);
-    }
-
-    if (allDaily.length < 15) {
-      allDaily = [];
-      const hoje = new Date();
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(hoje.getTime() - i * 86400000);
-        const varFator = 1 + Math.sin(i * 0.4) * 0.015 - (i / 30) * 0.008;
-        allDaily.push({
-          label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-          valor: Number((currentDolar * varFator).toFixed(4)),
-        });
+        if (items.length >= 15) {
+          return items;
+        }
       }
     }
+  } catch (err) {
+    console.warn('[liveMarket] AwesomeAPI indisponível, alternando para BACEN PTAX:', err);
+  }
 
-    const intraResult = rIntra?.chart?.result?.[0];
-    const intraTs = intraResult?.timestamp || [];
-    const intraCloses = intraResult?.indicators?.quote?.[0]?.close || [];
+  // 2. Fallback Oficial: Banco Central do Brasil (PTAX Olinda - últimos 45 dias corridos = ~26 dias úteis)
+  try {
+    const now = new Date();
+    const endStr = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${now.getFullYear()}`;
+    const past = new Date(now.getTime() - 45 * 86400000);
+    const startStr = `${String(past.getMonth() + 1).padStart(2, '0')}-${String(past.getDate()).padStart(2, '0')}-${past.getFullYear()}`;
+    const dolUrl = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarPeriodo(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?@dataInicial='${startStr}'&@dataFinalCotacao='${endStr}'&$top=50&$format=json`;
+
+    const resBacen = await fetch(dolUrl, { next: { revalidate: 60 } });
+    if (resBacen.ok) {
+      const jBacen = await resBacen.json();
+      const items = jBacen.value || [];
+      if (Array.isArray(items) && items.length >= 15) {
+        const history = items.map((i: any) => {
+          const dt = new Date(i.dataHoraCotacao.replace(' ', 'T'));
+          const label = !isNaN(dt.getTime())
+            ? dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+            : '';
+          const valor = Number(Number(i.cotacaoVenda).toFixed(4));
+          return { label, valor };
+        }).filter((p) => p.label && !isNaN(p.valor) && p.valor > 0);
+
+        if (history.length >= 15) {
+          return history;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[liveMarket] BACEN PTAX histórico falhou:', err);
+  }
+
+  // 3. Fallback de contingência alinhado à taxa real atual (evita desvio artificial)
+  const fallback: Array<{ label: string; valor: number }> = [];
+  const hoje = new Date();
+  for (let i = 24; i >= 0; i--) {
+    const d = new Date(hoje.getTime() - i * 86400000);
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    const varFator = 1 + ((i - 12) / 25) * 0.008;
+    fallback.push({
+      label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      valor: Number((currentDolar * varFator).toFixed(4)),
+    });
+  }
+  return fallback;
+}
+
+async function fetchDolarHistoricalCurves(currentDolar: number): Promise<CurvasHistoricasDolar> {
+  try {
+    const allDaily = await fetchRealDolarDailyHistory(currentDolar);
+
+    // Intraday (tentar Yahoo finance ou montar horas do pregão B3)
     let h24: Array<{ label: string; valor: number }> = [];
+    try {
+      const rIntra = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/USDBRL=X?interval=30m&range=1d', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        next: { revalidate: 30 },
+      }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
 
-    if (intraTs.length > 0) {
-      h24 = intraTs
-        .map((t: number, i: number) => ({
-          label: new Date(t * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          valor: intraCloses[i] ? Number(Number(intraCloses[i]).toFixed(4)) : null,
-        }))
-        .filter((p: any): p is { label: string; valor: number } => p.valor !== null);
+      const intraResult = rIntra?.chart?.result?.[0];
+      const intraTs = intraResult?.timestamp || [];
+      const intraCloses = intraResult?.indicators?.quote?.[0]?.close || [];
+
+      if (intraTs.length > 0) {
+        h24 = intraTs
+          .map((t: number, i: number) => ({
+            label: new Date(t * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            valor: intraCloses[i] ? Number(Number(intraCloses[i]).toFixed(4)) : null,
+          }))
+          .filter((p: any): p is { label: string; valor: number } => p.valor !== null);
+      }
+    } catch {
+      // continua para fallback
     }
 
     if (h24.length < 5) {
-      h24 = [];
       const horas = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
-      horas.forEach((h, idx) => {
-        const varH = 1 + (idx - 4) * 0.0012;
-        h24.push({
-          label: h,
-          valor: Number((currentDolar * varH).toFixed(4)),
-        });
-      });
+      h24 = horas.map((h, idx) => ({
+        label: h,
+        valor: Number((currentDolar + (idx - 4) * 0.0012).toFixed(4)),
+      }));
     }
 
     const d30 = allDaily.slice(-30);
@@ -373,16 +414,7 @@ async function fetchDolarHistoricalCurves(currentDolar: number): Promise<CurvasH
       max30d,
     };
   } catch {
-    const fallbackDay: Array<{ label: string; valor: number }> = [];
-    const hoje = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(hoje.getTime() - i * 86400000);
-      const varFator = 1 + Math.sin(i * 0.35) * 0.012;
-      fallbackDay.push({
-        label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-        valor: Number((currentDolar * varFator).toFixed(4)),
-      });
-    }
+    const fallbackDay = await fetchRealDolarDailyHistory(currentDolar);
     return {
       h24: [
         { label: '09:00', valor: Number((currentDolar - 0.012).toFixed(4)) },

@@ -342,22 +342,22 @@ export default function BackofficeTvPage() {
   const zScore = Number(cambio?.zScore ?? -0.85);
   const rsi14 = Number(cambio?.rsi14 ?? 41);
 
-  // Regra do Sinal de Mesa (Exportação vs Hedge)
+  // Regra do Termômetro de Câmbio (Decisão Rápida Operacional)
   let signalBadge = {
-    label: 'ZONA NEUTRA • AGUARDAR',
+    label: 'TAXA NA MÉDIA • AGUARDAR',
     color: 'bg-slate-800/90 text-slate-300 border-slate-600/50',
     dot: 'bg-amber-400',
   };
 
   if (zScore >= 1.2 || rsi14 >= 66) {
     signalBadge = {
-      label: 'FECHAR EXPORTAÇÃO (TOPO)',
+      label: 'DÓLAR ALTO • FECHAR CÂMBIO',
       color: 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40',
       dot: 'bg-emerald-400 animate-pulse',
     };
   } else if (zScore <= -1.2 || rsi14 <= 34) {
     signalBadge = {
-      label: 'COMPRAR HEDGE (FUNDO)',
+      label: 'DÓLAR BAIXO • COMPRAR PROTEÇÃO',
       color: 'bg-cyan-950/80 text-cyan-300 border-cyan-500/40',
       dot: 'bg-cyan-400 animate-pulse',
     };
@@ -893,11 +893,11 @@ export default function BackofficeTvPage() {
             </span>
           </div>
 
-          {/* COLUNA 6 (NOVA): Sinal de Mesa / Termômetro de Hedge */}
+          {/* COLUNA 6: Termômetro de Câmbio (20D) */}
           <div className="bg-slate-900/80 border border-slate-700/70 rounded-xl p-2.5 flex flex-col justify-between shadow-sm">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
-                SINAL DE MESA (20D)
+                TERMÔMETRO DE CÂMBIO (20D)
               </span>
               <span className="text-[10px] font-mono text-slate-300 font-semibold">
                 Z: {zScore > 0 ? `+${zScore.toFixed(2)}` : zScore.toFixed(2)}σ | RSI: {rsi14}
@@ -910,7 +910,7 @@ export default function BackofficeTvPage() {
               <span className="truncate">{signalBadge.label}</span>
             </div>
 
-            {/* Barra Termômetro: Esquerda (Compra Hedge) -> Direita (Fecha Exportação) */}
+            {/* Barra Termômetro: Baixo (Comprar) -> Alto (Fechar) */}
             <div className="mt-2">
               <div className="relative h-1.5 w-full rounded-full bg-gradient-to-r from-cyan-500 via-slate-600 to-emerald-500">
                 <div
@@ -919,9 +919,9 @@ export default function BackofficeTvPage() {
                 />
               </div>
               <div className="flex justify-between text-[9px] text-slate-400 mt-1 font-medium font-mono">
-                <span className="text-cyan-400 font-semibold">Hedge (Fundo)</span>
-                <span>Média: R$ {sma20.toFixed(2)}</span>
-                <span className="text-emerald-400 font-semibold">Exportar (Topo)</span>
+                <span className="text-cyan-400 font-semibold">Baixo (Comprar)</span>
+                <span>Média Mês: R$ {sma20.toFixed(4)}</span>
+                <span className="text-emerald-400 font-semibold">Alto (Fechar)</span>
               </div>
             </div>
           </div>

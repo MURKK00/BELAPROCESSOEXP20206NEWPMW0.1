@@ -227,6 +227,12 @@ export async function GET() {
 
     // 1. Fechamento Anterior & Variações
     let fechamentoAnterior = fechamentoAnteriorDolar;
+    if ((!fechamentoAnterior || isNaN(fechamentoAnterior)) && curvasHistoricas?.d30 && Array.isArray(curvasHistoricas.d30) && curvasHistoricas.d30.length >= 2) {
+      const prevDay = curvasHistoricas.d30[curvasHistoricas.d30.length - 2];
+      if (prevDay?.valor && prevDay.valor > 0) {
+        fechamentoAnterior = Number(Number(prevDay.valor).toFixed(4));
+      }
+    }
     if (!fechamentoAnterior || isNaN(fechamentoAnterior)) {
       const pct = dolarVariacaoPct || -0.44;
       fechamentoAnterior = Number((dolarLiveFinal / (1 + pct / 100)).toFixed(4));
@@ -235,12 +241,12 @@ export async function GET() {
     const variacaoPctCalculada = fechamentoAnterior > 0 ? Number(((diffReais / fechamentoAnterior) * 100).toFixed(2)) : dolarVariacaoPct;
 
     // 2. Estatísticas de 20 dias (SMA20, Z-Score, RSI14)
-    let sma20 = 5.5180;
-    let zScore = -0.85;
-    let rsi14 = 41;
+    let sma20 = Number((dolarLiveFinal * 1.002).toFixed(4));
+    let zScore = 0.00;
+    let rsi14 = 50;
 
     if (curvasHistoricas?.d30 && Array.isArray(curvasHistoricas.d30) && curvasHistoricas.d30.length >= 14) {
-      const ultimos20 = curvasHistoricas.d30.slice(-20).map((p: any) => Number(p.valor));
+      const ultimos20 = curvasHistoricas.d30.slice(-20).map((p: any) => Number(p.valor)).filter((v: number) => !isNaN(v) && v > 0);
       if (ultimos20.length > 0) {
         const sum = ultimos20.reduce((a: number, b: number) => a + b, 0);
         sma20 = Number((sum / ultimos20.length).toFixed(4));
@@ -248,24 +254,22 @@ export async function GET() {
         const stdDev = Math.sqrt(variance) || 0.045;
         zScore = Number(((dolarLiveFinal - sma20) / stdDev).toFixed(2));
 
-        const ultimos15 = curvasHistoricas.d30.slice(-15).map((p: any) => Number(p.valor));
-        let gains = 0;
-        let losses = 0;
-        for (let i = 1; i < ultimos15.length; i++) {
-          const diff = ultimos15[i] - ultimos15[i - 1];
-          if (diff >= 0) gains += diff;
-          else losses += Math.abs(diff);
+        const ultimos15 = curvasHistoricas.d30.slice(-15).map((p: any) => Number(p.valor)).filter((v: number) => !isNaN(v) && v > 0);
+        if (ultimos15.length >= 14) {
+          let gains = 0;
+          let losses = 0;
+          for (let i = 1; i < ultimos15.length; i++) {
+            const diff = ultimos15[i] - ultimos15[i - 1];
+            if (diff >= 0) gains += diff;
+            else losses += Math.abs(diff);
+          }
+          const periods = ultimos15.length - 1;
+          const avgGain = gains / periods;
+          const avgLoss = losses / periods || 0.0001;
+          const rs = avgGain / avgLoss;
+          rsi14 = Math.round(100 - (100 / (1 + rs)));
         }
-        const avgGain = gains / 14;
-        const avgLoss = losses / 14 || 0.0001;
-        const rs = avgGain / avgLoss;
-        rsi14 = Math.round(100 - (100 / (1 + rs)));
       }
-    } else {
-      sma20 = Number((dolarLiveFinal * 1.008).toFixed(4));
-      const stdDev = 0.055;
-      zScore = Number(((dolarLiveFinal - sma20) / stdDev).toFixed(2));
-      rsi14 = zScore > 1 ? 68 : zScore < -1 ? 32 : 44;
     }
 
     // Status de funcionamento do Câmbio / B3
