@@ -792,25 +792,25 @@ export default function BackofficeTvPage() {
               </span>
             </div>
 
-            {/* Linha 3: Badges alinhados sem quebra de linha */}
+            {/* Linha 3: Badges alinhados sem quebra de linha com fontes ampliadas */}
             <div className="flex items-center gap-1.5 mt-0.5 whitespace-nowrap overflow-hidden shrink-0">
               <span
-                className={`px-1.5 py-0.5 rounded-lg text-xs font-bold font-mono border shrink-0 ${
+                className={`px-2 py-0.5 rounded-lg text-xs sm:text-sm font-black font-mono border shrink-0 ${
                   isPositive
                     ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/30'
                     : 'bg-rose-950/70 text-rose-400 border-rose-500/30'
                 }`}
               >
                 {isPositive ? '+' : ''}{variationPct.toFixed(2)}%
-                <span className="ml-1 text-[10px] opacity-80">
+                <span className="ml-1 text-[11px] sm:text-xs opacity-90 font-bold">
                   ({isPositive ? '+' : ''}R$ {diffReais.toFixed(3)})
                 </span>
               </span>
 
-              {/* Fechamento Anterior legível para TV Cockpit */}
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-[10px] font-mono shrink-0">
-                <span className="text-slate-400">Fech. Ant:</span>
-                <span className="text-slate-200 font-semibold">
+              {/* Fechamento Anterior com fonte ampliada e legível */}
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/90 border border-slate-700/70 text-xs sm:text-sm font-mono shrink-0">
+                <span className="text-slate-400 font-semibold">Fech. Ant:</span>
+                <span className="text-slate-100 font-bold tabular-nums">
                   R$ {prevCloseCalc.toFixed(4)}
                 </span>
               </div>
@@ -861,21 +861,21 @@ export default function BackofficeTvPage() {
             </span>
           </div>
 
-          {/* COLUNA 4: PTAX BACEN Oficial */}
+          {/* COLUNA 4: PTAX BACEN Oficial (Compra e Venda com tamanhos idênticos e destacados) */}
           <div className="flex flex-col xl:border-l xl:border-slate-800/80 xl:pl-3 justify-between py-0.5 h-[98px] min-h-[98px] max-h-[98px] overflow-hidden">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block shrink-0">
               PTAX BACEN (OFICIAL)
             </span>
             <div className="space-y-1 font-mono my-0.5 shrink-0">
-              <div className="text-xs text-slate-300 flex items-center gap-2">
-                <span className="text-slate-400 uppercase w-12 text-[9px] font-bold">VENDA:</span>
-                <span className="text-sm sm:text-base font-bold text-white tabular-nums">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 uppercase w-14 text-[10px] sm:text-[11px] font-bold">VENDA:</span>
+                <span className="text-sm sm:text-base font-black text-white tabular-nums">
                   R$ {ptaxVendaVal.toFixed(4)}
                 </span>
               </div>
-              <div className="text-xs text-slate-300 flex items-center gap-2">
-                <span className="text-slate-400 uppercase w-12 text-[9px] font-bold">COMPRA:</span>
-                <span className="text-xs sm:text-sm font-semibold text-slate-200 tabular-nums">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 uppercase w-14 text-[10px] sm:text-[11px] font-bold">COMPRA:</span>
+                <span className="text-sm sm:text-base font-black text-white tabular-nums">
                   R$ {ptaxCompraVal.toFixed(4)}
                 </span>
               </div>
@@ -1205,21 +1205,37 @@ export default function BackofficeTvPage() {
                     </div>
                   </div>
 
-                  {/* Linha 4: Logística (Navio, Destino e Contêineres / Valuation com Indicador e Flash) */}
-                  <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs sm:text-sm text-slate-300">
-                    <div className="truncate max-w-[200px] sm:max-w-[220px]" title={`${item.navio} -> ${item.portoDestino}`}>
-                      <span className="text-slate-400">Navio:</span>{' '}
-                      <strong className="text-white">{item.navio}</strong>{' '}
-                      <span className="text-orange-400">➔</span> {item.portoDestino}
+                  {/* Linha 4: Logística (Navio, Destino, Terminal de Embarque, Valor e Contêineres) */}
+                  <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-1.5 text-xs sm:text-sm text-slate-300">
+                    {/* Linha 4A: Navio & Destino + Contêineres */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="truncate max-w-[280px] sm:max-w-[310px]" title={`${item.navio} -> ${item.portoDestino}`}>
+                        <span className="text-slate-400">Navio:</span>{' '}
+                        <strong className="text-white">{item.navio}</strong>{' '}
+                        <span className="text-orange-400 font-bold">➔</span>{' '}
+                        <span className="text-slate-200">{item.portoDestino}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1 font-mono text-slate-300 shrink-0">
+                        <Container className="w-4 h-4 text-slate-400" />
+                        <span className="font-bold text-white text-xs sm:text-sm">{item.containers} cont.</span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 font-mono shrink-0">
-                      {/* CAMPO DE VALOR DA NEGOCIAÇÃO COM INDICADOR VISUAL E FLASH SUTIL */}
+                    {/* Linha 4B: Terminal de Embarque + Valor Estimado (SEM SETA DE TENDÊNCIA) */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 truncate max-w-[260px] sm:max-w-[280px]" title={`Terminal de Embarque: ${item.terminalEmbarque || item.redex || item.localEstufagem || 'Terminal a definir'}`}>
+                        <Anchor className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="text-slate-400 font-semibold text-[11px] sm:text-xs">Terminal:</span>{' '}
+                        <strong className="text-amber-300 font-bold truncate text-[11px] sm:text-xs">
+                          {item.terminalEmbarque || item.redex || item.localEstufagem || 'Terminal a definir'}
+                        </strong>
+                      </div>
+
+                      {/* CAMPO DE VALOR DA NEGOCIAÇÃO LIMPO (SEM SETAS DE TENDÊNCIA) */}
                       <div 
-                        title={`Valor estimado do lote. Comparação ciclo 30s: ${
-                          (tendenciasAoVivo[item.id]?.direcao || item.tendenciaCiclo) === 'DOWN' ? 'Queda' : 'Alta'
-                        }`}
-                        className={`px-2.5 py-1 rounded-lg border font-mono font-bold text-xs sm:text-sm inline-flex items-center gap-1.5 transition-colors duration-500 ${
+                        title="Valor estimado do lote"
+                        className={`px-2.5 py-0.5 rounded-lg border font-mono font-bold text-xs sm:text-sm transition-colors duration-500 shrink-0 ${
                           itensFlashing.has(item.id) && tendenciasAoVivo[item.id]?.direcao === 'UP'
                             ? 'bg-emerald-500/35 text-emerald-200 border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
                             : itensFlashing.has(item.id) && tendenciasAoVivo[item.id]?.direcao === 'DOWN'
@@ -1229,20 +1245,9 @@ export default function BackofficeTvPage() {
                             : 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40'
                         }`}
                       >
-                        {/* Indicador visual: seta verde para cima ou vermelha para baixo */}
-                        {(tendenciasAoVivo[item.id]?.direcao || item.tendenciaCiclo) === 'DOWN' ? (
-                          <ArrowDownRight className="w-4 h-4 text-rose-400 stroke-[3] shrink-0" />
-                        ) : (
-                          <ArrowUpRight className="w-4 h-4 text-emerald-400 stroke-[3] shrink-0" />
-                        )}
                         <span className="tabular-nums font-black">
                           {item.valorEstimadoFormatado || `R$ ${(item.volumeKg * 2.7).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
                         </span>
-                      </div>
-
-                      <div className="flex items-center gap-1 font-mono text-slate-300">
-                        <Container className="w-4 h-4 text-slate-400" />
-                        <span className="font-bold text-white">{item.containers} cont.</span>
                       </div>
                     </div>
                   </div>
