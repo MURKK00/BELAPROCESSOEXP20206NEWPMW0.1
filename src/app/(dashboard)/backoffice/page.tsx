@@ -312,12 +312,59 @@ export default function BackofficeTvPage() {
   const totalVencidos = alertasDeadlines?.totalVencidos || 0;
   const totalCriticos = alertasDeadlines?.totalCriticos || 0;
 
-  // Conversões agro CBOT
+  // Conversões agro CBOT & Câmbio
   const dolarRef = Number(cambio?.dolarLive ?? 5.4210);
   const sojaUsdTon = soja?.preco ? (Number(soja.preco) / 100) * 36.7437 : 455.16;
   const sojaReaisSaca = soja?.preco ? ((Number(soja.preco) / 100) * 2.20462 * dolarRef) + 14.50 : 162.55;
   const milhoUsdTon = milho?.preco ? (Number(milho.preco) / 100) * 39.368 : 177.16;
   const milhoReaisSaca = milho?.preco ? ((Number(milho.preco) / 100) * 2.3621 * dolarRef) + 11.20 : 68.82;
+
+  // 1. Cálculos de Fechamento Anterior e Variação Diária
+  const spot = Number(cambio?.dolarLive ?? 5.4704);
+  const rawVarPct = Number(cambio?.dolarVariacaoPct ?? -0.44);
+  const prevCloseCalc = Number(
+    cambio?.fechamentoAnterior ?? (spot / (1 + rawVarPct / 100))
+  );
+  const diffReais = Number(cambio?.diffReais ?? (spot - prevCloseCalc));
+  const isPositive = diffReais >= 0;
+  const variationPct = prevCloseCalc > 0 
+    ? Number(((diffReais / prevCloseCalc) * 100).toFixed(2)) 
+    : rawVarPct;
+
+  // 2. PTAX & Spread
+  const ptaxVendaVal = Number(cambio?.ptaxVenda ?? 5.4935);
+  const ptaxCompraVal = Number(cambio?.ptaxCompra ?? 5.4929);
+  const spreadAbs = ptaxVendaVal - spot;
+  const spreadPct = spot > 0 ? (spreadAbs / spot) * 100 : 0.86;
+
+  // 3. Métricas Estatísticas de 20 Dias (Sinal de Mesa / Hedge)
+  const sma20 = Number(cambio?.sma20 ?? (spot * 1.008));
+  const zScore = Number(cambio?.zScore ?? -0.85);
+  const rsi14 = Number(cambio?.rsi14 ?? 41);
+
+  // Regra do Sinal de Mesa (Exportação vs Hedge)
+  let signalBadge = {
+    label: 'ZONA NEUTRA • AGUARDAR',
+    color: 'bg-slate-800/90 text-slate-300 border-slate-600/50',
+    dot: 'bg-amber-400',
+  };
+
+  if (zScore >= 1.2 || rsi14 >= 66) {
+    signalBadge = {
+      label: 'FECHAR EXPORTAÇÃO (TOPO)',
+      color: 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40',
+      dot: 'bg-emerald-400 animate-pulse',
+    };
+  } else if (zScore <= -1.2 || rsi14 <= 34) {
+    signalBadge = {
+      label: 'COMPRAR HEDGE (FUNDO)',
+      color: 'bg-cyan-950/80 text-cyan-300 border-cyan-500/40',
+      dot: 'bg-cyan-400 animate-pulse',
+    };
+  }
+
+  // Posição da bolinha no termômetro (-2.5 sigma a +2.5 sigma -> 0% a 100%)
+  const gaugePosition = Math.min(100, Math.max(0, ((zScore + 2.5) / 5) * 100));
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -725,137 +772,158 @@ export default function BackofficeTvPage() {
           </div>
         </div>
 
-        {/* LOGO ABAIXO FICAM OS NÚMEROS */}
-        <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-center pt-2">
+        {/* LOGO ABAIXO FICAM OS NÚMEROS (GRID 6 COLUNAS COM SPOT, FECHAMENTO ANTERIOR E SINAL DE MESA) */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 items-center pt-2">
           
-          {/* COLUNA 1: Dólar Comercial Spot (Mais Centralizado) + Range Intraday na Lateral (Maior) */}
-          <div className="md:col-span-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 pr-0 sm:pr-3">
-            
-            {/* Bloco Dólar Comercial Spot mais centralizado e destacado */}
-            <div className="flex-1 flex flex-col items-center justify-center text-center py-1">
-              <span className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
-                Dólar Comercial Spot (USDBRL)
+          {/* COLUNA 1: Dólar Comercial Spot + Fechamento Anterior */}
+          <div className="flex flex-col justify-center py-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+              Dólar Comercial Spot (USDBRL)
+            </span>
+            <div className={`font-mono font-black text-3xl sm:text-4xl tabular-nums tracking-tight my-0.5 transition-all duration-700 ${
+              dolarFlash === 'UP'
+                ? 'text-emerald-300 bg-emerald-500/25 px-2 py-0.5 rounded-xl ring-2 ring-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-pulse'
+                : dolarFlash === 'DOWN'
+                ? 'text-rose-300 bg-rose-500/25 px-2 py-0.5 rounded-xl ring-2 ring-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.5)] animate-pulse'
+                : 'text-white'
+            }`}>
+              R$ {spot.toFixed(4)}
+            </div>
+
+            {/* Linha 3: Badges alinhados [% (-R$)] e [Fech. Ant: R$] */}
+            <div className="flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
+              <span
+                className={`px-2 py-0.5 rounded-lg text-xs font-bold font-mono border ${
+                  isPositive
+                    ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/30'
+                    : 'bg-rose-950/70 text-rose-400 border-rose-500/30'
+                }`}
+              >
+                {isPositive ? '+' : ''}{variationPct.toFixed(2)}%
+                <span className="ml-1 text-[10px] opacity-80">
+                  ({isPositive ? '+' : ''}R$ {diffReais.toFixed(3)})
+                </span>
               </span>
-              <div className={`font-mono font-black text-3xl sm:text-4xl tabular-nums tracking-tight my-0.5 px-3 py-0.5 rounded-xl transition-all duration-700 ${
-                dolarFlash === 'UP'
-                  ? 'text-emerald-300 bg-emerald-500/25 ring-2 ring-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-pulse'
-                  : dolarFlash === 'DOWN'
-                  ? 'text-rose-300 bg-rose-500/25 ring-2 ring-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.5)] animate-pulse'
-                  : 'text-emerald-400'
-              }`}>
-                R$ {Number(cambio?.dolarLive ?? 5.4210).toFixed(4)}
-              </div>
-              <div className="flex items-center justify-center gap-2 flex-wrap mt-0.5">
-                <span className={`text-xs sm:text-sm font-bold font-mono px-2 py-0.5 rounded-lg border ${
-                  Number(cambio?.dolarVariacaoPct || 0) >= 0 
-                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' 
-                    : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
-                }`}>
-                  {Number(cambio?.dolarVariacaoPct || 0) >= 0 ? '+' : ''}{Number(cambio?.dolarVariacaoPct || 0).toFixed(2)}%
-                </span>
 
-                {/* Indicador visual de ciclo 30s (seta verde para cima ou vermelha para baixo substituindo o texto 'EM ALTA') */}
-                <span 
-                  title={dolarDirecao === 'UP' ? 'Tendência do Ciclo 30s: Alta' : 'Tendência do Ciclo 30s: Queda'}
-                  className={`p-1 sm:p-1.5 rounded-lg border inline-flex items-center justify-center transition-all duration-700 ${
-                    dolarFlash === 'UP'
-                      ? 'bg-emerald-500/30 text-emerald-300 border-emerald-400 ring-2 ring-emerald-500/60 shadow-[0_0_12px_rgba(16,185,129,0.5)] animate-pulse'
-                      : dolarFlash === 'DOWN'
-                      ? 'bg-rose-500/30 text-rose-300 border-rose-400 ring-2 ring-rose-500/60 shadow-[0_0_12px_rgba(244,63,94,0.5)] animate-pulse'
-                      : dolarDirecao === 'UP'
-                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                      : 'bg-rose-500/20 text-rose-400 border-rose-500/40'
-                  }`}
-                >
-                  {dolarDirecao === 'UP' ? (
-                    <ArrowUpRight className="w-4 h-4 text-emerald-400 stroke-[3]" />
-                  ) : (
-                    <ArrowDownRight className="w-4 h-4 text-rose-400 stroke-[3]" />
-                  )}
+              {/* Fechamento Anterior legível para TV Cockpit */}
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-[11px] font-mono">
+                <span className="text-slate-400">Fech. Ant:</span>
+                <span className="text-slate-200 font-semibold">
+                  R$ {prevCloseCalc.toFixed(4)}
                 </span>
               </div>
             </div>
-
-            {/* Bloco Range Intraday na lateral com números maiores */}
-            <div className="shrink-0 bg-slate-900/95 border border-slate-800 rounded-xl p-2.5 sm:p-3 flex flex-col justify-between min-w-[215px] sm:min-w-[230px] shadow-sm">
-              <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-800">
-                <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider font-mono">
-                  Range Intraday
-                </span>
-                <span className="text-[10px] font-mono text-slate-400 uppercase">
-                  Mín / Máx
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/90 text-left">
-                  <div className="flex items-center gap-1 text-slate-400 text-[10px] uppercase font-semibold">
-                    <ArrowDownRight className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Mínima</span>
-                  </div>
-                  <div className="text-sm sm:text-base font-black text-white mt-1 tabular-nums">
-                    R$ {Number(cambio?.minima ?? 5.3598).toFixed(4)}
-                  </div>
-                </div>
-                <div className="bg-slate-950/80 p-2 rounded-lg border border-slate-800/90 text-left">
-                  <div className="flex items-center gap-1 text-slate-400 text-[10px] uppercase font-semibold">
-                    <ArrowUpRight className="w-3.5 h-3.5 text-rose-400" />
-                    <span>Máxima</span>
-                  </div>
-                  <div className="text-sm sm:text-base font-black text-white mt-1 tabular-nums">
-                    R$ {Number(cambio?.maxima ?? 5.4494).toFixed(4)}
-                  </div>
-                </div>
-              </div>
-            </div>
-
           </div>
 
-          {/* COLUNA 2: Dólar Futuro B3 (DOL) */}
-          <div className="md:col-span-2 border-l border-slate-800/80 pl-3 sm:pl-4 flex flex-col justify-center">
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[11px] sm:text-xs font-bold text-cyan-300 uppercase tracking-wider font-mono">
-                Dólar Futuro (DOL)
+          {/* COLUNA 2: Range Intraday */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between shadow-sm">
+            <div className="flex items-center justify-between pb-1 mb-1 border-b border-slate-800">
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider font-mono">
+                RANGE INTRADAY
               </span>
-              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                1º Venc.
+              <span className="text-[9px] font-mono text-slate-400 uppercase">
+                MÍN / MÁX
               </span>
             </div>
-            <div className="font-mono font-black text-2xl sm:text-3xl text-cyan-300 tabular-nums">
-              R$ {Number(dolarFuturo?.preco ?? (dolarRef + 0.0265)).toFixed(4)}
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+              <div className="bg-slate-950/70 p-1.5 rounded-lg border border-slate-800/80 text-left">
+                <span className="text-[10px] text-emerald-400 block font-bold">↘ MÍNIMA</span>
+                <span className="text-sm font-bold text-white tabular-nums block mt-0.5">
+                  R$ {Number(cambio?.minima ?? 5.4606).toFixed(4)}
+                </span>
+              </div>
+              <div className="bg-slate-950/70 p-1.5 rounded-lg border border-slate-800/80 text-left">
+                <span className="text-[10px] text-rose-400 block font-bold">↗ MÁXIMA</span>
+                <span className="text-sm font-bold text-white tabular-nums block mt-0.5">
+                  R$ {Number(cambio?.maxima ?? 5.4941).toFixed(4)}
+                </span>
+              </div>
             </div>
-            <span className="text-xs font-mono text-slate-300 font-semibold mt-0.5">
+          </div>
+
+          {/* COLUNA 3: Dólar Futuro B3 (DOL) */}
+          <div className="flex flex-col xl:border-l xl:border-slate-800/80 xl:pl-3 justify-center">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider font-mono">
+                DÓLAR FUTURO (DOL)
+              </span>
+              <span className="px-1.5 py-0.2 bg-blue-500/20 text-blue-400 text-[9px] font-bold rounded">
+                1º Vto
+              </span>
+            </div>
+            <div className="font-mono font-black text-2xl sm:text-3xl text-cyan-300 tabular-nums my-0.5">
+              R$ {Number(dolarFuturo?.preco ?? (spot + 0.0265)).toFixed(4)}
+            </div>
+            <span className="text-xs text-slate-400 font-mono">
               +{dolarFuturo?.pontosForward || '26.5'} pts forward
             </span>
           </div>
 
-          {/* COLUNA 3: PTAX BACEN Oficial (VENDA E COMPRA COM MESMO TAMANHO DE FONTE) */}
-          <div className="md:col-span-2 border-l border-slate-800/80 pl-3 sm:pl-4 flex flex-col justify-center">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-              PTAX BACEN (Oficial)
+          {/* COLUNA 4: PTAX BACEN Oficial */}
+          <div className="flex flex-col xl:border-l xl:border-slate-800/80 xl:pl-3 justify-center">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+              PTAX BACEN (OFICIAL)
             </span>
             <div className="space-y-1 font-mono">
-              <div className="text-base sm:text-lg font-black text-white flex items-baseline gap-1.5">
-                <span className="text-xs font-bold text-slate-400 uppercase w-14">Venda:</span>
-                <span className="tabular-nums">R$ {Number(cambio?.ptaxVenda ?? 5.3744).toFixed(4)}</span>
+              <div className="text-xs text-slate-300 flex items-center gap-2">
+                <span className="text-slate-400 uppercase w-14 text-[10px] font-bold">VENDA:</span>
+                <span className="text-base font-bold text-white tabular-nums">
+                  R$ {ptaxVendaVal.toFixed(4)}
+                </span>
               </div>
-              <div className="text-base sm:text-lg font-black text-slate-200 flex items-baseline gap-1.5">
-                <span className="text-xs font-bold text-slate-400 uppercase w-14">Compra:</span>
-                <span className="tabular-nums">R$ {Number(cambio?.ptaxCompra ?? 5.3688).toFixed(4)}</span>
+              <div className="text-xs text-slate-300 flex items-center gap-2">
+                <span className="text-slate-400 uppercase w-14 text-[10px] font-bold">COMPRA:</span>
+                <span className="text-sm font-semibold text-slate-200 tabular-nums">
+                  R$ {ptaxCompraVal.toFixed(4)}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* COLUNA 4: Margem Dólar (Spread) */}
-          <div className="md:col-span-2 border-l border-slate-800/80 pl-3 sm:pl-4 flex flex-col justify-center">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
-              Margem / Spread
+          {/* COLUNA 5: Margem / Spread */}
+          <div className="flex flex-col xl:border-l xl:border-slate-800/80 xl:pl-3 justify-center">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+              MARGEM / SPREAD
             </span>
-            <div className="font-mono font-black text-xl sm:text-2xl text-amber-400 tabular-nums">
-              +{cambio?.margemDolarPct || '0.86'}%
+            <div className="font-mono font-black text-xl sm:text-2xl text-amber-400 tabular-nums my-0.5">
+              {spreadPct >= 0 ? '+' : ''}{spreadPct.toFixed(2)}%
             </div>
-            <span className="text-xs text-slate-400 font-mono mt-0.5">
-              (Δ R$ {cambio?.margemDolarValor || '0.0466'})
+            <span className="text-xs text-slate-400 font-mono">
+              (Δ R$ {Math.abs(spreadAbs).toFixed(4)})
             </span>
+          </div>
+
+          {/* COLUNA 6 (NOVA): Sinal de Mesa / Termômetro de Hedge */}
+          <div className="bg-slate-900/80 border border-slate-700/70 rounded-xl p-2.5 flex flex-col justify-between shadow-sm">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                SINAL DE MESA (20D)
+              </span>
+              <span className="text-[10px] font-mono text-slate-300 font-semibold">
+                Z: {zScore > 0 ? `+${zScore.toFixed(2)}` : zScore.toFixed(2)}σ | RSI: {rsi14}
+              </span>
+            </div>
+
+            {/* Badge da Recomendação */}
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-bold ${signalBadge.color}`}>
+              <span className={`w-2 h-2 rounded-full ${signalBadge.dot}`} />
+              <span className="truncate">{signalBadge.label}</span>
+            </div>
+
+            {/* Barra Termômetro: Esquerda (Compra Hedge) -> Direita (Fecha Exportação) */}
+            <div className="mt-2">
+              <div className="relative h-1.5 w-full rounded-full bg-gradient-to-r from-cyan-500 via-slate-600 to-emerald-500">
+                <div
+                  className="absolute -top-1 w-3.5 h-3.5 rounded-full bg-white border-2 border-slate-900 shadow transition-all duration-500"
+                  style={{ left: `calc(${gaugePosition}% - 7px)` }}
+                />
+              </div>
+              <div className="flex justify-between text-[9px] text-slate-400 mt-1 font-medium font-mono">
+                <span className="text-cyan-400 font-semibold">Hedge (Fundo)</span>
+                <span>Média: R$ {sma20.toFixed(2)}</span>
+                <span className="text-emerald-400 font-semibold">Exportar (Topo)</span>
+              </div>
+            </div>
           </div>
 
         </div>
