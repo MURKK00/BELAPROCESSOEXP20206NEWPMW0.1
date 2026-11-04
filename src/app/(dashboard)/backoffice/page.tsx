@@ -496,9 +496,9 @@ export default function BackofficeTvPage() {
       {/* ========================================================================= */}
       <section className="shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 my-1">
         
-        {/* CARD 1: PRÓXIMO DEADLINE (AMPLIADO VERTICALMENTE COM DADOS COMPLETOS) */}
+        {/* CARD 1: PRÓXIMO DEADLINE (ALTURA FIXA E TRAVADA) */}
         <div
-          className={`p-4 sm:p-4.5 rounded-2xl border flex flex-col justify-between shadow-lg min-h-[195px] sm:min-h-[210px] ${
+          className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col justify-between shadow-lg h-[195px] min-h-[195px] max-h-[195px] overflow-hidden ${
             proximoDeadline?.atrasado
               ? 'animate-pulse-danger bg-gradient-to-br from-[#280d16] via-[#1a0a10] to-[#0b1120]'
               : proximoDeadline?.urgente
@@ -581,8 +581,8 @@ export default function BackofficeTvPage() {
           </div>
         </div>
 
-        {/* CARD 2: NEGOCIAÇÕES EM EXECUÇÃO (AMPLIADO VERTICALMENTE) */}
-        <div className="p-4 sm:p-4.5 bg-[#0b1120] border border-slate-800 rounded-2xl flex flex-col justify-between shadow-lg min-h-[195px] sm:min-h-[210px]">
+        {/* CARD 2: NEGOCIAÇÕES EM EXECUÇÃO (ALTURA FIXA E TRAVADA) */}
+        <div className="p-3.5 sm:p-4 bg-[#0b1120] border border-slate-800 rounded-2xl flex flex-col justify-between shadow-lg h-[195px] min-h-[195px] max-h-[195px] overflow-hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-orange-500/15 text-orange-400">
@@ -624,8 +624,8 @@ export default function BackofficeTvPage() {
           </div>
         </div>
 
-        {/* CARD 3: NEGOCIAÇÕES EMBARCADAS (AMPLIADO VERTICALMENTE) */}
-        <div className="p-4 sm:p-4.5 bg-[#0b1120] border border-slate-800 rounded-2xl flex flex-col justify-between shadow-lg min-h-[195px] sm:min-h-[210px]">
+        {/* CARD 3: NEGOCIAÇÕES EMBARCADAS (ALTURA FIXA E TRAVADA) */}
+        <div className="p-3.5 sm:p-4 bg-[#0b1120] border border-slate-800 rounded-2xl flex flex-col justify-between shadow-lg h-[195px] min-h-[195px] max-h-[195px] overflow-hidden">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400">
@@ -667,9 +667,9 @@ export default function BackofficeTvPage() {
           </div>
         </div>
 
-        {/* CARD 4: AVERBAÇÃO SEFAZ & ALERTA FISCAL (AMPLIADO VERTICALMENTE) */}
+        {/* CARD 4: AVERBAÇÃO SEFAZ & ALERTA FISCAL (ALTURA FIXA E TRAVADA) */}
         <div
-          className={`p-4 sm:p-4.5 rounded-2xl border flex flex-col justify-between shadow-lg min-h-[195px] sm:min-h-[210px] ${
+          className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col justify-between shadow-lg h-[195px] min-h-[195px] max-h-[195px] overflow-hidden ${
             fiscal?.semAverbacaoEEmbarcadas > 0
               ? 'animate-pulse-warning bg-gradient-to-br from-[#26170a] to-[#0b1120]'
               : 'bg-[#0b1120] border-slate-800'
@@ -736,14 +736,14 @@ export default function BackofficeTvPage() {
 
       {/* ========================================================================= */}
       {/* 3. RETÂNGULO HORIZONTAL 1: CÂMBIO & MERCADO DE DÓLAR                       */}
-      {/*    TÍTULO NO TOPO · NÚMEROS ABAIXO · RANGE SOB SPOT · PTAX AMPLIADO       */}
+      {/*    ALTURA FIXA E TRAVADA: ZERO MOVIMENTO / ZERO LAYOUT SHIFT               */}
       {/* ========================================================================= */}
-      <section className="shrink-0 w-full bg-[#0b1120] border border-slate-800/90 rounded-2xl p-3.5 sm:p-4.5 shadow-xl min-h-[170px] sm:min-h-[185px] flex flex-col justify-between">
+      <section className="shrink-0 w-full bg-[#0b1120] border border-slate-800/90 rounded-2xl p-3 sm:p-3.5 shadow-xl h-[165px] min-h-[165px] max-h-[165px] flex flex-col justify-between overflow-hidden">
         {/* TOPO DO CARD: TÍTULO "CÂMBIO & DÓLAR" + STATUS DO MERCADO */}
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+        <div className="flex items-center justify-between pb-1.5 border-b border-slate-800/80 h-7 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0 shadow-inner">
-              <DollarSign className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0 shadow-inner">
+              <DollarSign className="w-3.5 h-3.5" />
             </div>
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <h2 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
@@ -755,7 +755,7 @@ export default function BackofficeTvPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span
               className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-black tracking-wider border shadow-xs ${
                 cambio?.aberto
@@ -772,28 +772,30 @@ export default function BackofficeTvPage() {
           </div>
         </div>
 
-        {/* LOGO ABAIXO FICAM OS NÚMEROS (GRID 6 COLUNAS COM SPOT, FECHAMENTO ANTERIOR E SINAL DE MESA) */}
-        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 items-center pt-2">
+        {/* LOGO ABAIXO FICAM OS NÚMEROS (GRID 6 COLUNAS COM ALTURA TRAVADA E SEM QUEBRA DE LINHA) */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 items-stretch pt-1.5 h-[112px] shrink-0">
           
           {/* COLUNA 1: Dólar Comercial Spot + Fechamento Anterior */}
-          <div className="flex flex-col justify-center py-1">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+          <div className="flex flex-col justify-between py-0.5 h-[98px] min-h-[98px] max-h-[98px] overflow-hidden">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block shrink-0">
               Dólar Comercial Spot (USDBRL)
             </span>
-            <div className={`font-mono font-black text-3xl sm:text-4xl tabular-nums tracking-tight my-0.5 transition-all duration-700 ${
-              dolarFlash === 'UP'
-                ? 'text-emerald-300 bg-emerald-500/25 px-2 py-0.5 rounded-xl ring-2 ring-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-pulse'
-                : dolarFlash === 'DOWN'
-                ? 'text-rose-300 bg-rose-500/25 px-2 py-0.5 rounded-xl ring-2 ring-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.5)] animate-pulse'
-                : 'text-white'
-            }`}>
-              R$ {spot.toFixed(4)}
+            <div className="h-9 flex items-center shrink-0">
+              <span className={`font-mono font-black text-3xl sm:text-4xl tabular-nums tracking-tight px-1.5 py-0.5 rounded-xl border transition-colors duration-500 inline-block ${
+                dolarFlash === 'UP'
+                  ? 'text-emerald-300 bg-emerald-500/25 border-emerald-500/60 shadow-[0_0_18px_rgba(16,185,129,0.4)]'
+                  : dolarFlash === 'DOWN'
+                  ? 'text-rose-300 bg-rose-500/25 border-rose-500/60 shadow-[0_0_18px_rgba(244,63,94,0.4)]'
+                  : 'text-white bg-transparent border-transparent'
+              }`}>
+                R$ {spot.toFixed(4)}
+              </span>
             </div>
 
-            {/* Linha 3: Badges alinhados [% (-R$)] e [Fech. Ant: R$] */}
-            <div className="flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
+            {/* Linha 3: Badges alinhados sem quebra de linha */}
+            <div className="flex items-center gap-1.5 mt-0.5 whitespace-nowrap overflow-hidden shrink-0">
               <span
-                className={`px-2 py-0.5 rounded-lg text-xs font-bold font-mono border ${
+                className={`px-1.5 py-0.5 rounded-lg text-xs font-bold font-mono border shrink-0 ${
                   isPositive
                     ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/30'
                     : 'bg-rose-950/70 text-rose-400 border-rose-500/30'
@@ -806,7 +808,7 @@ export default function BackofficeTvPage() {
               </span>
 
               {/* Fechamento Anterior legível para TV Cockpit */}
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-[11px] font-mono">
+              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-[10px] font-mono shrink-0">
                 <span className="text-slate-400">Fech. Ant:</span>
                 <span className="text-slate-200 font-semibold">
                   R$ {prevCloseCalc.toFixed(4)}
@@ -816,8 +818,8 @@ export default function BackofficeTvPage() {
           </div>
 
           {/* COLUNA 2: Range Intraday */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 flex flex-col justify-between shadow-sm">
-            <div className="flex items-center justify-between pb-1 mb-1 border-b border-slate-800">
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2 flex flex-col justify-between shadow-sm h-[98px] min-h-[98px] max-h-[98px] overflow-hidden">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-800 shrink-0">
               <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider font-mono">
                 RANGE INTRADAY
               </span>
@@ -825,16 +827,16 @@ export default function BackofficeTvPage() {
                 MÍN / MÁX
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+            <div className="grid grid-cols-2 gap-1.5 text-xs font-mono mt-1">
               <div className="bg-slate-950/70 p-1.5 rounded-lg border border-slate-800/80 text-left">
-                <span className="text-[10px] text-emerald-400 block font-bold">↘ MÍNIMA</span>
-                <span className="text-sm font-bold text-white tabular-nums block mt-0.5">
+                <span className="text-[9px] text-emerald-400 block font-bold leading-tight">↘ MÍNIMA</span>
+                <span className="text-xs sm:text-sm font-bold text-white tabular-nums block mt-0.5">
                   R$ {Number(cambio?.minima ?? 5.4606).toFixed(4)}
                 </span>
               </div>
               <div className="bg-slate-950/70 p-1.5 rounded-lg border border-slate-800/80 text-left">
-                <span className="text-[10px] text-rose-400 block font-bold">↗ MÁXIMA</span>
-                <span className="text-sm font-bold text-white tabular-nums block mt-0.5">
+                <span className="text-[9px] text-rose-400 block font-bold leading-tight">↗ MÁXIMA</span>
+                <span className="text-xs sm:text-sm font-bold text-white tabular-nums block mt-0.5">
                   R$ {Number(cambio?.maxima ?? 5.4941).toFixed(4)}
                 </span>
               </div>
@@ -842,60 +844,63 @@ export default function BackofficeTvPage() {
           </div>
 
           {/* COLUNA 3: Dólar Futuro B3 (DOL) */}
-          <div className="flex flex-col xl:border-l xl:border-slate-800/80 xl:pl-3 justify-center">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider font-mono">
+          <div className="flex flex-col xl:border-l xl:border-slate-800/80 xl:pl-3 justify-between py-0.5 h-[98px] min-h-[98px] max-h-[98px] overflow-hidden">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider font-mono">
                 DÓLAR FUTURO (DOL)
               </span>
               <span className="px-1.5 py-0.2 bg-blue-500/20 text-blue-400 text-[9px] font-bold rounded">
                 1º Vto
               </span>
             </div>
-            <div className="font-mono font-black text-2xl sm:text-3xl text-cyan-300 tabular-nums my-0.5">
+            <div className="font-mono font-black text-2xl sm:text-3xl text-cyan-300 tabular-nums my-0.5 shrink-0">
               R$ {Number(dolarFuturo?.preco ?? (spot + 0.0265)).toFixed(4)}
             </div>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-[11px] text-slate-400 font-mono truncate shrink-0">
               +{dolarFuturo?.pontosForward || '26.5'} pts forward
             </span>
           </div>
 
           {/* COLUNA 4: PTAX BACEN Oficial */}
-          <div className="flex flex-col xl:border-l xl:border-slate-800/80 xl:pl-3 justify-center">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+          <div className="flex flex-col xl:border-l xl:border-slate-800/80 xl:pl-3 justify-between py-0.5 h-[98px] min-h-[98px] max-h-[98px] overflow-hidden">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block shrink-0">
               PTAX BACEN (OFICIAL)
             </span>
-            <div className="space-y-1 font-mono">
+            <div className="space-y-1 font-mono my-0.5 shrink-0">
               <div className="text-xs text-slate-300 flex items-center gap-2">
-                <span className="text-slate-400 uppercase w-14 text-[10px] font-bold">VENDA:</span>
-                <span className="text-base font-bold text-white tabular-nums">
+                <span className="text-slate-400 uppercase w-12 text-[9px] font-bold">VENDA:</span>
+                <span className="text-sm sm:text-base font-bold text-white tabular-nums">
                   R$ {ptaxVendaVal.toFixed(4)}
                 </span>
               </div>
               <div className="text-xs text-slate-300 flex items-center gap-2">
-                <span className="text-slate-400 uppercase w-14 text-[10px] font-bold">COMPRA:</span>
-                <span className="text-sm font-semibold text-slate-200 tabular-nums">
+                <span className="text-slate-400 uppercase w-12 text-[9px] font-bold">COMPRA:</span>
+                <span className="text-xs sm:text-sm font-semibold text-slate-200 tabular-nums">
                   R$ {ptaxCompraVal.toFixed(4)}
                 </span>
               </div>
             </div>
+            <span className="text-[10px] text-slate-500 font-mono truncate shrink-0">
+              Banco Central do Brasil
+            </span>
           </div>
 
           {/* COLUNA 5: Margem / Spread */}
-          <div className="flex flex-col xl:border-l xl:border-slate-800/80 xl:pl-3 justify-center">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+          <div className="flex flex-col xl:border-l xl:border-slate-800/80 xl:pl-3 justify-between py-0.5 h-[98px] min-h-[98px] max-h-[98px] overflow-hidden">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block shrink-0">
               MARGEM / SPREAD
             </span>
-            <div className="font-mono font-black text-xl sm:text-2xl text-amber-400 tabular-nums my-0.5">
+            <div className="font-mono font-black text-xl sm:text-2xl text-amber-400 tabular-nums my-0.5 shrink-0">
               {spreadPct >= 0 ? '+' : ''}{spreadPct.toFixed(2)}%
             </div>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-[11px] text-slate-400 font-mono truncate shrink-0">
               (Δ R$ {Math.abs(spreadAbs).toFixed(4)})
             </span>
           </div>
 
           {/* COLUNA 6: Termômetro de Câmbio (20D) */}
-          <div className="bg-slate-900/80 border border-slate-700/70 rounded-xl p-2.5 flex flex-col justify-between shadow-sm">
-            <div className="flex items-center justify-between mb-1">
+          <div className="bg-slate-900/80 border border-slate-700/70 rounded-xl p-2 flex flex-col justify-between shadow-sm h-[98px] min-h-[98px] max-h-[98px] overflow-hidden">
+            <div className="flex items-center justify-between shrink-0 mb-0.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
                 TERMÔMETRO DE CÂMBIO (20D)
               </span>
@@ -905,20 +910,20 @@ export default function BackofficeTvPage() {
             </div>
 
             {/* Badge da Recomendação */}
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-bold ${signalBadge.color}`}>
-              <span className={`w-2 h-2 rounded-full ${signalBadge.dot}`} />
+            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-bold shrink-0 ${signalBadge.color}`}>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${signalBadge.dot}`} />
               <span className="truncate">{signalBadge.label}</span>
             </div>
 
             {/* Barra Termômetro: Baixo (Comprar) -> Alto (Fechar) */}
-            <div className="mt-2">
+            <div className="mt-1 shrink-0">
               <div className="relative h-1.5 w-full rounded-full bg-gradient-to-r from-cyan-500 via-slate-600 to-emerald-500">
                 <div
                   className="absolute -top-1 w-3.5 h-3.5 rounded-full bg-white border-2 border-slate-900 shadow transition-all duration-500"
                   style={{ left: `calc(${gaugePosition}% - 7px)` }}
                 />
               </div>
-              <div className="flex justify-between text-[9px] text-slate-400 mt-1 font-medium font-mono">
+              <div className="flex justify-between text-[9px] text-slate-400 mt-1 font-medium font-mono whitespace-nowrap">
                 <span className="text-cyan-400 font-semibold">Baixo (Comprar)</span>
                 <span>Média Mês: R$ {sma20.toFixed(4)}</span>
                 <span className="text-emerald-400 font-semibold">Alto (Fechar)</span>
@@ -931,14 +936,14 @@ export default function BackofficeTvPage() {
 
       {/* ========================================================================= */}
       {/* 4. RETÂNGULO HORIZONTAL 2: COMMODITIES CBOT & INDICADORES CEPEA           */}
-      {/*    TÍTULO NO TOPO · NÚMEROS ABAIXO EM 5 COLUNAS · RETÂNGULO AMPLIADO     */}
+      {/*    ALTURA FIXA E TRAVADA: ZERO MOVIMENTO / ZERO LAYOUT SHIFT               */}
       {/* ========================================================================= */}
-      <section className="shrink-0 w-full bg-[#0b1120] border border-slate-800/90 rounded-2xl p-3.5 sm:p-4.5 shadow-xl min-h-[170px] sm:min-h-[185px] flex flex-col justify-between">
+      <section className="shrink-0 w-full bg-[#0b1120] border border-slate-800/90 rounded-2xl p-3 sm:p-3.5 shadow-xl h-[162px] min-h-[162px] max-h-[162px] flex flex-col justify-between overflow-hidden">
         {/* TOPO DO CARD: TÍTULO "AGRO & CEPEA" */}
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+        <div className="flex items-center justify-between pb-1.5 border-b border-slate-800/80 h-7 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0 shadow-inner">
-              <Wheat className="w-4 h-4" />
+            <div className="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0 shadow-inner">
+              <Wheat className="w-3.5 h-3.5" />
             </div>
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <h2 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
@@ -950,7 +955,7 @@ export default function BackofficeTvPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
               Paridade Portuária &amp; Mercado Físico
             </span>
@@ -961,11 +966,11 @@ export default function BackofficeTvPage() {
         </div>
 
         {/* LOGO ABAIXO FICAM OS NÚMEROS EM 5 COLUNAS DISTRIBUÍDAS */}
-        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-1.5 h-[110px] shrink-0 items-stretch">
           
           {/* Célula 1: Soja CBOT */}
-          <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-xl flex flex-col justify-between min-h-[96px]">
-            <div className="flex items-center justify-between mb-1">
+          <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl flex flex-col justify-between h-[96px] min-h-[96px] max-h-[96px] overflow-hidden">
+            <div className="flex items-center justify-between mb-0.5 shrink-0">
               <span className="font-mono font-black text-xs text-slate-100">SOJA CBOT (ZS=F)</span>
               <span className={`text-xs font-mono font-bold px-1.5 py-0.2 rounded ${
                 (soja?.variacaoPct ?? 0.32) >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'
@@ -973,7 +978,7 @@ export default function BackofficeTvPage() {
                 {(soja?.variacaoPct ?? 0.32) >= 0 ? '+' : ''}{(soja?.variacaoPct ?? 0.32).toFixed(2)}%
               </span>
             </div>
-            <div className="flex items-baseline justify-between mt-1">
+            <div className="flex items-baseline justify-between mt-0.5 shrink-0">
               <div className="font-mono font-black text-xl sm:text-2xl text-amber-400 tabular-nums">
                 {Number(soja?.preco ?? 1238.75).toFixed(2)} <span className="text-xs font-normal text-slate-400">¢/bu</span>
               </div>
@@ -985,8 +990,8 @@ export default function BackofficeTvPage() {
           </div>
 
           {/* Célula 2: Milho CBOT */}
-          <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-xl flex flex-col justify-between min-h-[96px]">
-            <div className="flex items-center justify-between mb-1">
+          <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl flex flex-col justify-between h-[96px] min-h-[96px] max-h-[96px] overflow-hidden">
+            <div className="flex items-center justify-between mb-0.5 shrink-0">
               <span className="font-mono font-black text-xs text-slate-100">MILHO CBOT (ZC=F)</span>
               <span className={`text-xs font-mono font-bold px-1.5 py-0.2 rounded ${
                 (milho?.variacaoPct ?? -0.28) >= 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'
@@ -994,7 +999,7 @@ export default function BackofficeTvPage() {
                 {(milho?.variacaoPct ?? -0.28) >= 0 ? '+' : ''}{(milho?.variacaoPct ?? -0.28).toFixed(2)}%
               </span>
             </div>
-            <div className="flex items-baseline justify-between mt-1">
+            <div className="flex items-baseline justify-between mt-0.5 shrink-0">
               <div className="font-mono font-black text-xl sm:text-2xl text-amber-400 tabular-nums">
                 {Number(milho?.preco ?? 450.00).toFixed(2)} <span className="text-xs font-normal text-slate-400">¢/bu</span>
               </div>
@@ -1006,12 +1011,12 @@ export default function BackofficeTvPage() {
           </div>
 
           {/* Célula 3: Soja CEPEA Paranaguá */}
-          <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-xl flex flex-col justify-between min-h-[96px]">
-            <div className="flex items-center justify-between mb-1">
+          <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl flex flex-col justify-between h-[96px] min-h-[96px] max-h-[96px] overflow-hidden">
+            <div className="flex items-center justify-between mb-0.5 shrink-0">
               <span className="font-mono font-black text-xs text-emerald-400 uppercase">SOJA CEPEA</span>
               <span className="text-[10px] font-mono text-slate-400">Paranaguá (FOB)</span>
             </div>
-            <div className="flex items-baseline justify-between mt-1">
+            <div className="flex items-baseline justify-between mt-0.5 shrink-0">
               <div className="font-mono font-black text-xl sm:text-2xl text-white tabular-nums">
                 {indicadoresCepea[0]?.precoFormatado || 'R$ 162,55'}
               </div>
@@ -1022,12 +1027,12 @@ export default function BackofficeTvPage() {
           </div>
 
           {/* Célula 4: Milho CEPEA Campinas */}
-          <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-xl flex flex-col justify-between min-h-[96px]">
-            <div className="flex items-center justify-between mb-1">
+          <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl flex flex-col justify-between h-[96px] min-h-[96px] max-h-[96px] overflow-hidden">
+            <div className="flex items-center justify-between mb-0.5 shrink-0">
               <span className="font-mono font-black text-xs text-amber-400 uppercase">MILHO CEPEA</span>
               <span className="text-[10px] font-mono text-slate-400">Campinas (B3)</span>
             </div>
-            <div className="flex items-baseline justify-between mt-1">
+            <div className="flex items-baseline justify-between mt-0.5 shrink-0">
               <div className="font-mono font-black text-xl sm:text-2xl text-white tabular-nums">
                 {indicadoresCepea[1]?.precoFormatado || 'R$ 68,82'}
               </div>
@@ -1038,12 +1043,12 @@ export default function BackofficeTvPage() {
           </div>
 
           {/* Célula 5: Algodão em Pluma CEPEA */}
-          <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-xl flex flex-col justify-between min-h-[96px]">
-            <div className="flex items-center justify-between mb-1">
+          <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-xl flex flex-col justify-between h-[96px] min-h-[96px] max-h-[96px] overflow-hidden">
+            <div className="flex items-center justify-between mb-0.5 shrink-0">
               <span className="font-mono font-black text-xs text-purple-300 uppercase">ALGODÃO CEPEA</span>
               <span className="text-[10px] font-mono text-slate-400">Praça SP Pluma</span>
             </div>
-            <div className="flex items-baseline justify-between mt-1">
+            <div className="flex items-baseline justify-between mt-0.5 shrink-0">
               <div className="font-mono font-black text-xl sm:text-2xl text-purple-300 tabular-nums">
                 {indicadoresCepea[2]?.precoFormatado || 'R$ 4,1730'}
               </div>
@@ -1109,10 +1114,10 @@ export default function BackofficeTvPage() {
           ref={tickerContainerRef}
           onMouseEnter={() => setAutoScrollPausado(true)}
           onMouseLeave={() => setAutoScrollPausado(false)}
-          className="bg-[#0b1120] border border-slate-800/90 rounded-2xl p-3 overflow-x-auto no-scrollbar shadow-2xl"
+          className="bg-[#0b1120] border border-slate-800/90 rounded-2xl p-2.5 sm:p-3 overflow-x-auto no-scrollbar shadow-2xl h-[195px] min-h-[195px] max-h-[195px]"
         >
           <div
-            className={`flex items-stretch gap-3.5 ${
+            className={`flex items-stretch gap-3.5 h-[170px] ${
               autoScrollPausado ? '' : 'animate-marquee'
             }`}
             style={{ width: 'max-content' }}
@@ -1125,7 +1130,7 @@ export default function BackofficeTvPage() {
               return (
                 <div
                   key={`${item.id}-${idx}`}
-                  className={`ticker-item w-[390px] sm:w-[430px] h-[175px] sm:h-[185px] p-3.5 sm:p-4 rounded-xl transition-all flex flex-col justify-between shrink-0 shadow-lg group relative overflow-hidden ${
+                  className={`ticker-item w-[390px] sm:w-[430px] h-[170px] min-h-[170px] max-h-[170px] p-3 sm:p-3.5 rounded-xl transition-colors flex flex-col justify-between shrink-0 shadow-lg group relative overflow-hidden ${
                     isAtrasado
                       ? 'animate-pulse-danger bg-gradient-to-b from-[#280d16] via-[#1a0a10] to-[#0d1424]'
                       : isCritico
@@ -1214,11 +1219,11 @@ export default function BackofficeTvPage() {
                         title={`Valor estimado do lote. Comparação ciclo 30s: ${
                           (tendenciasAoVivo[item.id]?.direcao || item.tendenciaCiclo) === 'DOWN' ? 'Queda' : 'Alta'
                         }`}
-                        className={`px-2 py-0.5 rounded-lg border font-mono font-bold text-xs inline-flex items-center gap-1 transition-all duration-700 ${
+                        className={`px-2 py-0.5 rounded-lg border font-mono font-bold text-xs inline-flex items-center gap-1 transition-colors duration-500 ${
                           itensFlashing.has(item.id) && tendenciasAoVivo[item.id]?.direcao === 'UP'
-                            ? 'bg-emerald-500/35 text-emerald-200 border-emerald-400 ring-2 ring-emerald-500/70 shadow-[0_0_14px_rgba(16,185,129,0.6)] animate-pulse'
+                            ? 'bg-emerald-500/35 text-emerald-200 border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
                             : itensFlashing.has(item.id) && tendenciasAoVivo[item.id]?.direcao === 'DOWN'
-                            ? 'bg-rose-500/35 text-rose-200 border-rose-400 ring-2 ring-rose-500/70 shadow-[0_0_14px_rgba(244,63,94,0.6)] animate-pulse'
+                            ? 'bg-rose-500/35 text-rose-200 border-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.5)]'
                             : (tendenciasAoVivo[item.id]?.direcao || item.tendenciaCiclo) === 'DOWN'
                             ? 'bg-rose-950/50 text-rose-300 border-rose-500/40'
                             : 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40'
