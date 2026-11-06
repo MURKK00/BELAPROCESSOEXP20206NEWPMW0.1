@@ -114,7 +114,12 @@ export function ContainersTable({
       </div>
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Contêineres</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-black text-slate-900 dark:text-white">PEX Box &amp; Tracking</h3>
+          <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+            Contêineres, RUC &amp; Free Time
+          </span>
+        </div>
         <div className="flex items-center gap-2">
           {podeEditarContainers ? (
             <>

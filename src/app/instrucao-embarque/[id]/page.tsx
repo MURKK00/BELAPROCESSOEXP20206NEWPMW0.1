@@ -301,6 +301,10 @@ export default async function InstrucaoEmbarquePrintPage({
           <p><span className="font-bold">FREE TIME AT DESTINATION:</span> {processo.freeTimeDestino || '21 free days demurrage'}</p>
           <p><span className="font-bold">NUMBER OF ORIGINAL B/Ls:</span> 03 (Three) Originals</p>
         </div>
+
+        <div className="pt-3 border-t border-gray-200 mt-3 text-[10px] text-gray-500 text-center font-medium">
+          Powered by <strong className="text-gray-700">PEX Agritech</strong> • Licenciado para <strong>Bela Cereais</strong>
+        </div>
         
       </div>
     </div>

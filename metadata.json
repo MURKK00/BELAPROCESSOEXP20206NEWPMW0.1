@@ -1,6 +1,6 @@
 {
-  "name": "Bela Cereais Export",
-  "description": "Sistema de gestão do processo de exportação, do contrato ao fechamento bancário.",
+  "name": "PEX Agritech",
+  "description": "PEX Agritech | Inteligência em Exportação - Gestão de exportação agro, logística portuária e fechamento de câmbio.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

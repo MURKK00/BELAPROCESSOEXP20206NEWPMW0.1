@@ -238,8 +238,10 @@ export function CicloOperacionalMarcosBox({ processo, etapas }: CicloOperacional
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-black text-slate-950 dark:text-white tracking-tight">
-                Ciclo Operacional & Marcos
+              <h2 className="text-base font-black text-slate-950 dark:text-white tracking-tight flex items-center gap-1.5">
+                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">PEX GED</span>
+                <span className="text-slate-300 dark:text-slate-600 font-light">•</span>
+                <span>Ciclo Operacional &amp; Checklist</span>
               </h2>
               <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
                 {concluidasGeral} de {totalGeral} Concluídas ({percGeral}%)

@@ -103,11 +103,14 @@ export default async function DocumentosPage({ params }: { params: Promise<{ id:
                   Processo {processo.numeroProcesso}
                 </span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white mt-1">
-                Gerador de Documentos Oficiais da Negociação
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white mt-1 flex items-center gap-2">
+                <span>PEX GED</span>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Gestão Eletrônica de Documentos
+                </span>
               </h2>
               <p className="text-xs text-slate-300 max-w-2xl mt-0.5">
-                Emita em tempo real os documentos operacionais, etiquetas de sacaria e a <strong>Carta Borderô</strong> bancária com todos os dados sincronizados do contrato.
+                Dossiê digital, emissão de documentos operacionais, etiquetas de sacaria e a <strong>Carta Borderô</strong> bancária com todos os dados sincronizados do contrato.
               </p>
             </div>
 

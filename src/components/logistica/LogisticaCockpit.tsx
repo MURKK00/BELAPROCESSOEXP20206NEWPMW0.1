@@ -165,12 +165,15 @@ export function LogisticaCockpit({ processos }: LogisticaCockpitProps) {
       {/* CABEÇALHO */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
-            <Ship className="w-7 h-7 text-[#f58220]" />
-            <span>Radar de Logística & Deadlines de Embarque</span>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+            <Ship className="w-7 h-7 text-emerald-500" />
+            <span>PEX Box &amp; Tracking</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+              Contêineres &amp; Free Time
+            </span>
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Controle operacional de bookings, navios, REDEX e contagem regressiva de prazos críticos.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Controle operacional de contêineres, RUC (DUE), bookings, navios, REDEX e contagem regressiva de prazos críticos.
           </p>
         </div>
       </div>

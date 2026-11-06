@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Handshake, FileSpreadsheet, DollarSign, TrendingUp, ShieldCheck, Tv2 } from 'lucide-react';
+import { LayoutDashboard, Handshake, FileSpreadsheet, DollarSign, TrendingUp, ShieldCheck, Tv2, Container } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
 import { 
@@ -31,6 +31,7 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
 
   const isVisaoGeral = pathname === '/';
   const isNegociacoes = pathname.startsWith('/negociacoes');
+  const isLogistica = pathname.startsWith('/logistica');
   const isNotasFiscais = pathname.startsWith('/notas-fiscais');
   const isFinanceiro = pathname.startsWith('/financeiro');
   const isCotacoes = pathname.startsWith('/cotacoes');
@@ -43,16 +44,25 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
   const allLinks = [
     {
       href: '/',
-      label: 'Visão Geral',
+      label: 'PEX Cockpit',
       active: isVisaoGeral,
       icon: LayoutDashboard,
-      visivel: !tvOnly, // Se usuário for exclusivo de TV, oculta
+      badge: '360°',
+      visivel: !tvOnly,
     },
     {
       href: '/negociacoes',
       label: 'Negociações',
       active: isNegociacoes,
       icon: Handshake,
+      visivel: !tvOnly,
+    },
+    {
+      href: '/logistica',
+      label: 'PEX Box & Tracking',
+      active: isLogistica,
+      icon: Container,
+      badge: 'CONTAINERS',
       visivel: !tvOnly,
     },
     {
@@ -80,7 +90,7 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
     },
     {
       href: '/backoffice',
-      label: 'Backoffice',
+      label: 'Backoffice Cockpit',
       active: isBackoffice,
       icon: Tv2,
       badge: 'TV 4K',
@@ -99,7 +109,7 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
   const links = allLinks.filter((l) => l.visivel);
 
   return (
-    <nav className={`flex flex-col gap-1.5 mt-4 ${collapsed ? 'px-2' : 'px-3'}`}>
+    <nav className={`flex flex-col gap-1.5 mt-2 ${collapsed ? 'px-2' : 'px-3'}`}>
       {links.map((link) => {
         const Icon = link.icon;
         return (
@@ -114,14 +124,14 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
                 : 'gap-3 px-3.5 py-2.5'
             } ${
               link.active
-                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/25 shadow-2xs font-bold'
+                ? 'bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-2xs font-bold'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Icon
               className={`w-4 h-4 shrink-0 transition-colors ${
                 link.active
-                  ? 'text-orange-600 dark:text-orange-400'
+                  ? 'text-emerald-600 dark:text-emerald-400'
                   : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'
               }`}
             />

@@ -408,12 +408,15 @@ export default async function CartaBorderoPrintPage({
             <div className="inline-block border-t border-slate-900 pt-2 px-12 font-sans">
               <p className="font-bold text-sm text-slate-950 uppercase">BELA CEREAIS COMÉRCIO LTDA.</p>
               <p className="text-xs text-slate-600">CNPJ: 15.726.793/0001-06</p>
-              <p className="text-xs text-slate-600">Departamento de Câmbio e Exportação</p>
-            </div>
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 mt-2 text-[10px] text-slate-400 text-center font-medium font-sans">
+            Powered by <strong className="text-slate-600">PEX Agritech</strong> • Licenciado para <strong>Bela Cereais</strong>
           </div>
         </div>
 
       </div>
     </div>
+  </div>
   );
 }

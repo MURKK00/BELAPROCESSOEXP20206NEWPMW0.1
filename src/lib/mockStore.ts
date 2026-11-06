@@ -94,40 +94,26 @@ function initMockStore(): MockStore {
             } catch {}
           }
         }
-        // Migração de campos novos em usuários (username e primeiroAcesso)
+        // Garantir que exista apenas o único usuário admin master com tudo liberado
         if (Array.isArray(parsed.usuarios)) {
-          let mudou = false;
-          for (const u of parsed.usuarios) {
-            if (!u.username) {
-              if (u.id === 'usr_admin_principal' || u.email === 'admin@belacereais.com.br') {
-                u.username = 'ACEREAIS';
-              } else if (u.id === 'usr_dev_admin' || u.email === 'dev@belacereais.local') {
-                u.username = 'ADEV';
-              } else {
-                const partes = String(u.nome || u.email.split('@')[0])
-                  .normalize('NFD')
-                  .replace(/[\u0300-\u036f]/g, '')
-                  .replace(/[^a-zA-Z0-9\s]/g, '')
-                  .trim()
-                  .split(/\s+/)
-                  .filter(Boolean);
-                const p1 = partes[0] ? partes[0][0].toUpperCase() : 'U';
-                const p2 = partes.length > 1 ? partes[partes.length - 1].toUpperCase() : 'USUARIO';
-                u.username = `${p1}${p2}`;
-              }
-              mudou = true;
-            }
-            if (u.primeiroAcesso === undefined) {
-              // Usuários legados existentes já têm senha definida
-              u.primeiroAcesso = false;
-              mudou = true;
-            }
-          }
-          if (mudou) {
-            try {
-              fs.writeFileSync(STORAGE_FILE_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
-            } catch {}
-          }
+          parsed.usuarios = [
+            {
+              id: 'usr_admin_master',
+              nome: 'Administrador PEX',
+              email: 'admin@pexagritech.com',
+              username: 'ADMIN',
+              senhaHash: '$2b$10$f4djZ/xMUMx27iEBmL.GB.nvyAqyCIjN9kNec9lBJI8GyW0MEm42m',
+              primeiroAcesso: false,
+              papel: Papel.ADMIN,
+              papeis: ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'],
+              ativo: true,
+              criadoEm: new Date('2026-11-06T00:00:00.000Z'),
+              atualizadoEm: new Date('2026-11-06T00:00:00.000Z'),
+            },
+          ];
+          try {
+            fs.writeFileSync(STORAGE_FILE_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
+          } catch {}
         }
 
         // Migração do novo checklist operacional (4 macro-etapas e 27 micro-etapas)
@@ -191,25 +177,14 @@ function initMockStore(): MockStore {
   const store: MockStore = {
     usuarios: [
       {
-        id: 'usr_admin_principal',
-        nome: 'Administrador Bela Cereais',
-        email: 'admin@belacereais.com.br',
-        username: 'ACEREAIS',
-        senhaHash: '$2b$10$pbhcS1a8GjPLThpTUtinN.sUhuNTjdLNfpBIU4iotF97VmbzIOnM2',
+        id: 'usr_admin_master',
+        nome: 'Administrador PEX',
+        email: 'admin@pexagritech.com',
+        username: 'ADMIN',
+        senhaHash: '$2b$10$f4djZ/xMUMx27iEBmL.GB.nvyAqyCIjN9kNec9lBJI8GyW0MEm42m',
         primeiroAcesso: false,
         papel: Papel.ADMIN,
-        ativo: true,
-        criadoEm: new Date(),
-        atualizadoEm: new Date(),
-      },
-      {
-        id: 'usr_dev_admin',
-        nome: 'Admin (Dev)',
-        email: 'dev@belacereais.local',
-        username: 'ADEV',
-        senhaHash: '$2b$10$pbhcS1a8GjPLThpTUtinN.sUhuNTjdLNfpBIU4iotF97VmbzIOnM2',
-        primeiroAcesso: false,
-        papel: Papel.ADMIN,
+        papeis: ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'],
         ativo: true,
         criadoEm: new Date(),
         atualizadoEm: new Date(),

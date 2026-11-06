@@ -332,8 +332,8 @@ export function DREExportButtons({
           </tbody>
         </table>
 
-        <div style="margin-top: 32px; border-top: 1px dashed #d1d5db; padding-top: 16px; font-size: 11px; color: #9ca3af; text-align: center;">
-          Documento interno confidencial gerado pelo sistema Bela Cereais Export Cockpit.
+        <div style="margin-top: 32px; border-top: 1px dashed #d1d5db; padding-top: 16px; font-size: 11px; color: #6b7280; text-align: center; font-weight: 500;">
+          Powered by <strong style="color: #059669;">PEX Agritech</strong> • Licenciado para <strong>Bela Cereais</strong> • Documento Confidencial
         </div>
       </body>
       </html>

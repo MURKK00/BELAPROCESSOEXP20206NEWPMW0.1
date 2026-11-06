@@ -1,28 +1,23 @@
 {
   "usuarios": [
     {
-      "id": "usr_admin_principal",
-      "nome": "Administrador Bela Cereais",
-      "email": "admin@belacereais.com.br",
-      "senhaHash": "$2b$10$yRoQm3q1YO96MOvhwgGFieNmCSuyhC.fG9kNcvfkQTU8ji7UfbCQW",
+      "id": "usr_admin_master",
+      "nome": "Administrador PEX",
+      "email": "admin@pexagritech.com",
+      "username": "ADMIN",
+      "senhaHash": "$2b$10$f4djZ/xMUMx27iEBmL.GB.nvyAqyCIjN9kNec9lBJI8GyW0MEm42m",
+      "primeiroAcesso": false,
       "papel": "ADMIN",
+      "papeis": [
+        "ADMIN",
+        "DIRETORIA",
+        "COMERCIAL",
+        "FINANCEIRO",
+        "ADMINISTRATIVO"
+      ],
       "ativo": true,
-      "criadoEm": "2026-09-01T08:00:00.000Z",
-      "atualizadoEm": "2026-09-01T08:00:00.000Z",
-      "username": "ACEREAIS",
-      "primeiroAcesso": false
-    },
-    {
-      "id": "usr_dev_admin",
-      "nome": "Admin (Dev)",
-      "email": "dev@belacereais.local",
-      "senhaHash": "$2b$10$yRoQm3q1YO96MOvhwgGFieNmCSuyhC.fG9kNcvfkQTU8ji7UfbCQW",
-      "papel": "ADMIN",
-      "ativo": true,
-      "criadoEm": "2026-09-01T08:00:00.000Z",
-      "atualizadoEm": "2026-09-01T08:00:00.000Z",
-      "username": "ADEV",
-      "primeiroAcesso": false
+      "criadoEm": "2026-11-06T00:00:00.000Z",
+      "atualizadoEm": "2026-11-06T00:00:00.000Z"
     }
   ],
   "parceiros": [
@@ -626,7 +621,7 @@
       "gstBuyer": "VAT-AE-10029384",
       "emailBuyer": "clearance.jebelali@aldahra.com",
       "telefoneBuyer": "+971 4 881 2345",
-      "criadoPorId": "usr_dev_admin",
+      "criadoPorId": "usr_admin_master",
       "produtorId": "ent_prod_3",
       "importadorId": "ent_buy_1",
       "fazendaOrigemNome": "Fazenda Vale Verde - Módulo Cerrado",
@@ -686,7 +681,7 @@
       "gstBuyer": "BIN 001298456",
       "emailBuyer": "import@meghnagroup.biz",
       "telefoneBuyer": "+880 2 956 1234",
-      "criadoPorId": "usr_dev_admin",
+      "criadoPorId": "usr_admin_master",
       "produtorId": "ent_prod_2",
       "importadorId": "ent_imp_2",
       "fazendaOrigemNome": "Fazenda Primavera - Talhão Safra Sul",
@@ -746,7 +741,7 @@
       "gstBuyer": "24AABCT1234F1Z2",
       "emailBuyer": "import@rstrivenifoods.in",
       "telefoneBuyer": "+91 2836 223456",
-      "criadoPorId": "usr_dev_admin"
+      "criadoPorId": "usr_admin_master"
     },
     {
       "id": "proc_bc26_004",
@@ -795,7 +790,7 @@
       "gstBuyer": "VKN 0680192834",
       "emailBuyer": "operasyon@anadoluagro.com.tr",
       "telefoneBuyer": "+90 324 238 9012",
-      "criadoPorId": "usr_dev_admin"
+      "criadoPorId": "usr_admin_master"
     },
     {
       "id": "proc_bc26_005",
@@ -844,7 +839,7 @@
       "gstBuyer": "TAX-REG-291823",
       "emailBuyer": "clearance@goldengrain-eg.com",
       "telefoneBuyer": "+20 3 487 6543",
-      "criadoPorId": "usr_dev_admin",
+      "criadoPorId": "usr_admin_master",
       "produtorId": "ent_prod_1",
       "importadorId": "ent_imp_1",
       "fazendaOrigemNome": "Fazenda Santa Maria - Gleba Araguaia",
@@ -904,7 +899,7 @@
       "gstBuyer": "NIF ESB98765432",
       "emailBuyer": "logistica@mediterraneanpulses.es",
       "telefoneBuyer": "+34 963 123 456",
-      "criadoPorId": "usr_dev_admin"
+      "criadoPorId": "usr_admin_master"
     }
   ],
   "processoEtapas": [

@@ -35,8 +35,8 @@ export function NegociacaoTabs({ processoId, importadorPendente = false }: Negoc
   const tabs = [
     { 
       href: base, 
-      label: 'Visão Geral', 
-      tag: 'Cockpit 360',
+      label: 'PEX Cockpit', 
+      tag: 'Visão Geral 360°',
       icon: LayoutDashboard,
       color: 'text-blue-500' 
     },
@@ -57,8 +57,9 @@ export function NegociacaoTabs({ processoId, importadorPendente = false }: Negoc
     },
     { 
       href: `${base}/containers`, 
-      label: 'Contêineres & Lotes', 
-      tag: 'Estufagem',
+      label: 'PEX Box & Tracking', 
+      sublabel: '(Contêineres)',
+      tag: 'RUC & Free Time',
       icon: Container,
       color: 'text-cyan-500' 
     },
@@ -78,8 +79,9 @@ export function NegociacaoTabs({ processoId, importadorPendente = false }: Negoc
     },
     { 
       href: `${base}/documentos`, 
-      label: 'Documentos & GED', 
-      tag: 'Dossiê',
+      label: 'PEX GED', 
+      sublabel: '(Documentos)',
+      tag: 'Dossiê & Checklists',
       icon: FileSpreadsheet,
       color: 'text-amber-500' 
     },

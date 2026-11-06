@@ -121,9 +121,14 @@ export default async function DashboardPage() {
       {/* CABEÇALHO */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Visão Geral</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">PEX Cockpit</h2>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+              Visão Geral 360°
+            </span>
+          </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Acompanhamento executivo de volumes, câmbio e operações em andamento.
+            Inteligência operacional em tempo real de volumes, câmbio e esteira de exportação.
           </p>
         </div>
         <VisaoGeralHeaderActions />

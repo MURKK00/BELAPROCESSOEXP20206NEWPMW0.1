@@ -601,9 +601,10 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
       <body>
         <div class="header">
           <div>
-            <div class="brand">Bela Cereais Export Cockpit</div>
+            <div class="brand">PEX Agritech</div>
+            <div style="font-size: 11px; font-weight: 700; color: #059669; margin-top: 1px;">Licenciado para Bela Cereais</div>
             <div class="title">Relatório Geral de Processos e Negociações</div>
-            <div class="meta">Visão consolidada das exportações em andamento</div>
+            <div class="meta">Inteligência em exportação • Visão consolidada em andamento</div>
           </div>
           <div style="text-align: right;">
             <div style="font-size: 12px; font-weight: 700; color: #f58220;">Total: ${totalProcessos} processo(s)</div>
@@ -686,8 +687,8 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
           </tbody>
         </table>
 
-        <div style="margin-top: 24px; border-top: 1px dashed #d1d5db; padding-top: 12px; font-size: 9px; color: #9ca3af; text-align: center;">
-          Documento gerado automaticamente pelo Cockpit de Exportação Bela Cereais • Uso Interno Confidencial
+        <div style="margin-top: 24px; border-top: 1px dashed #d1d5db; padding-top: 12px; font-size: 10px; color: #6b7280; text-align: center; font-weight: 500;">
+          Powered by <strong style="color: #059669;">PEX Agritech</strong> • Licenciado para <strong>Bela Cereais</strong> • Uso Interno Confidencial
         </div>
       </body>
       </html>

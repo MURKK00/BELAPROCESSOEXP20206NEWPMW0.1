@@ -7,6 +7,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -113,39 +114,14 @@ export function DashboardShell({ children }: DashboardShellProps) {
           isCollapsed ? 'w-[72px]' : 'w-64'
         }`}
       >
-        {/* CABEÇALHO DA SIDEBAR */}
-        <div className={`py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center transition-all ${
-          isCollapsed ? 'px-3 justify-center flex-col gap-2' : 'px-5 justify-between'
+        {/* CABEÇALHO DA SIDEBAR / CONTROLE DE MINIMIZAR */}
+        <div className={`py-2 px-3 border-b border-slate-200/80 dark:border-slate-800 flex items-center transition-all ${
+          isCollapsed ? 'justify-center' : 'justify-between'
         }`}>
-          {!isCollapsed ? (
-            <div className="flex flex-col items-start min-w-0">
-              <div className="p-1 rounded-lg bg-white/90 dark:bg-white/95 inline-block shadow-2xs">
-                <Image
-                  src="/logo-site-bela-verde.png"
-                  alt="Bela Cereais"
-                  width={112}
-                  height={28}
-                  priority
-                  referrerPolicy="no-referrer"
-                  className="w-28 h-auto object-contain object-left"
-                />
-              </div>
-              <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1.5 truncate">
-                Cockpit <span className="text-orange-500 dark:text-orange-400 font-black">Exportações</span>
-              </div>
-            </div>
-          ) : (
-            <div className="p-1 rounded-lg bg-white/90 dark:bg-white/95 inline-block shadow-2xs" title="Bela Cereais Cockpit">
-              <Image
-                src="/logo-site-bela-verde.png"
-                alt="Bela Cereais"
-                width={28}
-                height={28}
-                priority
-                referrerPolicy="no-referrer"
-                className="w-7 h-7 object-contain object-left"
-              />
-            </div>
+          {!isCollapsed && (
+            <span className="text-[10px] font-black tracking-widest uppercase text-slate-400 dark:text-slate-500 font-mono">
+              Workspace Ativo
+            </span>
           )}
 
           {/* SETINHA PARA MINIMIZAR / EXPANDIR SIDEBAR */}
@@ -154,14 +130,19 @@ export function DashboardShell({ children }: DashboardShellProps) {
             onClick={toggleCollapse}
             title={isCollapsed ? 'Expandir atalhos laterais' : 'Minimizar atalhos laterais'}
             aria-label={isCollapsed ? 'Expandir atalhos laterais' : 'Minimizar atalhos laterais'}
-            className="p-1.5 rounded-xl text-slate-400 dark:text-slate-500 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 active:scale-95 border border-slate-200 dark:border-slate-700/60 transition-all cursor-pointer shadow-2xs"
+            className="p-1.5 rounded-xl text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/10 active:scale-95 border border-slate-200 dark:border-slate-700/60 transition-all cursor-pointer shadow-2xs"
           >
             {isCollapsed ? (
-              <ChevronRight className="w-4 h-4 text-orange-500" />
+              <ChevronRight className="w-4 h-4 text-emerald-500" />
             ) : (
               <ChevronLeft className="w-4 h-4" />
             )}
           </button>
+        </div>
+
+        {/* COMPONENTE DE SELEÇÃO / SWITCHER DE WORKSPACE COM A LOGO DA BELA */}
+        <div className={`py-2.5 border-b border-slate-100 dark:border-slate-800/80 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+          <WorkspaceSwitcher collapsed={isCollapsed} />
         </div>
 
         {/* LISTA DE ATALHOS */}
@@ -169,27 +150,51 @@ export function DashboardShell({ children }: DashboardShellProps) {
           <Sidebar collapsed={isCollapsed} />
         </div>
 
-        {/* RODAPÉ DA SIDEBAR */}
+        {/* RODAPÉ DA SIDEBAR: LOGO PEX SOLTA E MINIMALISTA LÁ EM BAIXO */}
         {!isCollapsed ? (
-          <div className="p-4 border-t border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500 flex items-center justify-between">
-            <span className="font-mono font-medium">Bela Cereais v2.4</span>
-            <button
-              onClick={toggleCollapse}
-              className="text-slate-400 hover:text-orange-500 flex items-center gap-1 font-semibold text-[10px] cursor-pointer"
-              title="Recolher menu lateral"
-            >
-              <span>Minimizar</span>
-              <ChevronLeft className="w-3 h-3" />
-            </button>
+          <div className="p-3.5 border-t border-slate-200/80 dark:border-slate-800 text-[10px] text-slate-400 dark:text-slate-500 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              {/* Logo da PEX solta sem box em volta, minimalista */}
+              <Image
+                src="/assets/aistudio/text1_6cce1f30.png"
+                alt="PEX Agritech"
+                width={65}
+                height={20}
+                className="h-4 w-auto object-contain opacity-85"
+                referrerPolicy="no-referrer"
+              />
+              <button
+                onClick={toggleCollapse}
+                className="text-slate-400 hover:text-emerald-500 flex items-center gap-0.5 font-semibold text-[9px] cursor-pointer"
+                title="Recolher menu lateral"
+              >
+                <span>Minimizar</span>
+                <ChevronLeft className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-0.5 text-[9px] text-slate-400">
+              <span className="font-semibold text-slate-600 dark:text-slate-300 leading-tight">
+                Powered by <strong className="text-emerald-600 dark:text-emerald-400 font-bold">PEX Agritech</strong>
+              </span>
+              <span>Licenciado para Bela Cereais</span>
+            </div>
           </div>
         ) : (
-          <div className="p-2 border-t border-slate-200/80 dark:border-slate-800 flex justify-center">
+          <div className="p-2 border-t border-slate-200/80 dark:border-slate-800 flex flex-col items-center gap-2">
+            <Image
+              src="/assets/aistudio/text1_6cce1f30.png"
+              alt="PEX"
+              width={30}
+              height={14}
+              className="h-3 w-auto object-contain opacity-75"
+              referrerPolicy="no-referrer"
+            />
             <button
               onClick={toggleCollapse}
-              className="p-2 text-slate-400 hover:text-orange-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-emerald-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               title="Expandir barra de atalhos"
             >
-              <ChevronRight className="w-4 h-4 text-orange-500" />
+              <ChevronRight className="w-4 h-4 text-emerald-500" />
             </button>
           </div>
         )}
@@ -209,34 +214,26 @@ export function DashboardShell({ children }: DashboardShellProps) {
           {/* Gaveta Lateral Deslizante */}
           <div className="relative w-72 max-w-[85vw] bg-white dark:bg-[#0f172a] h-full shadow-2xl flex flex-col z-10 border-r border-slate-200 dark:border-slate-800 animate-slideRight">
             {/* Topo do Drawer Mobile */}
-            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex flex-col items-start">
-                <div className="p-1 rounded-lg bg-white/90 dark:bg-white/95 inline-block">
-                  <Image
-                    src="/logo-site-bela-verde.png"
-                    alt="Bela Cereais"
-                    width={112}
-                    height={28}
-                    priority
-                    referrerPolicy="no-referrer"
-                    className="w-28 h-auto object-contain object-left"
-                  />
-                </div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  Atalhos de Navegação
-                </div>
-              </div>
+            <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <span className="text-[10px] font-black tracking-widest uppercase text-slate-400 dark:text-slate-500 font-mono">
+                Workspace Ativo
+              </span>
 
               {/* Botão de Fechar com setinha */}
               <button
                 type="button"
                 onClick={() => setIsMobileOpen(false)}
-                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-orange-500 flex items-center gap-1 text-xs font-bold border border-slate-200 dark:border-slate-700"
-                title="Minimizar menu"
+                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-emerald-500 flex items-center gap-1 text-xs font-bold border border-slate-200 dark:border-slate-700 cursor-pointer"
+                title="Fechar menu"
               >
-                <ChevronLeft className="w-4 h-4 text-orange-500" />
+                <ChevronLeft className="w-4 h-4 text-emerald-500" />
                 <span>Fechar</span>
               </button>
+            </div>
+
+            {/* Switcher de Workspace no Mobile */}
+            <div className="p-3 border-b border-slate-100 dark:border-slate-800">
+              <WorkspaceSwitcher collapsed={false} />
             </div>
 
             {/* Menu Links com auto-fechamento ao clicar */}
@@ -258,12 +255,12 @@ export function DashboardShell({ children }: DashboardShellProps) {
               {currentUser && (
                 <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold flex items-center justify-center shrink-0 text-xs">
-                      {(currentUser.name || currentUser.email || 'A')[0].toUpperCase()}
+                    <div className="w-7 h-7 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">
+                      {(currentUser.name || 'A')[0].toUpperCase()}
                     </div>
                     <div className="truncate text-left">
                       <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                        {currentUser.name || 'Administrador'}
+                        {currentUser.name || 'Administrador PEX'}
                       </div>
                       <div className="text-[10px] text-slate-400 truncate">
                         {currentUser.email}
@@ -317,11 +314,12 @@ export function DashboardShell({ children }: DashboardShellProps) {
               </button>
             )}
 
-            {/* IDENTIFICAÇÃO DO SISTEMA */}
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2 truncate">
-              <span className="font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">Bela Cereais</span>
-              <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
-              <span className="hidden sm:inline truncate">Gestão Operacional &amp; Financeira</span>
+            {/* EMPRESA ATIVA NO MOMENTO: BELA CEREAIS */}
+            <div className="text-xs font-medium flex items-center gap-2 truncate">
+              <span className="font-black text-sm text-slate-900 dark:text-white whitespace-nowrap flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Bela Cereais</span>
+              </span>
             </div>
           </div>
 
@@ -329,44 +327,19 @@ export function DashboardShell({ children }: DashboardShellProps) {
             {/* USUÁRIO AUTENTICADO & BOTÃO SAIR */}
             {currentUser && (
               <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-slate-200/80 dark:border-slate-800">
-                <div className="hidden sm:flex items-center gap-2 bg-slate-100/80 dark:bg-slate-800/60 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700/80 text-xs">
-                  <div className="w-5 h-5 rounded-full bg-orange-500 text-white font-black text-[10px] flex items-center justify-center">
-                    {(currentUser.name || currentUser.email || 'A')[0].toUpperCase()}
+                <div className="hidden sm:flex items-center gap-2 bg-slate-100/80 dark:bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700/80 text-xs">
+                  <div className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center">
+                    {(currentUser.name || 'A')[0].toUpperCase()}
                   </div>
-                  <span className="font-bold text-slate-700 dark:text-slate-200 max-w-[120px] truncate">
-                    {currentUser.name || currentUser.email}
+                  <span className="font-bold text-slate-800 dark:text-slate-100 truncate">
+                    {currentUser.name || 'Administrador PEX'}
                   </span>
-                  {currentUser.username && (
-                    <span className="font-mono font-bold text-[10px] text-orange-600 dark:text-orange-400 bg-orange-100/70 dark:bg-orange-950/60 px-1.5 py-0.2 rounded border border-orange-200 dark:border-orange-900">
-                      @{currentUser.username}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-1">
-                    {getUserPapeis(currentUser).map((p) => (
-                      <span
-                        key={p}
-                        className={`px-1.5 py-0.2 rounded text-[9px] font-black tracking-wider uppercase ${
-                          p === 'ADMIN'
-                            ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400'
-                            : p === 'FINANCEIRO'
-                            ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
-                            : p === 'COMERCIAL'
-                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                            : p === 'DIRETORIA'
-                            ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400'
-                            : 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
-                        }`}
-                      >
-                        {p}
-                      </span>
-                    ))}
-                  </div>
                 </div>
 
                 {canAccessAdmin(currentUser) && (
                   <Link
                     href="/admin"
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/25 text-xs font-bold transition-all shadow-2xs"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 text-xs font-bold transition-all shadow-2xs"
                     title="Painel Administrativo (Demo & Usuários)"
                   >
                     <ShieldCheck className="w-3.5 h-3.5" />
@@ -391,9 +364,16 @@ export function DashboardShell({ children }: DashboardShellProps) {
           </div>
         </header>
 
-        {/* CONTEÚDO PRINCIPAL COM CONTENÇÃO DE OVERFLOW RESPONSIVA */}
-        <main className="flex-1 overflow-y-auto px-3.5 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-7 min-w-0 max-w-full overflow-x-hidden">
-          {children}
+        {/* CONTEÚDO PRINCIPAL COM CONTENÇÃO DE OVERFLOW RESPONSIVA E CHANCELA */}
+        <main className="flex-1 overflow-y-auto px-3.5 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-7 min-w-0 max-w-full overflow-x-hidden flex flex-col justify-between">
+          <div className="flex-1">
+            {children}
+          </div>
+
+          {/* CHANCELA E RODAPÉ DA APLICAÇÃO */}
+          <footer className="mt-8 pt-4 pb-2 border-t border-slate-200/80 dark:border-slate-800/80 text-center text-xs text-slate-400 dark:text-slate-500 font-medium">
+            Powered by <strong className="text-emerald-600 dark:text-emerald-400 font-bold">PEX Agritech</strong> • Licenciado para <span className="font-semibold text-slate-600 dark:text-slate-300">Bela Cereais</span>
+          </footer>
         </main>
       </div>
     </div>
