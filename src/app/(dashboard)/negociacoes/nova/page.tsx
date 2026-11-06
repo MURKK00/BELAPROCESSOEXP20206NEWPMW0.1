@@ -465,7 +465,7 @@ export default function NovaNegociacaoPage() {
             </div>
 
             {/* DADOS DO IMPORTADOR SELECIONADO (SE HOUVER) */}
-            {importadorSelecionado && (
+            {importadorSelecionado ? (
               <div className="mt-2 p-2.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 flex items-center justify-between text-xs animate-fadeIn">
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -484,7 +484,19 @@ export default function NovaNegociacaoPage() {
                   Desvincular
                 </button>
               </div>
-            )}
+            ) : clienteFinal.trim() ? (
+              <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/60 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200 animate-fadeIn">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-amber-950 dark:text-amber-100">
+                    Criando com importador avulso: &ldquo;{clienteFinal}&rdquo;
+                  </p>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300/90">
+                    A negociação será criada com status <strong>PENDENTE</strong> e alerta na aba Importador. O status permanecerá travado até você completar o cadastro da entidade.
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             {/* INPUT OCULTO COM O ID */}
             <input type="hidden" name="importadorId" value={importadorId} />

@@ -407,6 +407,26 @@ export function ImportadorCard({ processo }: ImportadorCardProps) {
         )}
       </div>
 
+      {/* SINAL DE ATENÇÃO QUANDO CADASTRO DO IMPORTADOR ESTÁ PENDENTE */}
+      {(!processo.enderecoBuyer || !(processo as any).importadorId) && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-950 dark:text-amber-200 flex items-start gap-3 shadow-xs animate-fadeIn">
+          <div className="p-2 rounded-xl bg-amber-500 text-white shrink-0 mt-0.5 shadow-xs">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-extrabold text-xs sm:text-sm text-amber-950 dark:text-amber-100 flex items-center gap-2">
+              <span>Atenção: Cadastro do Importador Pendente</span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-900 dark:text-amber-200 text-[10px] font-black uppercase">
+                Status Travado
+              </span>
+            </h4>
+            <p className="text-xs text-amber-900/90 dark:text-amber-300/90">
+              Esta negociação foi iniciada sem o cadastro formal do importador e está travada em status <strong>PENDENTE</strong>. Selecione uma entidade da base abaixo ou preencha o endereço e salve para concluir o cadastro e liberar o avanço do status.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* BOX DE SEPARAÇÃO: COMPRADOR É DIFERENTE DO IMPORTADOR? */}
       <div className={`p-3.5 sm:p-4 rounded-xl border transition-all duration-300 ease-in-out ${
         compradorDiferente 

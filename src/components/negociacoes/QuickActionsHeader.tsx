@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { formatDateBR } from '@/lib/formatters';
 import { StatusSelect } from '@/components/negociacoes/StatusSelect';
+import type { PendenciasCadastrais } from '@/lib/validacaoCadastrosProcesso';
 
 export interface QuickActionsProcessoProps {
   id: string;
@@ -33,6 +34,7 @@ export interface QuickActionsProcessoProps {
   deadlineCarga?: string | Date | null;
   estufagemInicio?: string | Date | null;
   estufagemFim?: string | Date | null;
+  pendencias?: PendenciasCadastrais;
 }
 
 export interface QuickActionsHeaderProps {
@@ -118,7 +120,11 @@ export function ProcessoTopHeader({ processo }: { processo: QuickActionsProcesso
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pl-0.5 whitespace-nowrap">
               Status da Operação
             </span>
-            <StatusSelect processoId={processo.id} status={processo.status} />
+            <StatusSelect 
+              processoId={processo.id} 
+              status={processo.status} 
+              pendencias={processo.pendencias} 
+            />
           </div>
 
           {/* Botão de Prévia do Contrato (PDF / Imprimir) */}

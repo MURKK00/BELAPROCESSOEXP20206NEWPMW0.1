@@ -245,14 +245,14 @@ export function NegociacaoTabs({ processoId, importadorPendente = false }: Negoc
               )}
 
               {/* Alerta pulsando quando dados do importador estão pendentes */}
-              {isPendenteAndAttention && !isActive && (
+              {isPendenteAndAttention && (
                 <span className="flex items-center gap-1 ml-0.5">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-90"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                   </span>
-                  <span className="bg-amber-500 text-white text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md tracking-wider shadow-2xs">
-                    Preencher
+                  <span className="bg-amber-500 text-white text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md tracking-wider shadow-2xs whitespace-nowrap">
+                    Cadastro Pendente
                   </span>
                 </span>
               )}

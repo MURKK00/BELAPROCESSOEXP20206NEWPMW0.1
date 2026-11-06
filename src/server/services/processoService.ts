@@ -111,6 +111,7 @@ export async function criarProcesso(input: {
             enderecoBuyer: input.enderecoBuyer,
             importadorId: input.importadorId,
             criadoPorId: input.criadoPorId,
+            status: 'PENDENTE',
             statusCache: 'Criado',
             etapas: {
               create: templates.map((t) => ({

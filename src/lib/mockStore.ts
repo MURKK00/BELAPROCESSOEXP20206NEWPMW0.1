@@ -43,57 +43,7 @@ function initMockStore(): MockStore {
           } catch {}
         }
 
-        // Migração de dados de rastreabilidade para processos de exemplo
-        if (Array.isArray(parsed.processos)) {
-          let processoMudou = false;
-          for (const p of parsed.processos) {
-            if (p.numeroProcesso === 'BC26-005' && !p.produtorCarCache) {
-              p.produtorId = 'ent_prod_1';
-              p.importadorId = 'ent_imp_1';
-              p.fazendaOrigemNome = 'Fazenda Santa Maria - Gleba Araguaia';
-              p.produtorCarCache = 'MT-5103007-6B18.C94A.5D12.44A8.B268.31E0.8921';
-              p.produtorIeCache = '13.456.789-0';
-              p.trajetoStatus = 'TERMINAL_PORTUARIO';
-              p.siloArmazemOrigem = 'Silo Grãos Araguaia - Confresa/MT';
-              p.terminalTransbordo = 'Terminal Ferroviário Rondonópolis / Rumo';
-              p.laudoClassificacao = 'Milho Pipoca Butterfly Especial - Umidade 13.2% - Pureza 99.4%';
-              p.distanciaRodoviariaKm = 1680;
-              p.emissaoCO2EstimadaKg = 2150.0;
-              processoMudou = true;
-            } else if (p.numeroProcesso === 'BC26-002' && !p.produtorCarCache) {
-              p.produtorId = 'ent_prod_2';
-              p.importadorId = 'ent_imp_2';
-              p.fazendaOrigemNome = 'Fazenda Primavera - Talhão Safra Sul';
-              p.produtorCarCache = 'MT-5107909-7C29.D81B.4E31.89C1.A119.55F2.4401';
-              p.produtorIeCache = '13.987.654-2';
-              p.trajetoStatus = 'EMBARCADO_NAVIO';
-              p.siloArmazemOrigem = 'Armazém Grãos Sinop Central';
-              p.terminalTransbordo = 'Terminal Multimodal Santos BTP';
-              p.laudoClassificacao = 'Soja Não-Transgênica (IP Non-GMO) - Umidade 12.5%';
-              p.distanciaRodoviariaKm = 2140;
-              p.emissaoCO2EstimadaKg = 3420.0;
-              processoMudou = true;
-            } else if (p.numeroProcesso === 'BC26-001' && !p.produtorCarCache) {
-              p.produtorId = 'ent_prod_3';
-              p.importadorId = 'ent_buy_1';
-              p.fazendaOrigemNome = 'Fazenda Vale Verde - Módulo Cerrado';
-              p.produtorCarCache = 'TO-1718204-1A99.88F0.22D3.77E1.C810.9902.1147';
-              p.produtorIeCache = '29.384.102-8';
-              p.trajetoStatus = 'TRANSBORDO_RODOVIARIO';
-              p.siloArmazemOrigem = 'Silo Grãos Palmas';
-              p.terminalTransbordo = 'Pátio Integrado Porto Franco / VLI';
-              p.laudoClassificacao = 'Feijão Preto Tipo Extra - Safra 2026';
-              p.distanciaRodoviariaKm = 1120;
-              p.emissaoCO2EstimadaKg = 1890.0;
-              processoMudou = true;
-            }
-          }
-          if (processoMudou) {
-            try {
-              fs.writeFileSync(STORAGE_FILE_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
-            } catch {}
-          }
-        }
+
         // Garantir que exista apenas o único usuário admin master com tudo liberado
         if (Array.isArray(parsed.usuarios)) {
           parsed.usuarios = [

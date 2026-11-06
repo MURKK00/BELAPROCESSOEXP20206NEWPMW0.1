@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { atualizarStatusAction } from '@/server/actions/editarProcessoAction';
 import { STATUS_NEGOCIACAO_MAP } from '@/lib/formatters';
 import { getUserPapeis } from '@/lib/permissions';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { ChevronDown, Loader2, Lock, AlertTriangle } from 'lucide-react';
+import type { PendenciasCadastrais } from '@/lib/validacaoCadastrosProcesso';
 
 interface StatusTheme {
   border: string;
@@ -76,7 +77,15 @@ const DEFAULT_THEME: StatusTheme = {
   icon: '📌',
 };
 
-export function StatusSelect({ processoId, status }: { processoId: string; status: string }) {
+export function StatusSelect({ 
+  processoId, 
+  status,
+  pendencias 
+}: { 
+  processoId: string; 
+  status: string;
+  pendencias?: PendenciasCadastrais;
+}) {
   const router = useRouter();
   const [salvando, setSalvando] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -90,6 +99,9 @@ export function StatusSelect({ processoId, status }: { processoId: string; statu
 
   const theme = STATUS_THEMES[status] || DEFAULT_THEME;
 
+  // Se houver pendências cadastrais, o status fica obrigatoriamente travado em PENDENTE
+  const isTravadoPorCadastros = Boolean(pendencias?.statusTravado);
+
   // Calcula os status permitidos para o perfil do usuário
   const papeis = currentUser ? getUserPapeis(currentUser) : ['ADMIN'];
   const hasFullStatusAccess = papeis.some((p) => p === 'ADMIN' || p === 'DIRETORIA' || p === 'ADMINISTRATIVO');
@@ -98,7 +110,9 @@ export function StatusSelect({ processoId, status }: { processoId: string; statu
 
   // Determina lista de status elegíveis para troca
   let statusDisponiveis: string[] = [];
-  if (hasFullStatusAccess) {
+  if (isTravadoPorCadastros) {
+    statusDisponiveis = [status]; // Travado totalmente
+  } else if (hasFullStatusAccess) {
     statusDisponiveis = Object.keys(STATUS_NEGOCIACAO_MAP);
   } else if (isComercialOnly) {
     statusDisponiveis = ['PENDENTE', 'EM_NEGOCIACAO', 'CANCELADO'];
@@ -111,7 +125,7 @@ export function StatusSelect({ processoId, status }: { processoId: string; statu
     statusDisponiveis = [status, ...statusDisponiveis];
   }
 
-  const podeAlterar = !isFinanceiroOnly && statusDisponiveis.length > 1;
+  const podeAlterar = !isTravadoPorCadastros && !isFinanceiroOnly && statusDisponiveis.length > 1;
 
   const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const novoStatus = e.target.value;
@@ -130,51 +144,76 @@ export function StatusSelect({ processoId, status }: { processoId: string; statu
     }
   };
 
+  const mensagemTooltip = isTravadoPorCadastros
+    ? `Status travado em PENDENTE: complete o cadastro de [${pendencias?.motivos?.join(', ')}] para liberar o avanço da negociação.`
+    : podeAlterar
+    ? isComercialOnly
+      ? 'Perfil Comercial: permitido alterar para Pendente, Em Negociação ou Cancelado'
+      : 'Gerenciar status da negociação'
+    : 'Seu perfil possui acesso de visualização para este status';
+
   return (
-    <div className="relative inline-flex items-center">
-      <div
-        className={`flex items-center gap-2 pl-3 pr-8 py-2 rounded-xl border text-xs sm:text-sm font-black transition-all shadow-xs ${
-          podeAlterar ? 'cursor-pointer' : 'cursor-default opacity-90'
-        } ${theme.bg} ${theme.border} ${theme.text}`}
-        title={
-          podeAlterar
-            ? isComercialOnly
-              ? 'Perfil Comercial: permitido alterar para Pendente, Em Negociação ou Cancelado'
-              : 'Gerenciar status da negociação'
-            : 'Seu perfil possui acesso de visualização para este status'
-        }
-      >
-        <span className="text-sm select-none" aria-hidden="true">
-          {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : theme.icon}
-        </span>
+    <div className="flex flex-col gap-1">
+      <div className="relative inline-flex items-center">
+        <div
+          className={`flex items-center gap-2 pl-3 pr-8 py-2 rounded-xl border text-xs sm:text-sm font-black transition-all shadow-xs ${
+            podeAlterar ? 'cursor-pointer' : 'cursor-not-allowed opacity-95'
+          } ${theme.bg} ${theme.border} ${theme.text}`}
+          title={mensagemTooltip}
+        >
+          <span className="text-sm select-none" aria-hidden="true">
+            {salvando ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : isTravadoPorCadastros ? (
+              <Lock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            ) : (
+              theme.icon
+            )}
+          </span>
 
-        <span className="relative z-10 pointer-events-none tracking-tight">
-          {STATUS_NEGOCIACAO_MAP[status] || status}
-        </span>
+          <span className="relative z-10 pointer-events-none tracking-tight">
+            {STATUS_NEGOCIACAO_MAP[status] || status}
+          </span>
 
-        {/* SELECT NATIVO INVISÍVEL (ATIVO APENAS SE TIVER PERMISSÃO DE ALTERAÇÃO) */}
-        {podeAlterar ? (
-          <select
-            value={status}
-            onChange={handleChange}
-            disabled={salvando}
-            aria-label="Alterar status da negociação"
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-          >
-            {statusDisponiveis.map((val) => (
-              <option key={val} value={val} className="text-slate-900 bg-white font-semibold py-1">
-                {STATUS_THEMES[val]?.icon ? `${STATUS_THEMES[val].icon} ` : ''}
-                {STATUS_NEGOCIACAO_MAP[val] || val}
-              </option>
-            ))}
-          </select>
-        ) : null}
+          {/* SELECT NATIVO INVISÍVEL (ATIVO APENAS SE TIVER PERMISSÃO DE ALTERAÇÃO E NÃO ESTIVER TRAVADO) */}
+          {podeAlterar ? (
+            <select
+              value={status}
+              onChange={handleChange}
+              disabled={salvando}
+              aria-label="Alterar status da negociação"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {statusDisponiveis.map((val) => (
+                <option key={val} value={val} className="text-slate-900 bg-white font-semibold py-1">
+                  {STATUS_THEMES[val]?.icon ? `${STATUS_THEMES[val].icon} ` : ''}
+                  {STATUS_NEGOCIACAO_MAP[val] || val}
+                </option>
+              ))}
+            </select>
+          ) : null}
 
-        {/* ÍCONE DE SETINHA DE SELEÇÃO OU CADEADO */}
-        <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center opacity-70">
-          {podeAlterar ? <ChevronDown className="w-4 h-4" /> : null}
+          {/* ÍCONE DE SETINHA DE SELEÇÃO OU CADEADO */}
+          <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center opacity-70">
+            {isTravadoPorCadastros ? (
+              <Lock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            ) : podeAlterar ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : null}
+          </div>
         </div>
       </div>
+
+      {/* SINAL DE ATENÇÃO QUANDO TRAVADO */}
+      {isTravadoPorCadastros && (
+        <div 
+          className="flex items-center gap-1.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-lg max-w-[240px] truncate"
+          title={mensagemTooltip}
+        >
+          <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+          <span className="truncate">Travado: Falta {pendencias?.motivos?.join(' / ')}</span>
+        </div>
+      )}
     </div>
   );
 }

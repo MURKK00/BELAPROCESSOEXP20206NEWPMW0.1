@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { calcularAlteracoesCampos, registrarLogAuditoria } from '@/lib/audit';
+import { verificarPendenciasCadastrais } from '@/lib/validacaoCadastrosProcesso';
 
 function parseSimNao(value: FormDataEntryValue | null): boolean | undefined {
   if (value === 'sim') return true;
@@ -152,6 +153,17 @@ export async function atualizarStatusAction(formData: FormData) {
   const novoStatus = String(formData.get('status'));
 
   const anterior = await prisma.processo.findUnique({ where: { id: processoId } });
+  if (!anterior) throw new Error('Processo não encontrado');
+
+  // Trava de status: Não permite avançar para status diferente de PENDENTE se houver pendência cadastral
+  if (novoStatus !== 'PENDENTE') {
+    const pendencias = verificarPendenciasCadastrais(anterior);
+    if (pendencias.statusTravado) {
+      throw new Error(
+        `Status travado em PENDENTE: complete o cadastro de [${pendencias.motivos.join(', ')}] antes de avançar a negociação.`
+      );
+    }
+  }
 
   await prisma.processo.update({
     where: { id: processoId },
