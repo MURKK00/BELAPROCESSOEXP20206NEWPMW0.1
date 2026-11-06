@@ -55,6 +55,23 @@ export default async function NegociacoesPage() {
 
     const containersPreenchidos = p.containers.filter((c) => Boolean(c.numeroContainer?.trim())).length;
 
+    const containersSerialized = p.containers.map((c) => ({
+      id: c.id,
+      ordem: c.ordem,
+      numeroContainer: c.numeroContainer || '',
+      lacre: c.lacre || '',
+      pesoBruto: c.pesoBruto ? Number(c.pesoBruto) : 0,
+      pesoLiquido: c.pesoLiquido ? Number(c.pesoLiquido) : 0,
+      totalSacos: c.totalSacos ?? 0,
+      tara: c.tara ? Number(c.tara) : 0,
+    }));
+
+    const custosSerialized = custos.map((c) => ({
+      id: c.id,
+      categoria: c.categoria,
+      valor: Number(c.valor),
+    }));
+
     // Omitimos financeiro e containers brutos (que contêm objetos Decimal do Prisma)
     const { financeiro: _fin, containers: _con, ...restoDoProcesso } = p;
 
@@ -69,7 +86,10 @@ export default async function NegociacoesPage() {
       volumeInicialContratadoKg: volumeKg,
       temContainersPreenchidos: pesoLiquidoTotalKg > 0,
       valorDeclaradoUsd,
+      containers: containersSerialized,
+      custos: custosSerialized,
       metricasFinanceiras: {
+        precoUsd,
         valorTotalUsd,
         totalUsdTravado,
         saldoUsdParaTravar,

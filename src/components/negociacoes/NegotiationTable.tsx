@@ -1,12 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDateBR, STATUS_NEGOCIACAO_MAP } from '@/lib/formatters';
 import { atualizarStatusAction } from '@/server/actions/editarProcessoAction';
 import type { Processo, ProcessoEtapa } from '@prisma/client';
-import { Search, Filter, X, FileSpreadsheet, Printer, ArrowUpDown, Clock, Eye, TrendingUp, TrendingDown, ShieldCheck, AlertCircle } from 'lucide-react';
+import { 
+  Search, 
+  Filter, 
+  X, 
+  FileSpreadsheet, 
+  Printer, 
+  ArrowUpDown, 
+  Clock, 
+  Eye, 
+  TrendingUp, 
+  TrendingDown, 
+  ShieldCheck, 
+  AlertCircle,
+  ChevronDown
+} from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { ProcessoDrawer, type ProcessoDrawerData } from './ProcessoDrawer';
 import { NegotiationsSummaryBar } from './NegotiationsSummaryBar';
 
@@ -14,7 +29,24 @@ type ProcessoComEtapas = Processo & {
   etapas: ProcessoEtapa[];
   containersTotal?: number;
   containersPreenchidos?: number;
+  volumeTon?: number;
+  containers?: Array<{
+    id: string;
+    ordem: number;
+    numeroContainer?: string | null;
+    lacre?: string | null;
+    pesoBruto?: number | null;
+    pesoLiquido?: number | null;
+    totalSacos?: number | null;
+    tara?: number | null;
+  }>;
+  custos?: Array<{
+    id?: string;
+    categoria: string;
+    valor: number;
+  }>;
   metricasFinanceiras?: {
+    precoUsd?: number;
     valorTotalUsd: number;
     totalUsdTravado: number;
     saldoUsdParaTravar: number;
@@ -97,6 +129,29 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
   const [ocultarCanceladas, setOcultarCanceladas] = useState(true);
   const [painelAberto, setPainelAberto] = useState(false);
   const [drawerProcesso, setDrawerProcesso] = useState<ProcessoDrawerData | null>(null);
+
+  // Controle do Menu de Exportação Excel (Modelos 1, 2 e 3)
+  const [excelMenuAberto, setExcelMenuAberto] = useState(false);
+  const excelMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickFora(e: MouseEvent) {
+      if (excelMenuRef.current && !excelMenuRef.current.contains(e.target as Node)) {
+        setExcelMenuAberto(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setExcelMenuAberto(false);
+    }
+    if (excelMenuAberto) {
+      document.addEventListener('mousedown', handleClickFora);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickFora);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [excelMenuAberto]);
 
   // Lista dinâmica de clientes, produtos e armadores presentes nos dados
   const clientesDisponiveis = useMemo(() => {
@@ -213,58 +268,281 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
     }
   };
 
-  // Exportar listagem filtrada para Excel / CSV
-  const exportarListagemCSV = () => {
-    const rows = [
-      [
-        'Nº Processo',
-        'Status',
-        'Cliente Final',
-        'Trader',
-        'Produto',
-        'Volume (KG)',
-        'Incoterm',
-        'Porto Origem',
-        'Porto Destino',
-        'Armador',
-        'Navio',
-        'Booking Nº',
-        'Deadline Embarque',
-      ],
-      ...processosFiltrados.map((p) => [
-        p.numeroProcesso,
-        STATUS_NEGOCIACAO_MAP[p.status] || p.status,
-        p.clienteFinal,
-        p.traderIntermedio || '',
-        p.produto,
-        String(p.volumeKg),
-        p.incoterm || '',
-        p.portoOrigem || '',
-        p.portoDestino || '',
-        p.armador || '',
-        p.navio || '',
-        p.bookingNumero || '',
-        (() => {
-          const dl = p.deadlineCarga || p.deadlineEmbarque || p.deadlineDraftVgm || p.deadlineDraftBl;
-          return dl ? new Date(dl).toLocaleDateString('pt-BR') : '';
-        })(),
-      ]),
+  // =========================================================================
+  // EXPORTAÇÃO EXCEL: MODELO 1 - FINANCEIRO
+  // Colunas: ID | NRO CTR | CTR BELA | BOOKING | CONTEINERS | CLIENTE | DESTINO | PRODUTO | QTD (TON) | PREÇO USD | TTL CTR | FT MARITIMO | DESP.PORT | STATUS
+  // =========================================================================
+  const exportarModelo1Financeiro = () => {
+    const headers = [
+      'ID',
+      'NRO CTR',
+      'CTR BELA',
+      'BOOKING',
+      'CONTEINERS',
+      'CLIENTE',
+      'DESTINO',
+      'PRODUTO',
+      'QTD (TON)',
+      'PREÇO USD',
+      'TTL CTR',
+      'FT MARITIMO',
+      'DESP.PORT',
+      'STATUS',
     ];
 
-    const csvContent =
-      '\uFEFF' +
-      rows
-        .map((r) => r.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(';'))
-        .join('\r\n');
+    const dataRows = processosFiltrados.map((p) => {
+      const volTon = p.volumeTon ?? (Number(p.volumeKg) / 1000);
+      const precoUsd = p.metricasFinanceiras?.precoUsd || (p.valorDeclaradoUsd ? Number(p.valorDeclaradoUsd) : 0);
+      const ttlCtrUsd = p.metricasFinanceiras?.valorTotalUsd || (volTon * precoUsd);
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Negociacoes_Export_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const ftMaritimo = (p.custos || []).find((c) => c.categoria === 'FRETE_MARITIMO')?.valor || 0;
+      const tarifaArmador = (p.custos || []).find((c) => c.categoria === 'TARIFA_ARMADOR_PORTO')?.valor || 0;
+      const servicoEstuff = (p.custos || []).find((c) => c.categoria === 'SERVICO_ESTUFF')?.valor || 0;
+      const despPort = tarifaArmador + servicoEstuff;
+
+      return [
+        p.id,
+        p.contratoInterno || p.numeroProcesso,
+        p.numeroProcesso,
+        p.bookingNumero || '-',
+        p.containersTotal || p.containerQtd || p.containers?.length || 0,
+        p.clienteFinal,
+        p.portoDestino,
+        p.produto,
+        Number(volTon.toFixed(3)),
+        Number(precoUsd.toFixed(2)),
+        Number(ttlCtrUsd.toFixed(2)),
+        Number(ftMaritimo.toFixed(2)),
+        Number(despPort.toFixed(2)),
+        STATUS_NEGOCIACAO_MAP[p.status] || p.status,
+      ];
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+
+    ws['!cols'] = [
+      { wch: 18 }, // ID
+      { wch: 16 }, // NRO CTR
+      { wch: 14 }, // CTR BELA
+      { wch: 20 }, // BOOKING
+      { wch: 12 }, // CONTEINERS
+      { wch: 34 }, // CLIENTE
+      { wch: 30 }, // DESTINO
+      { wch: 32 }, // PRODUTO
+      { wch: 12 }, // QTD (TON)
+      { wch: 14 }, // PREÇO USD
+      { wch: 16 }, // TTL CTR
+      { wch: 16 }, // FT MARITIMO
+      { wch: 14 }, // DESP.PORT
+      { wch: 18 }, // STATUS
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Financeiro');
+    XLSX.writeFile(wb, `Negociacoes_Modelo1_Financeiro_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  // =========================================================================
+  // EXPORTAÇÃO EXCEL: MODELO 2 - SIMPLIFICADO
+  // Colunas: ID | NRO CTR | CTR BELA | BOOKING | CONTEINERS | CLIENTE | DESTINO | Embarque | PRODUTO | QTD (TON)
+  // =========================================================================
+  const exportarModelo2Simplificado = () => {
+    const headers = [
+      'ID',
+      'NRO CTR',
+      'CTR BELA',
+      'BOOKING',
+      'CONTEINERS',
+      'CLIENTE',
+      'DESTINO',
+      'Embarque',
+      'PRODUTO',
+      'QTD (TON)',
+    ];
+
+    const dataRows = processosFiltrados.map((p) => {
+      const volTon = p.volumeTon ?? (Number(p.volumeKg) / 1000);
+      const dl = p.deadlineEmbarque || p.deadlineCarga || p.deadlineDraftVgm || p.deadlineDraftBl;
+      const dataEmbarque = dl ? formatDateBR(dl) : '-';
+
+      return [
+        p.id,
+        p.contratoInterno || p.numeroProcesso,
+        p.numeroProcesso,
+        p.bookingNumero || '-',
+        p.containersTotal || p.containerQtd || p.containers?.length || 0,
+        p.clienteFinal,
+        p.portoDestino,
+        dataEmbarque,
+        p.produto,
+        Number(volTon.toFixed(3)),
+      ];
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+
+    ws['!cols'] = [
+      { wch: 18 }, // ID
+      { wch: 16 }, // NRO CTR
+      { wch: 14 }, // CTR BELA
+      { wch: 20 }, // BOOKING
+      { wch: 12 }, // CONTEINERS
+      { wch: 34 }, // CLIENTE
+      { wch: 30 }, // DESTINO
+      { wch: 14 }, // Embarque
+      { wch: 32 }, // PRODUTO
+      { wch: 12 }, // QTD (TON)
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Simplificado');
+    XLSX.writeFile(wb, `Negociacoes_Modelo2_Simplificado_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  // =========================================================================
+  // EXPORTAÇÃO EXCEL: MODELO 3 - ANALÍTICO (COM 2 GUIAS)
+  // Guia 1: Negociações (ID | NRO CTR | CTR BELA | BOOKING | CONTEINERS | CLIENTE | DESTINO | Embarque | PRODUTO | QTD (TON))
+  // Guia 2: Contêineres por Booking (Número do Booking > Listagem dos conteiners por booking)
+  // =========================================================================
+  const exportarModelo3Analitico = () => {
+    // 1. Guia 1: Negociações
+    const headersGuia1 = [
+      'ID',
+      'NRO CTR',
+      'CTR BELA',
+      'BOOKING',
+      'CONTEINERS',
+      'CLIENTE',
+      'DESTINO',
+      'Embarque',
+      'PRODUTO',
+      'QTD (TON)',
+    ];
+
+    const dataRowsGuia1 = processosFiltrados.map((p) => {
+      const volTon = p.volumeTon ?? (Number(p.volumeKg) / 1000);
+      const dl = p.deadlineEmbarque || p.deadlineCarga || p.deadlineDraftVgm || p.deadlineDraftBl;
+      const dataEmbarque = dl ? formatDateBR(dl) : '-';
+
+      return [
+        p.id,
+        p.contratoInterno || p.numeroProcesso,
+        p.numeroProcesso,
+        p.bookingNumero || '-',
+        p.containersTotal || p.containerQtd || p.containers?.length || 0,
+        p.clienteFinal,
+        p.portoDestino,
+        dataEmbarque,
+        p.produto,
+        Number(volTon.toFixed(3)),
+      ];
+    });
+
+    // 2. Guia 2: Listagem dos contêineres por booking
+    const headersGuia2 = [
+      'NÚMERO DO BOOKING',
+      'CTR BELA',
+      'CLIENTE',
+      'LOCAL DE EMBARQUE',
+      'NAVIO',
+      'Nº CONTÊINER',
+      'TIPO',
+      'TARA (KG)',
+      'PESO BRUTO (KG)',
+      'PESO LÍQUIDO (KG)',
+      'TOTAL SACOS',
+      'LACRE',
+      'STATUS',
+    ];
+
+    const dataRowsGuia2: any[][] = [];
+
+    processosFiltrados.forEach((p) => {
+      const booking = p.bookingNumero || 'Sem Booking';
+      const ctrBela = p.numeroProcesso;
+      const cliente = p.clienteFinal;
+      const navio = p.navio || '-';
+      const statusStr = STATUS_NEGOCIACAO_MAP[p.status] || p.status;
+      const containerTipo = p.containerTipo || "20' DRY";
+      const localEmbarque = (p as any).terminalEmbarque || 
+        (p.portoOrigem && p.redex ? `${p.portoOrigem} (${p.redex})` : p.portoOrigem || p.redex || p.localEstufagem || '-');
+
+      if (p.containers && p.containers.length > 0) {
+        p.containers.forEach((c) => {
+          dataRowsGuia2.push([
+            booking,
+            ctrBela,
+            cliente,
+            localEmbarque,
+            navio,
+            c.numeroContainer || `Contêiner #${c.ordem}`,
+            containerTipo,
+            c.tara || 0,
+            c.pesoBruto || 0,
+            c.pesoLiquido || 0,
+            c.totalSacos || p.sacasPorContainer || 0,
+            c.lacre || '-',
+            statusStr,
+          ]);
+        });
+      } else {
+        const qtdPrevista = p.containersTotal || p.containerQtd || 0;
+        dataRowsGuia2.push([
+          booking,
+          ctrBela,
+          cliente,
+          localEmbarque,
+          navio,
+          qtdPrevista > 0 ? `Pendente de alocação (${qtdPrevista} contêineres previstos)` : 'Sem contêineres',
+          containerTipo,
+          0,
+          0,
+          0,
+          p.sacasPorContainer || 0,
+          '-',
+          statusStr,
+        ]);
+      }
+    });
+
+    const wb = XLSX.utils.book_new();
+
+    // Adiciona Guia 1
+    const ws1 = XLSX.utils.aoa_to_sheet([headersGuia1, ...dataRowsGuia1]);
+    ws1['!cols'] = [
+      { wch: 18 }, // ID
+      { wch: 16 }, // NRO CTR
+      { wch: 14 }, // CTR BELA
+      { wch: 20 }, // BOOKING
+      { wch: 12 }, // CONTEINERS
+      { wch: 34 }, // CLIENTE
+      { wch: 30 }, // DESTINO
+      { wch: 14 }, // Embarque
+      { wch: 32 }, // PRODUTO
+      { wch: 12 }, // QTD (TON)
+    ];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Negociações');
+
+    // Adiciona Guia 2
+    const ws2 = XLSX.utils.aoa_to_sheet([headersGuia2, ...dataRowsGuia2]);
+    ws2['!cols'] = [
+      { wch: 22 }, // NÚMERO DO BOOKING
+      { wch: 14 }, // CTR BELA
+      { wch: 34 }, // CLIENTE
+      { wch: 26 }, // LOCAL DE EMBARQUE
+      { wch: 22 }, // NAVIO
+      { wch: 22 }, // Nº CONTÊINER
+      { wch: 12 }, // TIPO
+      { wch: 12 }, // TARA (KG)
+      { wch: 16 }, // PESO BRUTO (KG)
+      { wch: 18 }, // PESO LÍQUIDO (KG)
+      { wch: 14 }, // TOTAL SACOS
+      { wch: 16 }, // LACRE
+      { wch: 18 }, // STATUS
+    ];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Contêineres por Booking');
+
+    XLSX.writeFile(wb, `Negociacoes_Modelo3_Analitico_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   // Exportar Relatório Resumido em PDF de todas as negociações ativas/filtradas
@@ -485,15 +763,93 @@ export function NegotiationTable({ processos }: { processos: ProcessoComEtapas[]
               )}
             </button>
 
-            <button
-              type="button"
-              onClick={exportarListagemCSV}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800 rounded-xl transition-colors shadow-2xs"
-              title="Exportar dados da tabela filtrada para Excel"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Exportar Excel</span>
-            </button>
+            {/* Menu Dropdown de Modelos de Exportação Excel */}
+            <div className="relative" ref={excelMenuRef}>
+              <button
+                type="button"
+                onClick={() => setExcelMenuAberto((prev) => !prev)}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800 rounded-xl transition-colors shadow-2xs"
+                title="Exportar dados da tabela para Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Exportar Excel</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 transition-transform ${excelMenuAberto ? 'rotate-180' : ''}`} />
+              </button>
+
+              {excelMenuAberto && (
+                <div className="absolute right-0 top-full mt-1.5 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 mb-1">
+                    Selecione o Modelo Excel
+                  </div>
+
+                  {/* Modelo 1: Financeiro */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      exportarModelo1Financeiro();
+                      setExcelMenuAberto(false);
+                    }}
+                    className="w-full text-left p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-800 dark:text-slate-100 transition-colors group flex flex-col gap-0.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
+                        Modelo 1 — Financeiro
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-100/60 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                        14 colunas
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                      Qtd (Ton), Preço USD, TTL CTR, Frete Marítimo, Desp.Port e Status.
+                    </span>
+                  </button>
+
+                  {/* Modelo 2: Simplificado */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      exportarModelo2Simplificado();
+                      setExcelMenuAberto(false);
+                    }}
+                    className="w-full text-left p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-800 dark:text-slate-100 transition-colors group flex flex-col gap-0.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
+                        Modelo 2 — Simplificado
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                        Operacional
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                      Lista compacta com Contratos, Booking, Destino, Embarque e Toneladas.
+                    </span>
+                  </button>
+
+                  {/* Modelo 3: Analítico */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      exportarModelo3Analitico();
+                      setExcelMenuAberto(false);
+                    }}
+                    className="w-full text-left p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-800 dark:text-slate-100 transition-colors group flex flex-col gap-0.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
+                        Modelo 3 — Analítico
+                      </span>
+                      <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-100/60 dark:bg-sky-950 px-1.5 py-0.5 rounded">
+                        2 Guias
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                      Negociações + Aba &quot;Contêineres por Booking&quot; com Local de Embarque, navio, tara e lacres.
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button
               type="button"
