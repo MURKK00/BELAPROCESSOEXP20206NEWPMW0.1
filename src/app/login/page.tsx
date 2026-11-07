@@ -291,7 +291,7 @@ function LoginForm() {
                   type="text"
                   required
                   autoComplete="username"
-                  placeholder=""
+                  placeholder="Insira seu usuario ou e-mail"
                   value={identificador}
                   onChange={(e) => setIdentificador(e.target.value)}
                   disabled={carregando}

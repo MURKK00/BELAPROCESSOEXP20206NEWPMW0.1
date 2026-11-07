@@ -361,22 +361,13 @@ export function SecurityShield() {
             
             {/* LOGOS E MARCA */}
             <div className="flex flex-col items-center justify-center gap-3">
-              <div className="flex items-center gap-3">
-                <Image
-                  src="/assets/aistudio/text1_6cce1f30.png"
-                  alt="PEX Agritech"
-                  width={110}
-                  height={32}
-                  className="h-8 w-auto object-contain dark:brightness-110"
-                  priority
-                />
-                <span className="text-slate-300 dark:text-slate-700">|</span>
+              <div className="flex items-center justify-center">
                 <Image
                   src="/assets/aistudio/inomeado_d2e44f63.png"
-                  alt="Bela Cereais"
-                  width={90}
-                  height={28}
-                  className="h-6 w-auto object-contain dark:brightness-110"
+                  alt="PEX Export Intelligence"
+                  width={150}
+                  height={45}
+                  className="h-10 w-auto object-contain dark:brightness-110"
                   priority
                 />
               </div>
@@ -410,7 +401,7 @@ export function SecurityShield() {
                       setPassword(e.target.value);
                       if (errorMsg) setErrorMsg(null);
                     }}
-                    placeholder="Digite a senha (@Bela2026)"
+                    placeholder="Digite a senha"
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/40 pr-10 font-medium"
                   />
                   <button
