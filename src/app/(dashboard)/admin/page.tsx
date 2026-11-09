@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -32,6 +32,8 @@ import { PAPEIS_DISPONIVEIS, Papel, canAccessAdmin } from '@/lib/permissions';
 import { gerarNomeUsuario, SENHA_PADRAO_NOVO_USUARIO } from '@/lib/userHelper';
 import { SessionsManager } from '@/components/admin/SessionsManager';
 
+export const dynamic = 'force-dynamic';
+
 interface UsuarioItem {
   id: string;
   nome: string;
@@ -44,7 +46,7 @@ interface UsuarioItem {
   criadoEm: string;
 }
 
-export default function AdminPage() {
+function AdminDashboardContent() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [countProcessos, setCountProcessos] = useState<number>(0);
@@ -1248,5 +1250,20 @@ export default function AdminPage() {
         document.body
       )}
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-400 gap-3">
+          <RefreshCw className="w-7 h-7 animate-spin text-orange-500" />
+          <span className="text-xs font-semibold">Carregando painel administrativo...</span>
+        </div>
+      }
+    >
+      <AdminDashboardContent />
+    </Suspense>
   );
 }

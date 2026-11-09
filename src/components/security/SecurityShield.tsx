@@ -129,7 +129,7 @@ export function SecurityShield() {
     const interval = setInterval(checkAbsoluteExpiryAndHeartbeat, HEARTBEAT_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [shouldExemptInactivity, isLocked, handleAbsoluteExpired]);
+  }, [shouldExemptInactivity, isLocked, handleAbsoluteExpired, router]);
 
   // --------------------------------------------------------------------------
   // 2. GERENCIAMENTO DE INATIVIDADE (10 MINUTOS COM AVISO AOS 9M30S)
