@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Handshake, FileSpreadsheet, DollarSign, TrendingUp, ShieldCheck, Tv2, Container } from 'lucide-react';
+import { LayoutDashboard, Handshake, FileSpreadsheet, DollarSign, TrendingUp, ShieldCheck, Tv2, Container, Activity } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
 import { 
@@ -36,7 +36,8 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
   const isFinanceiro = pathname.startsWith('/financeiro');
   const isCotacoes = pathname.startsWith('/cotacoes');
   const isBackoffice = pathname.startsWith('/backoffice');
-  const isAdmin = pathname.startsWith('/admin');
+  const isSessoes = pathname.startsWith('/admin/sessoes');
+  const isAdmin = pathname.startsWith('/admin') && !isSessoes;
 
   const tvOnly = isBackofficeTvOnly(currentUser);
 
@@ -102,6 +103,14 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       active: isAdmin,
       icon: ShieldCheck,
       badge: 'GESTAO',
+      visivel: !tvOnly && (currentUser ? canAccessAdmin(currentUser) : true),
+    },
+    {
+      href: '/admin/sessoes',
+      label: 'Sessões Conectadas',
+      active: isSessoes,
+      icon: Activity,
+      badge: 'AO VIVO',
       visivel: !tvOnly && (currentUser ? canAccessAdmin(currentUser) : true),
     },
   ];

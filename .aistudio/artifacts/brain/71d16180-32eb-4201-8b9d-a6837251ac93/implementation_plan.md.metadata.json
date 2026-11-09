@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano detalhado de arquitetura e implementação da Central Unificada de Cadastros (Produtores com CAR/IE, Importadores e Buyers) na Visão Geral, integração direta na aba de Importador com sincronização e nova aba de Rastreabilidade e Mapeamento do Trajeto do Grão nas negociações.",
-  "updatedAt":  "2026-10-30T19:24:39.765259970Z",
+  "summary":  "Plano arquitetural e técnico para implementação do gerenciamento de sessão, renovação silenciosa (sliding session), modal de alerta de ociosidade com contagem regressiva e timeout absoluto de 12 horas com logoff seguro.",
+  "updatedAt":  "2026-11-09T13:17:37.577537047Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

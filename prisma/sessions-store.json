@@ -1,0 +1,120 @@
+[
+  {
+    "id": "sess_usr_admin_master_1794232961220",
+    "userId": "usr_admin_master",
+    "userName": "Administrador PEX",
+    "userEmail": "admin@pexagritech.com",
+    "userRole": "ADMIN",
+    "userPapeis": [
+      "ADMIN",
+      "DIRETORIA",
+      "COMERCIAL",
+      "FINANCEIRO",
+      "ADMINISTRATIVO"
+    ],
+    "ip": "127.0.0.1",
+    "location": "Rede Corporativa PEX (Local)",
+    "userAgent": "curl/7.88.1",
+    "device": "Desktop",
+    "browser": "Google Chrome",
+    "os": "Windows 11",
+    "startedAt": "2026-11-09T14:02:41.221Z",
+    "lastActiveAt": "2026-11-09T14:02:41.221Z",
+    "expiresAt": "2026-11-10T02:02:41.221Z",
+    "status": "ACTIVE",
+    "revokedAt": null,
+    "revokedBy": null
+  },
+  {
+    "id": "sess_admin_master_1",
+    "userId": "usr_admin_master",
+    "userName": "Administrador PEX",
+    "userEmail": "admin@pexagritech.com",
+    "userRole": "ADMIN",
+    "userPapeis": [
+      "ADMIN",
+      "DIRETORIA",
+      "COMERCIAL",
+      "FINANCEIRO",
+      "ADMINISTRATIVO"
+    ],
+    "ip": "177.136.241.108",
+    "location": "Maringá, PR • Brasil",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0.0.0 Safari/537.36",
+    "device": "Desktop",
+    "browser": "Google Chrome",
+    "os": "Windows 11",
+    "startedAt": "2026-11-09T13:20:41.221Z",
+    "lastActiveAt": "2026-11-09T14:01:41.221Z",
+    "expiresAt": "2026-11-10T01:02:41.221Z",
+    "status": "ACTIVE",
+    "revokedAt": null,
+    "revokedBy": null
+  },
+  {
+    "id": "sess_comercial_1",
+    "userId": "usr_comercial_1",
+    "userName": "Carlos Mendes",
+    "userEmail": "carlos.mendes@pexagritech.com",
+    "userRole": "COMERCIAL",
+    "userPapeis": [
+      "COMERCIAL"
+    ],
+    "ip": "189.44.112.55",
+    "location": "Curitiba, PR • Brasil",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15",
+    "device": "Desktop",
+    "browser": "Apple Safari",
+    "os": "macOS Sonoma",
+    "startedAt": "2026-11-09T12:07:41.221Z",
+    "lastActiveAt": "2026-11-09T13:59:41.221Z",
+    "expiresAt": "2026-11-10T00:02:41.221Z",
+    "status": "REVOKED",
+    "revokedAt": "2026-11-09T14:02:49.741Z",
+    "revokedBy": "admin%40pexagritech.com"
+  },
+  {
+    "id": "sess_financeiro_1",
+    "userId": "usr_financeiro_1",
+    "userName": "Juliana Rocha",
+    "userEmail": "juliana.rocha@pexagritech.com",
+    "userRole": "FINANCEIRO",
+    "userPapeis": [
+      "FINANCEIRO"
+    ],
+    "ip": "179.184.22.90",
+    "location": "Londrina, PR • Brasil",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Edg/131.0.0.0",
+    "device": "Desktop",
+    "browser": "Microsoft Edge",
+    "os": "Windows 11",
+    "startedAt": "2026-11-09T10:52:41.221Z",
+    "lastActiveAt": "2026-11-09T13:55:41.221Z",
+    "expiresAt": "2026-11-09T22:02:41.221Z",
+    "status": "IDLE",
+    "revokedAt": null,
+    "revokedBy": null
+  },
+  {
+    "id": "sess_operacional_mobile",
+    "userId": "usr_operacional_1",
+    "userName": "Roberto Santos",
+    "userEmail": "roberto.santos@pexagritech.com",
+    "userRole": "ADMINISTRATIVO",
+    "userPapeis": [
+      "ADMINISTRATIVO"
+    ],
+    "ip": "187.72.19.14",
+    "location": "Paranaguá, PR • Brasil (Porto)",
+    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+    "device": "Mobile",
+    "browser": "Apple Safari",
+    "os": "iOS 18",
+    "startedAt": "2026-11-09T12:57:41.221Z",
+    "lastActiveAt": "2026-11-09T13:58:41.221Z",
+    "expiresAt": "2026-11-10T00:02:41.221Z",
+    "status": "ACTIVE",
+    "revokedAt": null,
+    "revokedBy": null
+  }
+]

@@ -7,7 +7,7 @@ import { getUserPapeis } from '@/lib/permissions';
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 dias
+    maxAge: 12 * 60 * 60, // Limite absoluto de 12 horas corridas
   },
   pages: {
     signIn: '/login',
@@ -122,15 +122,25 @@ export const authOptions: NextAuthOptions = {
         token.papeis = (user as any).papeis || ['ADMIN'];
         token.name = user.name;
         token.email = user.email;
+        token.authCreatedAt = Date.now();
+      }
+      // Verificação estrita de Limite Absoluto de 12 horas
+      if (token?.authCreatedAt && typeof token.authCreatedAt === 'number') {
+        const elapsed = Date.now() - token.authCreatedAt;
+        if (elapsed > 12 * 60 * 60 * 1000) {
+          // Token expirado absolutamente
+          return {} as any;
+        }
       }
       return token;
     },
     async session({ session, token }) {
-      if (session?.user) {
+      if (session?.user && token?.id) {
         (session.user as any).id = token.id as string;
         (session.user as any).papel = (token.role as string) || 'ADMIN';
         (session.user as any).role = (token.role as string) || 'ADMIN';
         (session.user as any).papeis = (token as any).papeis || [(token.role as string) || 'ADMIN'];
+        (session.user as any).authCreatedAt = token.authCreatedAt;
         if (token.name) session.user.name = token.name as string;
         if (token.email) session.user.email = token.email as string;
       }

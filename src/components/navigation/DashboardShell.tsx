@@ -72,8 +72,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
   async function handleLogout() {
     try {
       localStorage.removeItem('bela_user');
+      localStorage.removeItem('bela_auth_created_at');
       document.cookie = 'bela_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure';
       document.cookie = 'bela_user_email=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure';
+      document.cookie = 'bela_auth_created_at=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure';
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch {}
 

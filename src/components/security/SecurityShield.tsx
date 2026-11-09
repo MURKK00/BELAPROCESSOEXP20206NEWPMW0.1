@@ -14,11 +14,16 @@ import {
   LogOut, 
   Eye, 
   EyeOff,
-  Sparkles
+  Clock,
+  Hourglass
 } from 'lucide-react';
 
-// Tempo de inatividade em milissegundos (10 minutos)
-const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
+// Constantes temporais de segurança corporativa
+const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutos no total
+const WARNING_TRIGGER_MS = 9 * 60 * 1000 + 30 * 1000; // Alerta aos 9m30s (faltando 30 segundos)
+const WARNING_COUNTDOWN_SECONDS = 30; // 30 segundos de contagem regressiva
+const ABSOLUTE_TIMEOUT_MS = 12 * 60 * 60 * 1000; // Limite absoluto de 12 horas corridas
+const HEARTBEAT_INTERVAL_MS = 4 * 60 * 1000; // Renovação silenciosa (sliding) a cada 4 minutos
 
 interface ContextMenuState {
   visible: boolean;
@@ -33,7 +38,9 @@ export function SecurityShield() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // Estados de Bloqueio por Inatividade
+  // Estados de Inatividade e Bloqueio
+  const [isIdleWarningOpen, setIsIdleWarningOpen] = useState(false);
+  const [countdown, setCountdown] = useState(WARNING_COUNTDOWN_SECONDS);
   const [isLocked, setIsLocked] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -51,7 +58,9 @@ export function SecurityShield() {
     selectedText: '',
   });
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lockTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const activeEditableRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
   // Regra fundamental: Telas de Backoffice Cockpit e Login NUNCA bloqueiam por inatividade!
@@ -60,39 +69,162 @@ export function SecurityShield() {
   const shouldExemptInactivity = isBackoffice || isLoginPage;
 
   // --------------------------------------------------------------------------
-  // 1. GERENCIAMENTO DO TIMER DE INATIVIDADE (10 MINUTOS)
+  // 1. RENOVAÇÃO SILENCIOSA E EXPIRAÇÃO ABSOLUTA DE 12 HORAS
   // --------------------------------------------------------------------------
-  const resetInactivityTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+  const handleAbsoluteExpired = useCallback(async () => {
+    try {
+      localStorage.removeItem('bela_user');
+      localStorage.removeItem('bela_auth_created_at');
+      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    } catch {}
+    setIsIdleWarningOpen(false);
+    setIsLocked(false);
+    router.push('/login?reason=session_expired');
+  }, [router]);
+
+  // Checagem periódica do prazo absoluto (12h) e heartbeat de renovação silenciosa
+  useEffect(() => {
+    if (shouldExemptInactivity) return;
+
+    const checkAbsoluteExpiryAndHeartbeat = async () => {
+      // 1. Checa no localStorage ou cookie se já passaram 12h
+      const storedCreatedAt = localStorage.getItem('bela_auth_created_at');
+      const authCreatedAt = Number(storedCreatedAt || 0);
+
+      if (authCreatedAt > 0) {
+        const elapsed = Date.now() - authCreatedAt;
+        if (elapsed >= ABSOLUTE_TIMEOUT_MS) {
+          handleAbsoluteExpired();
+          return;
+        }
+      }
+
+      // 2. Heartbeat de renovação silenciosa (Sliding Window até o teto de 12h)
+      if (!isLocked && document.visibilityState === 'visible') {
+        try {
+          const res = await fetch('/api/auth/refresh', { method: 'POST' });
+          if (res.status === 401) {
+            const data = await res.json().catch(() => ({}));
+            if (data.revoked) {
+              localStorage.removeItem('bela_user');
+              localStorage.removeItem('bela_session');
+              localStorage.removeItem('bela_auth_created_at');
+              setIsIdleWarningOpen(false);
+              setIsLocked(false);
+              router.push('/login?reason=revoked_by_admin');
+              return;
+            }
+            if (data.expired) {
+              handleAbsoluteExpired();
+            }
+          }
+        } catch {
+          // Falha transitória de rede não desloga de imediato
+        }
+      }
+    };
+
+    // Executa verificação inicial e depois a cada 4 minutos
+    checkAbsoluteExpiryAndHeartbeat();
+    const interval = setInterval(checkAbsoluteExpiryAndHeartbeat, HEARTBEAT_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [shouldExemptInactivity, isLocked, handleAbsoluteExpired]);
+
+  // --------------------------------------------------------------------------
+  // 2. GERENCIAMENTO DE INATIVIDADE (10 MINUTOS COM AVISO AOS 9M30S)
+  // --------------------------------------------------------------------------
+  const clearAllInactivityTimers = useCallback(() => {
+    if (warningTimerRef.current) {
+      clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = null;
     }
+    if (lockTimerRef.current) {
+      clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = null;
+    }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+  }, []);
+
+  const startWarningCountdown = useCallback(() => {
+    setIsIdleWarningOpen(true);
+    setCountdown(WARNING_COUNTDOWN_SECONDS);
+
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+    countdownIntervalRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+          setIsIdleWarningOpen(false);
+          setIsLocked(true);
+          setPassword('');
+          setErrorMsg(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  const resetInactivityTimer = useCallback(() => {
+    clearAllInactivityTimers();
 
     if (shouldExemptInactivity || isLocked) {
       return;
     }
 
-    timerRef.current = setTimeout(() => {
-      // Dupla checagem: se navegou para /backoffice nesse meio tempo, não bloqueia
+    // Se o modal de aviso estava aberto e o usuário fez uma ação explícita
+    if (isIdleWarningOpen) {
+      setIsIdleWarningOpen(false);
+    }
+
+    // Timer 1: Dispara o Alerta Faltando 30s (aos 9m30s de inatividade)
+    warningTimerRef.current = setTimeout(() => {
       if (window.location.pathname.startsWith('/backoffice') || window.location.pathname === '/login') {
         return;
       }
+      startWarningCountdown();
+    }, WARNING_TRIGGER_MS);
+
+    // Timer 2: Bloqueio definitivo aos 10 minutos caso a contagem não seja cancelada
+    lockTimerRef.current = setTimeout(() => {
+      if (window.location.pathname.startsWith('/backoffice') || window.location.pathname === '/login') {
+        return;
+      }
+      setIsIdleWarningOpen(false);
       setIsLocked(true);
       setPassword('');
       setErrorMsg(null);
     }, INACTIVITY_TIMEOUT_MS);
-  }, [shouldExemptInactivity, isLocked]);
+  }, [shouldExemptInactivity, isLocked, isIdleWarningOpen, clearAllInactivityTimers, startWarningCountdown]);
+
+  // Botão "Continuar Logado" no modal de ociosidade
+  const handleContinueSession = async () => {
+    setIsIdleWarningOpen(false);
+    clearAllInactivityTimers();
+    resetInactivityTimer();
+
+    // Dispara renovação silenciosa em background
+    try {
+      await fetch('/api/auth/refresh', { method: 'POST' });
+    } catch {}
+  };
 
   useEffect(() => {
-    // Se o usuário estiver na tela Backoffice Cockpit, destrava automaticamente
-    if (shouldExemptInactivity && isLocked) {
+    if (shouldExemptInactivity && (isLocked || isIdleWarningOpen)) {
       setIsLocked(false);
+      setIsIdleWarningOpen(false);
+      clearAllInactivityTimers();
     }
-  }, [shouldExemptInactivity, isLocked]);
+  }, [shouldExemptInactivity, isLocked, isIdleWarningOpen, clearAllInactivityTimers]);
 
   useEffect(() => {
     if (shouldExemptInactivity) {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      clearAllInactivityTimers();
       return;
     }
 
@@ -100,7 +232,8 @@ export function SecurityShield() {
 
     const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'wheel'];
     const handleUserActivity = () => {
-      if (!isLocked) {
+      // Se não estiver bloqueado e o modal de aviso não estiver visível, reinicia o cronômetro
+      if (!isLocked && !isIdleWarningOpen) {
         resetInactivityTimer();
       }
     };
@@ -108,16 +241,15 @@ export function SecurityShield() {
     activityEvents.forEach((ev) => window.addEventListener(ev, handleUserActivity, { passive: true }));
 
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      clearAllInactivityTimers();
       activityEvents.forEach((ev) => window.removeEventListener(ev, handleUserActivity));
     };
-  }, [resetInactivityTimer, shouldExemptInactivity, isLocked]);
+  }, [resetInactivityTimer, shouldExemptInactivity, isLocked, isIdleWarningOpen, clearAllInactivityTimers]);
 
   // --------------------------------------------------------------------------
-  // 2. PROTEÇÃO ANTI-INSPEÇÃO: BLOQUEIO DE BOTÃO DIREITO E TECLAS DEVTOOLS
+  // 3. PROTEÇÃO ANTI-INSPEÇÃO: BLOQUEIO DE BOTÃO DIREITO E TECLAS DEVTOOLS
   // --------------------------------------------------------------------------
   useEffect(() => {
-    // Intercepta e desativa o clique com o botão direito para evitar "Inspecionar elemento"
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault(); // NUNCA abre o menu nativo do navegador com Inspecionar elemento!
 
@@ -131,7 +263,6 @@ export function SecurityShield() {
         activeEditableRef.current = null;
       }
 
-      // Se houver texto selecionado ou for campo editável, abre menu customizado seguro
       if (selection.trim().length > 0 || isEditable) {
         setContextMenu({
           visible: true,
@@ -142,13 +273,10 @@ export function SecurityShield() {
           selectedText: selection,
         });
       } else {
-        // Se clicou no nada com botão direito, fecha qualquer menu
         setContextMenu((prev) => ({ ...prev, visible: false }));
       }
     };
 
-    // Bloqueia atalhos de abertura do DevTools (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U)
-    // PRESERVANDO Ctrl+C, Ctrl+V, Ctrl+A, Ctrl+X
     const handleKeyDown = (e: KeyboardEvent) => {
       const isDevToolsShortcut =
         e.key === 'F12' ||
@@ -161,7 +289,6 @@ export function SecurityShield() {
       }
     };
 
-    // Fecha o menu customizado ao clicar em qualquer lugar
     const handleClickOutside = () => {
       setContextMenu((prev) => (prev.visible ? { ...prev, visible: false } : prev));
     };
@@ -177,9 +304,6 @@ export function SecurityShield() {
     };
   }, []);
 
-  // --------------------------------------------------------------------------
-  // 3. AÇÕES DO MENU DE CONTEXTO SEGURO (COPIAR / COLAR / SELECIONAR TUDO)
-  // --------------------------------------------------------------------------
   const handleCopy = async () => {
     try {
       if (contextMenu.selectedText) {
@@ -242,7 +366,6 @@ export function SecurityShield() {
     setErrorMsg(null);
 
     try {
-      // Validação rápida de alta velocidade com fallback para a rota do servidor
       if (password === '@Bela2026') {
         setIsLocked(false);
         setPassword('');
@@ -266,7 +389,7 @@ export function SecurityShield() {
       } else {
         setErrorMsg(data.error || 'Senha incorreta. Verifique suas credenciais.');
       }
-    } catch (err: any) {
+    } catch {
       if (password === '@Bela2026') {
         setIsLocked(false);
         setPassword('');
@@ -282,8 +405,10 @@ export function SecurityShield() {
   const handleLogout = async () => {
     try {
       localStorage.removeItem('bela_user');
+      localStorage.removeItem('bela_auth_created_at');
       await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     } catch {}
+    setIsIdleWarningOpen(false);
     setIsLocked(false);
     router.push('/login');
   };
@@ -354,7 +479,62 @@ export function SecurityShield() {
         </div>
       )}
 
-      {/* OVERLAY DE TELA BLOQUEADA POR INATIVIDADE (10 MINUTOS) */}
+      {/* ==================================================================== */}
+      {/* MODAL 1: ALERTA DE OCIOSIDADE (FALTANDO 30 SEGUNDOS)                 */}
+      {/* ==================================================================== */}
+      {isIdleWarningOpen && !shouldExemptInactivity && !isLocked && (
+        <div className="fixed inset-0 z-[99998] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-amber-500/30 dark:border-amber-500/30 rounded-3xl p-6 sm:p-7 shadow-2xl text-center space-y-5">
+            
+            {/* ÍCONE DE ALERTA TEMPORAL */}
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/25 flex items-center justify-center shadow-xs">
+              <Hourglass className="w-7 h-7 animate-pulse text-amber-500" />
+            </div>
+
+            {/* MENSAGEM PRINCIPAL */}
+            <div>
+              <h3 className="text-lg font-black text-slate-950 dark:text-white tracking-tight">
+                Sua sessão expira em breve por falta de atividade
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                Por segurança corporativa, o sistema será bloqueado caso nenhuma interação ocorra nos próximos segundos.
+              </p>
+            </div>
+
+            {/* CONTAGEM REGRESSIVA VISUAL */}
+            <div className="py-2.5 px-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 inline-flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Expira em:</span>
+              <span className="font-mono text-xl font-black text-amber-600 dark:text-amber-400 tabular-nums">
+                {countdown < 10 ? `0${countdown}` : countdown}s
+              </span>
+            </div>
+
+            {/* BOTÃO CONTINUAR LOGADO */}
+            <button
+              type="button"
+              onClick={handleContinueSession}
+              className="w-full py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Check className="w-4 h-4" />
+              <span>Continuar Logado</span>
+            </button>
+
+            {/* OPÇÃO DE LOGOFF MANUAL */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="text-xs text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 font-medium transition-colors cursor-pointer"
+            >
+              Encerrar sessão agora
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MODAL 2: TELA BLOQUEADA POR INATIVIDADE (10 MINUTOS)                  */}
+      {/* ==================================================================== */}
       {isLocked && !shouldExemptInactivity && (
         <div className="fixed inset-0 z-[99999] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center">

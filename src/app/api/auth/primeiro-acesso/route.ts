@@ -104,10 +104,13 @@ export async function POST(req: NextRequest) {
       user: userData,
     });
 
-    // Injeta cookies de autenticação
+    const SESSION_MAX_AGE_12H = 12 * 60 * 60; // 12 horas corridas
+    const authCreatedAt = Date.now().toString();
+
+    // Injeta cookies de autenticação (12 horas corridas)
     response.cookies.set('bela_session', '1', {
       path: '/',
-      maxAge: 30 * 24 * 60 * 60,
+      maxAge: SESSION_MAX_AGE_12H,
       sameSite: 'none',
       secure: true,
       httpOnly: false,
@@ -115,7 +118,15 @@ export async function POST(req: NextRequest) {
 
     response.cookies.set('bela_user_email', encodeURIComponent(usuarioAtualizado.email), {
       path: '/',
-      maxAge: 30 * 24 * 60 * 60,
+      maxAge: SESSION_MAX_AGE_12H,
+      sameSite: 'none',
+      secure: true,
+      httpOnly: false,
+    });
+
+    response.cookies.set('bela_auth_created_at', authCreatedAt, {
+      path: '/',
+      maxAge: SESSION_MAX_AGE_12H,
       sameSite: 'none',
       secure: true,
       httpOnly: false,

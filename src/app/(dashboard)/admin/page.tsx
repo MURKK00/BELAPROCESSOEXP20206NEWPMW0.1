@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { 
   ShieldCheck, 
   Users, 
@@ -24,10 +25,12 @@ import {
   Shield,
   Check,
   Edit2,
-  Info
+  Info,
+  Activity
 } from 'lucide-react';
 import { PAPEIS_DISPONIVEIS, Papel, canAccessAdmin } from '@/lib/permissions';
 import { gerarNomeUsuario, SENHA_PADRAO_NOVO_USUARIO } from '@/lib/userHelper';
+import { SessionsManager } from '@/components/admin/SessionsManager';
 
 interface UsuarioItem {
   id: string;
@@ -50,6 +53,8 @@ export default function AdminPage() {
   const [executandoAcao, setExecutandoAcao] = useState<boolean>(false);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
   const [mensagemErro, setMensagemErro] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [modalConfirmarZerar, setModalConfirmarZerar] = useState<boolean>(false);
 
   // Estados do Modal de Novo Usuário
   const [modalNovoUsuario, setModalNovoUsuario] = useState<boolean>(false);
@@ -66,9 +71,15 @@ export default function AdminPage() {
   const [modalResetSenha, setModalResetSenha] = useState<{ id: string; nome: string; email: string } | null>(null);
   const [novaSenha, setNovaSenha] = useState('');
 
-  // Modal de Confirmação para Zerar
-  const [modalConfirmarZerar, setModalConfirmarZerar] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const searchParams = useSearchParams();
+  const [abaAtiva, setAbaAtiva] = useState<'USUARIOS' | 'SESSOES' | 'BANCO'>('USUARIOS');
+
+  useEffect(() => {
+    const tab = searchParams?.get('tab');
+    if (tab === 'sessoes') setAbaAtiva('SESSOES');
+    else if (tab === 'banco') setAbaAtiva('BANCO');
+    else if (tab === 'usuarios') setAbaAtiva('USUARIOS');
+  }, [searchParams]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -436,12 +447,71 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* GUIA DE MATRIZ DE PERMISSÕES (INFORMATIVO) */}
-      <div className="bg-gradient-to-r from-blue-950/20 via-slate-900/10 to-orange-950/20 dark:from-blue-950/40 dark:to-orange-950/40 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs">
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200 mb-3">
-          <Info className="w-4 h-4 text-orange-500" />
-          <span>Matriz de Acessos &amp; Perfis Combinados</span>
-        </div>
+      {/* SELETOR DE ABAS DO PAINEL ADMINISTRATIVO */}
+      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-fit border border-slate-200/80 dark:border-slate-700/80">
+        <button
+          type="button"
+          onClick={() => setAbaAtiva('USUARIOS')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            abaAtiva === 'USUARIOS'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Users className="w-4 h-4 text-orange-500" />
+          <span>Usuários &amp; Perfis</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            {usuarios.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAbaAtiva('SESSOES')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            abaAtiva === 'SESSOES'
+              ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Activity className="w-4 h-4 text-emerald-500 animate-pulse" />
+          <span>Sessões Conectadas</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAbaAtiva('BANCO')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            abaAtiva === 'BANCO'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Database className="w-4 h-4 text-blue-500" />
+          <span>Demonstração &amp; Banco</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+            isDemoMode
+              ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+          }`}>
+            {isDemoMode ? 'DEMO' : 'REAL'}
+          </span>
+        </button>
+      </div>
+
+      {/* RENDERIZAÇÃO DA ABA DE SESSÕES */}
+      {abaAtiva === 'SESSOES' && (
+        <SessionsManager />
+      )}
+
+      {/* RENDERIZAÇÃO DA ABA DE USUÁRIOS */}
+      {abaAtiva === 'USUARIOS' && (
+        <div className="bg-gradient-to-r from-blue-950/20 via-slate-900/10 to-orange-950/20 dark:from-blue-950/40 dark:to-orange-950/40 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200 mb-3">
+              <Info className="w-4 h-4 text-orange-500" />
+              <span>Matriz de Acessos &amp; Perfis Combinados</span>
+            </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-[11px] text-slate-600 dark:text-slate-300">
           <div className="p-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800">
             <strong className="block text-slate-900 dark:text-white mb-1">Acessos Gerais (Todos os Usuários)</strong>
@@ -469,8 +539,10 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* SEÇÃO 1: MODO DEMONSTRAÇÃO & ZERAR LANÇAMENTOS */}
+      {/* SEÇÃO 1: MODO DEMONSTRAÇÃO & ZERAR LANÇAMENTOS (ABA BANCO) */}
+      {abaAtiva === 'BANCO' && (
       <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden">
         {/* Banner do Status Atual */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-200/80 dark:border-slate-800">
@@ -583,8 +655,10 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* SEÇÃO 2: GESTÃO DE USUÁRIOS E PERFIS MÚLTIPLOS */}
+      {/* SEÇÃO 2: GESTÃO DE USUÁRIOS E PERFIS MÚLTIPLOS (ABA USUÁRIOS) */}
+      {abaAtiva === 'USUARIOS' && (
       <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -745,6 +819,7 @@ export default function AdminPage() {
           </table>
         </div>
       </div>
+      )}
 
       {/* MODAL 1: CADASTRAR NOVO USUÁRIO COM MULTIPERFIS */}
       {isMounted && modalNovoUsuario && createPortal(

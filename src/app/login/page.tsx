@@ -35,13 +35,20 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const reason = searchParams.get('reason');
 
   // Estados do formulário de login padrão
   const [identificador, setIdentificador] = useState('');
   const [password, setPassword] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(
+    reason === 'session_expired'
+      ? 'Sua sessão atingiu o limite de 12 horas. Por segurança corporativa, insira suas credenciais novamente.'
+      : reason === 'revoked_by_admin'
+      ? 'Sua sessão foi encerrada remotamente por um administrador. Por segurança, faça login novamente.'
+      : null
+  );
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
 
   // Estados do fluxo de primeiro acesso (redefinição obrigatória)
@@ -101,11 +108,14 @@ function LoginForm() {
         return;
       }
 
-      // 2. Grava no localStorage e nos cookies do navegador para máxima compatibilidade
+      // 2. Grava no localStorage e nos cookies do navegador para 12 horas corridas
       try {
+        const nowTs = Date.now().toString();
         localStorage.setItem('bela_user', JSON.stringify(data.user));
-        document.cookie = `bela_session=1; path=/; max-age=2592000; SameSite=None; Secure`;
-        document.cookie = `bela_user_email=${encodeURIComponent(data.user.email)}; path=/; max-age=2592000; SameSite=None; Secure`;
+        localStorage.setItem('bela_auth_created_at', nowTs);
+        document.cookie = `bela_session=1; path=/; max-age=43200; SameSite=None; Secure`;
+        document.cookie = `bela_user_email=${encodeURIComponent(data.user.email)}; path=/; max-age=43200; SameSite=None; Secure`;
+        document.cookie = `bela_auth_created_at=${nowTs}; path=/; max-age=43200; SameSite=None; Secure`;
       } catch (storageErr) {
         console.warn('Aviso ao armazenar sessão local:', storageErr);
       }
@@ -185,11 +195,14 @@ function LoginForm() {
         return;
       }
 
-      // Salva sessão localmente
+      // Salva sessão localmente para 12 horas corridas
       try {
+        const nowTs = Date.now().toString();
         localStorage.setItem('bela_user', JSON.stringify(data.user));
-        document.cookie = `bela_session=1; path=/; max-age=2592000; SameSite=None; Secure`;
-        document.cookie = `bela_user_email=${encodeURIComponent(data.user.email)}; path=/; max-age=2592000; SameSite=None; Secure`;
+        localStorage.setItem('bela_auth_created_at', nowTs);
+        document.cookie = `bela_session=1; path=/; max-age=43200; SameSite=None; Secure`;
+        document.cookie = `bela_user_email=${encodeURIComponent(data.user.email)}; path=/; max-age=43200; SameSite=None; Secure`;
+        document.cookie = `bela_auth_created_at=${nowTs}; path=/; max-age=43200; SameSite=None; Secure`;
       } catch (storageErr) {
         console.warn('Aviso ao armazenar sessão local:', storageErr);
       }
