@@ -7,6 +7,22 @@ function toNumber(val: number | Decimal): number {
   return typeof val === 'number' ? val : Number(val);
 }
 
+/**
+ * Converte com total segurança qualquer valor (Decimal do Prisma, number, string, null, undefined)
+ * para number, sem perigo de lançar TypeError ao chamar toString() em undefined.
+ */
+export function safeNumber(val: any, fallback = 0): number {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'number') return isNaN(val) ? fallback : val;
+  try {
+    const str = typeof val.toString === 'function' ? val.toString() : String(val);
+    const num = Number(str);
+    return isNaN(num) ? fallback : num;
+  } catch {
+    return fallback;
+  }
+}
+
 export const formatBRL = (val: number | Decimal) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(toNumber(val));
 

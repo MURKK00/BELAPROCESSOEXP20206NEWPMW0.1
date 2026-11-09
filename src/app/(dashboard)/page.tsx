@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getDaysLeft } from '@/lib/workflow';
-import { formatNum, formatDateBR } from '@/lib/formatters';
+import { formatNum, formatDateBR, safeNumber } from '@/lib/formatters';
 import { Scale, DollarSign, Clock, Ship, TrendingUp, ArrowRight, Activity, Globe, Container } from 'lucide-react';
 import { LedTickerTape } from '@/components/cotacoes/LedTickerTape';
 
@@ -43,14 +43,14 @@ export default async function DashboardPage() {
     const fin = p.financeiro;
     // Volume Real dos Containers (se estufados/preenchidos) ou Volume Contratado inicial
     const pesoLiquidoContainers = (p.containers || []).reduce(
-      (acc: number, c: any) => acc + (c.pesoLiquido ? Number(c.pesoLiquido.toString()) : 0),
+      (acc: number, c: any) => acc + safeNumber(c?.pesoLiquido, 0),
       0
     );
-    const pesoKg = pesoLiquidoContainers > 0 ? pesoLiquidoContainers : Number(p.volumeKg) || 0;
+    const pesoKg = pesoLiquidoContainers > 0 ? pesoLiquidoContainers : safeNumber(p.volumeKg, 0);
     const pesoTon = pesoKg / 1000;
     volumeTotalTon += pesoTon;
 
-    const precoUnitario = fin?.precoUsd ? Number(fin.precoUsd.toString()) : Number(p.valorDeclaradoUsd) || 0;
+    const precoUnitario = fin?.precoUsd ? safeNumber(fin.precoUsd, 0) : safeNumber(p.valorDeclaradoUsd, 0);
     valorEmOperacaoUsd += (pesoTon * precoUnitario);
 
     // Contagem de contêineres movimentados no processo
@@ -77,17 +77,17 @@ export default async function DashboardPage() {
     const statusRec = fin?.statusRecebimento || 'A_RECEBER';
 
     const pesoLiquidoContainers = (p.containers || []).reduce(
-      (acc: number, c: any) => acc + (c.pesoLiquido ? Number(c.pesoLiquido.toString()) : 0),
+      (acc: number, c: any) => acc + safeNumber(c?.pesoLiquido, 0),
       0
     );
-    const pesoKg = pesoLiquidoContainers > 0 ? pesoLiquidoContainers : Number(p.volumeKg) || 0;
+    const pesoKg = pesoLiquidoContainers > 0 ? pesoLiquidoContainers : safeNumber(p.volumeKg, 0);
     const pesoTon = pesoKg / 1000;
 
-    const precoUnit = fin?.precoUsd ? Number(fin.precoUsd.toString()) : Number(p.valorDeclaradoUsd) || 0;
+    const precoUnit = fin?.precoUsd ? safeNumber(fin.precoUsd, 0) : safeNumber(p.valorDeclaradoUsd, 0);
     const valorProcessoUsd = pesoTon * precoUnit;
 
     const travamentos = fin?.travamentos || [];
-    const travadoUsd = travamentos.reduce((acc, t) => acc + Number(t.valorUsdParcial), 0);
+    const travadoUsd = travamentos.reduce((acc, t) => acc + safeNumber(t?.valorUsdParcial, 0), 0);
     totalUsdTravadoGeral += travadoUsd;
 
     const saldoAbertoProcesso = Math.max(0, valorProcessoUsd - travadoUsd);

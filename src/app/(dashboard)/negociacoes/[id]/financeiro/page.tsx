@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { deletarTravamentoAction } from '@/server/actions/financeiroActions';
-import { formatNum } from '@/lib/formatters';
+import { formatNum, safeNumber } from '@/lib/formatters';
 import { CategoriaCusto } from '@prisma/client';
 import { DRECustosManager } from '@/components/financeiro/DRECustosManager';
 import { BancoStatusConfig } from '@/components/financeiro/BancoStatusConfig';
@@ -53,12 +53,12 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
   }
 
   // Peso Real (Net Weight)
-  const pesoLiquidoTotalKg = processo.containers.reduce((acc, c) => acc + (c.pesoLiquido ? Number(c.pesoLiquido.toString()) : 0), 0);
-  const pesoFinalKg = pesoLiquidoTotalKg > 0 ? pesoLiquidoTotalKg : Number(processo.volumeKg.toString());
+  const pesoLiquidoTotalKg = processo.containers.reduce((acc, c) => acc + safeNumber(c.pesoLiquido, 0), 0);
+  const pesoFinalKg = pesoLiquidoTotalKg > 0 ? pesoLiquidoTotalKg : safeNumber(processo.volumeKg, 0);
   const pesoFinalTon = pesoFinalKg / 1000;
 
   // Receita Total USD
-  const precoUnitarioUsd = Number(financeiro.precoUsd.toString());
+  const precoUnitarioUsd = safeNumber(financeiro.precoUsd, 0);
   const valorTotalUsd = pesoFinalTon * precoUnitarioUsd;
 
   // Informações de Recebimento, Taxas Bancárias e Conta
@@ -74,13 +74,13 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
   const valorLiquidoTotalUsd = proformaInfo.totalLiquidoUsd > 0 ? proformaInfo.totalLiquidoUsd : valorTotalUsd;
 
   // Travamentos Cambiais (A trava considera estritamente o valor do dólar líquido)
-  const totalUsdTravado = financeiro.travamentos.reduce((acc, t) => acc + Number(t.valorUsdParcial.toString()), 0);
+  const totalUsdTravado = financeiro.travamentos.reduce((acc, t) => acc + safeNumber(t?.valorUsdParcial, 0), 0);
   const saldoUsdParaTravar = Math.max(0, valorLiquidoTotalUsd - totalUsdTravado);
 
   let somatorioReaisBruto = 0;
   for (const t of financeiro.travamentos) {
-    const usd = Number(t.valorUsdParcial.toString());
-    const ptax = Number(t.ptax.toString());
+    const usd = safeNumber(t?.valorUsdParcial, 0);
+    const ptax = safeNumber(t?.ptax, 0);
     somatorioReaisBruto += usd * ptax;
   }
 
@@ -96,7 +96,7 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
   const receitaLiquidaBRL = Math.max(0, receitaBrutaBRL - totalTaxasBRL);
 
   // Custos e DRE
-  const custosMap = new Map(financeiro.custos.map(c => [c.categoria, Number(c.valor.toString())]));
+  const custosMap = new Map(financeiro.custos.map(c => [c.categoria, safeNumber(c?.valor, 0)]));
   const categoriasPrincipais: CategoriaCusto[] = ['COMPRA', 'BENEFICIAMENTO', 'SACARIA', 'FRETE_TERRESTRE', 'FRETE_MARITIMO', 'TARIFA_ARMADOR_PORTO', 'SERVICO_ESTUFF', 'COMISSAO', 'OUTROS_CUSTOS'];
   const totalCustosBRL = Array.from(custosMap.entries()).filter(([cat]) => categoriasPrincipais.includes(cat as CategoriaCusto)).reduce((acc, [, val]) => acc + val, 0);
 
@@ -149,8 +149,8 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
             margemLucro,
           }}
           travamentos={financeiro.travamentos.map((t) => {
-            const valUsd = Number(t.valorUsdParcial.toString());
-            const valPtax = Number(t.ptax.toString());
+            const valUsd = safeNumber(t?.valorUsdParcial, 0);
+            const valPtax = safeNumber(t?.ptax, 0);
             const parsed = parseTravamentoInfo(t);
             return {
               dataTravamento: t.dataTravamento,
@@ -357,8 +357,8 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
           processoId={processo.id}
           travamentos={financeiro.travamentos.map((t) => {
             const parsed = parseTravamentoInfo(t);
-            const valUsd = Number(t.valorUsdParcial.toString());
-            const valPtax = Number(t.ptax.toString());
+            const valUsd = safeNumber(t?.valorUsdParcial, 0);
+            const valPtax = safeNumber(t?.ptax, 0);
             return {
               id: t.id,
               dataTravamento: t.dataTravamento,

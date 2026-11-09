@@ -5,6 +5,7 @@ import { FinanceiroDashboardClient, type FinanceiroProcessoItem, type Financeiro
 import { serializeDecimals } from '@/lib/serialize';
 import { parseTravamentoInfo } from '@/lib/travamentoHelper';
 import { parseRecebimentoProformaInfo } from '@/lib/proformaHelper';
+import { safeNumber } from '@/lib/formatters';
 
 const CATEGORIAS_CUSTO_LABELS: Record<string, string> = {
   COMPRA: 'Compra Grãos/Matéria-Prima',
@@ -47,15 +48,15 @@ export default async function FinanceiroPage() {
 
     // Peso Líquido Real dos Containers (definido na estufagem/documento) ou Contratado inicial
     const pesoLiquidoTotalKg = containers.reduce(
-      (acc, c) => acc + (c.pesoLiquido ? Number(c.pesoLiquido.toString()) : 0),
+      (acc, c) => acc + safeNumber(c.pesoLiquido, 0),
       0
     );
     const temContainersPreenchidos = pesoLiquidoTotalKg > 0;
-    const volumeKg = temContainersPreenchidos ? pesoLiquidoTotalKg : Number(p.volumeKg.toString()) || 0;
+    const volumeKg = temContainersPreenchidos ? pesoLiquidoTotalKg : safeNumber(p.volumeKg, 0);
     const volumeTon = volumeKg / 1000;
 
     // Preço unitário configurado ou declarado no processo
-    const precoUsd = fin?.precoUsd ? Number(fin.precoUsd.toString()) : Number(p.valorDeclaradoUsd) || 0;
+    const precoUsd = fin?.precoUsd ? safeNumber(fin.precoUsd, 0) : safeNumber(p.valorDeclaradoUsd, 0);
     const valorTotalUsd = volumeTon * precoUsd;
 
     // Informações de Recebimento e Taxas
@@ -65,7 +66,7 @@ export default async function FinanceiroPage() {
     // Travamentos Cambiais
     const travamentos = fin?.travamentos || [];
     const totalUsdTravado = travamentos.reduce(
-      (acc, t) => acc + Number(t.valorUsdParcial.toString()),
+      (acc, t) => acc + safeNumber(t?.valorUsdParcial, 0),
       0
     );
     const saldoUsdParaTravar = Math.max(0, valorLiquidoTotalUsd - totalUsdTravado);
@@ -73,8 +74,8 @@ export default async function FinanceiroPage() {
     let somatorioReaisTravados = 0;
     let somatorioTaxas = 0;
     for (const t of travamentos) {
-      const usd = Number(t.valorUsdParcial.toString());
-      const ptax = Number(t.ptax.toString());
+      const usd = safeNumber(t?.valorUsdParcial, 0);
+      const ptax = safeNumber(t?.ptax, 0);
       const parsed = parseTravamentoInfo(t);
       const taxaEmBrl = parsed.moedaTaxa === 'USD' ? parsed.taxa * ptax : parsed.taxa;
       somatorioReaisTravados += usd * ptax;
@@ -87,12 +88,12 @@ export default async function FinanceiroPage() {
 
     // Custos Operacionais
     const custos = fin?.custos || [];
-    const totalCustosBRL = custos.reduce((acc, c) => acc + Number(c.valor.toString()), 0);
+    const totalCustosBRL = custos.reduce((acc, c) => acc + safeNumber(c?.valor, 0), 0);
 
     const custosFormatados: FinanceiroCustoItem[] = custos.map((c) => ({
       categoria: c.categoria,
       categoriaLabel: CATEGORIAS_CUSTO_LABELS[c.categoria] || c.categoria,
-      valor: Number(c.valor.toString()) || 0,
+      valor: safeNumber(c?.valor, 0),
     }));
 
     const resultadoOperacionalBRL = receitaLiquidaBRL - totalCustosBRL;
