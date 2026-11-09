@@ -46,6 +46,20 @@ interface UsuarioItem {
   criadoEm: string;
 }
 
+// Subcomponente dedicado para useSearchParams envolvido em Suspense Boundary
+function AdminTabSync({ onTabChange }: { onTabChange: (tab: 'USUARIOS' | 'SESSOES' | 'BANCO') => void }) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const tab = searchParams?.get('tab');
+    if (tab === 'sessoes') onTabChange('SESSOES');
+    else if (tab === 'banco') onTabChange('BANCO');
+    else if (tab === 'usuarios') onTabChange('USUARIOS');
+  }, [searchParams, onTabChange]);
+
+  return null;
+}
+
 function AdminDashboardContent() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
@@ -73,15 +87,7 @@ function AdminDashboardContent() {
   const [modalResetSenha, setModalResetSenha] = useState<{ id: string; nome: string; email: string } | null>(null);
   const [novaSenha, setNovaSenha] = useState('');
 
-  const searchParams = useSearchParams();
   const [abaAtiva, setAbaAtiva] = useState<'USUARIOS' | 'SESSOES' | 'BANCO'>('USUARIOS');
-
-  useEffect(() => {
-    const tab = searchParams?.get('tab');
-    if (tab === 'sessoes') setAbaAtiva('SESSOES');
-    else if (tab === 'banco') setAbaAtiva('BANCO');
-    else if (tab === 'usuarios') setAbaAtiva('USUARIOS');
-  }, [searchParams]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -380,6 +386,11 @@ function AdminDashboardContent() {
 
   return (
     <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+      {/* SINCRONIZAÇÃO DE ABA VIA useSearchParams ENVOLVIDA EM SUSPENSE BOUNDARY */}
+      <Suspense fallback={null}>
+        <AdminTabSync onTabChange={setAbaAtiva} />
+      </Suspense>
+
       {/* CABEÇALHO DO PAINEL ADMIN */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>

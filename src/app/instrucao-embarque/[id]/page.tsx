@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import { formatDateBR, formatNum } from '@/lib/formatters';
 import { PrintButton } from '@/components/documentos/PrintButton';
 import { parseCompradorInfo } from '@/lib/compradorHelper';
@@ -110,7 +111,15 @@ export default async function InstrucaoEmbarquePrintPage({
         
         {/* Cabeçalho */}
         <div className="flex justify-between items-start mb-3">
-          <img src="/logo-site-bela-verde.png" alt="Bela Cereais" className="w-32" />
+          <Image 
+            src="/logo-site-bela-verde.png" 
+            alt="Bela Cereais" 
+            width={128} 
+            height={52} 
+            className="w-32 h-auto object-contain" 
+            referrerPolicy="no-referrer"
+            priority
+          />
           <div className="text-right leading-snug">
             <p className="font-bold text-sm">INSTRUÇÃO DE EMBARQUE</p>
             <p className="font-semibold">REFERENCE N°.: {processo.numeroProcesso}</p>

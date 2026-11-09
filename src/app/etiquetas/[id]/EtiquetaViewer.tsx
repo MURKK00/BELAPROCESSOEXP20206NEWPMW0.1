@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { EtiquetaControls } from './EtiquetaControls';
 
 interface EtiquetaViewerProps {
@@ -58,17 +59,37 @@ export function EtiquetaViewer({
         {isIndia ? (
           /* PADRÃO ÍNDIA: FSSAI NA ESQUERDA + VEG GREEN DOT NA DIREITA */
           <div className="flex justify-between items-start mb-14 min-h-[64px]">
-            <img src="/fssai-logo.png" alt="FSSAI Logo" className="h-16 object-contain" />
-            <img src="/green-dot.png" alt="Veg Green Dot" className="h-16 object-contain" />
+            <Image 
+              src="/fssai-logo.png" 
+              alt="FSSAI Logo" 
+              width={140}
+              height={64}
+              className="h-16 w-auto object-contain"
+              referrerPolicy="no-referrer"
+              priority
+            />
+            <Image 
+              src="/green-dot.png" 
+              alt="Veg Green Dot" 
+              width={64}
+              height={64}
+              className="h-16 w-auto object-contain"
+              referrerPolicy="no-referrer"
+              priority
+            />
           </div>
         ) : isInternacional ? (
           /* PADRÃO INTERNACIONAL UNIVERSAL: LOGO DA BELA CEREAIS OU IDENTIFICAÇÃO DE EXPORTAÇÃO */
           <div className="flex justify-between items-center mb-14 min-h-[64px] pb-4 border-b-2 border-gray-900">
             <div className="flex items-center gap-3">
-              <img 
+              <Image 
                 src="/logo-site-bela-verde.png" 
                 alt="Bela Cereais Logo" 
-                className="h-14 object-contain" 
+                width={140}
+                height={56}
+                className="h-14 w-auto object-contain"
+                referrerPolicy="no-referrer"
+                priority
               />
               <div>
                 <span className="block font-black text-lg tracking-wider text-black">BELA CEREAIS</span>
