@@ -75,40 +75,35 @@ export const authOptions: NextAuthOptions = {
           });
         }
 
-        if (!usuario && (termoUsername === 'ADMIN' || termoEmail === 'admin@belacereais.com.br')) {
-          usuario = await prisma.usuario.findFirst();
-        }
-
         if (!usuario) {
-          throw new Error('Usuário ou senha incorretos.');
+          throw new Error('Credenciais inválidas. Verifique o usuário e senha.');
         }
 
         if (usuario.ativo === false) {
           throw new Error('Usuário inativo. Procure o administrador do sistema.');
         }
 
-        // Verifica a senha criptografada com bcrypt
-        let senhaValida = await verifyPassword(credentials.password, usuario.senhaHash);
-
-        if (!senhaValida) {
-          if (credentials.password === '@Bela2026' || (!usuario.senhaHash && credentials.password === 'admin123') || credentials.password === 'abc12345') {
-            senhaValida = true;
-          }
+        if (!usuario.senhaHash) {
+          throw new Error('Credenciais inválidas. Verifique o usuário e senha.');
         }
 
+        // Verifica a senha criptografada estritamente com bcrypt para este usuário
+        const senhaValida = await verifyPassword(credentials.password, usuario.senhaHash);
+
         if (!senhaValida) {
-          throw new Error('Usuário ou senha incorretos.');
+          throw new Error('Credenciais inválidas. Verifique o usuário e senha.');
         }
 
         const papeis = getUserPapeis(usuario);
+        const papelBanco = usuario.papel || papeis[0] || 'COMERCIAL';
 
         return {
           id: usuario.id,
           name: usuario.nome,
           email: usuario.email,
           username: (usuario as any).username || null,
-          role: usuario.papel || papeis[0],
-          papel: usuario.papel || papeis[0],
+          role: papelBanco,
+          papel: papelBanco,
           papeis,
         };
       },
@@ -118,8 +113,8 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role || 'ADMIN';
-        token.papeis = (user as any).papeis || ['ADMIN'];
+        token.role = (user as any).role || (user as any).papel || 'COMERCIAL';
+        token.papeis = (user as any).papeis || [token.role];
         token.name = user.name;
         token.email = user.email;
         token.authCreatedAt = Date.now();
@@ -137,9 +132,9 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session?.user && token?.id) {
         (session.user as any).id = token.id as string;
-        (session.user as any).papel = (token.role as string) || 'ADMIN';
-        (session.user as any).role = (token.role as string) || 'ADMIN';
-        (session.user as any).papeis = (token as any).papeis || [(token.role as string) || 'ADMIN'];
+        (session.user as any).papel = (token.role as string) || 'COMERCIAL';
+        (session.user as any).role = (token.role as string) || 'COMERCIAL';
+        (session.user as any).papeis = (token as any).papeis || [(token.role as string) || 'COMERCIAL'];
         (session.user as any).authCreatedAt = token.authCreatedAt;
         if (token.name) session.user.name = token.name as string;
         if (token.email) session.user.email = token.email as string;

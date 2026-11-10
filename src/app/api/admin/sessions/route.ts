@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 import { 
   listUserSessions, 
   calculateSessionStats, 
@@ -10,13 +11,27 @@ export async function GET(req: NextRequest) {
   try {
     const currentSessionId = req.cookies.get('bela_session_id')?.value || null;
     const rawSessions = listUserSessions();
-    const stats = calculateSessionStats(rawSessions);
+
+    // Filtra exclusivamente sessões de usuários reais que existem no banco de dados
+    const usuariosReais = await prisma.usuario.findMany({
+      select: { id: true, papel: true, nome: true, email: true },
+    });
+    const usuariosMap = new Map(usuariosReais.map(u => [u.id, u]));
+
+    const sessõesReais = rawSessions.filter(s => usuariosMap.has(s.userId));
+    const stats = calculateSessionStats(sessõesReais);
 
     // Marca visualmente qual é a sessão do próprio usuário logado que está consultando
-    const sessions = rawSessions.map(s => ({
-      ...s,
-      isCurrentSession: Boolean(currentSessionId && s.id === currentSessionId)
-    }));
+    const sessions = sessõesReais.map(s => {
+      const uReal = usuariosMap.get(s.userId);
+      return {
+        ...s,
+        userName: uReal?.nome || s.userName,
+        userEmail: uReal?.email || s.userEmail,
+        userRole: uReal?.papel || s.userRole,
+        isCurrentSession: Boolean(currentSessionId && s.id === currentSessionId),
+      };
+    });
 
     return NextResponse.json({
       success: true,

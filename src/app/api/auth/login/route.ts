@@ -39,14 +39,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Se buscou por "ADMIN" e ainda não encontrou por variação de email
-    if (!usuario && (termoUsername === 'ADMIN' || termoEmail === 'admin@belacereais.com.br')) {
-      usuario = await prisma.usuario.findFirst();
-    }
-
     if (!usuario) {
       return NextResponse.json(
-        { success: false, error: 'Usuário ou senha incorretos.' },
+        { success: false, error: 'Credenciais inválidas. Verifique o usuário e senha.' },
         { status: 401 }
       );
     }
@@ -58,18 +53,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validação de senha criptografada via bcrypt com suporte à senha @Bela2026
-    let senhaValida = await verifyPassword(password, usuario.senhaHash);
-
-    if (!senhaValida) {
-      if (password === '@Bela2026' || (!usuario.senhaHash && password === 'admin123') || password === 'abc12345') {
-        senhaValida = true;
-      }
+    // Validação estrita da senha com bcrypt comparando com o hash do usuário encontrado
+    if (!usuario.senhaHash) {
+      return NextResponse.json(
+        { success: false, error: 'Credenciais inválidas. Verifique o usuário e senha.' },
+        { status: 401 }
+      );
     }
+
+    const senhaValida = await verifyPassword(password, usuario.senhaHash);
 
     if (!senhaValida) {
       return NextResponse.json(
-        { success: false, error: 'Usuário ou senha incorretos.' },
+        { success: false, error: 'Credenciais inválidas. Verifique o usuário e senha.' },
         { status: 401 }
       );
     }
@@ -89,6 +85,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const papelBanco = (usuario as any).papel || 'COMERCIAL';
     const papeis = [
       ...(Array.isArray((usuario as any).papeis) ? (usuario as any).papeis : []),
       ...((usuario as any).papel ? String((usuario as any).papel).split(',') : []),
@@ -96,15 +93,15 @@ export async function POST(req: NextRequest) {
       .map((p: string) => p.trim().toUpperCase())
       .filter((p: string) => ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p));
 
-    const papeisFinal = papeis.length > 0 ? Array.from(new Set(papeis)) : ['ADMIN'];
+    const papeisFinal = papeis.length > 0 ? Array.from(new Set(papeis)) : [papelBanco];
 
     const userData = {
       id: usuario.id,
       name: usuario.nome,
       email: usuario.email,
       username: (usuario as any).username || null,
-      role: usuario.papel || papeisFinal[0] || 'ADMIN',
-      papel: usuario.papel || papeisFinal[0] || 'ADMIN',
+      role: papelBanco,
+      papel: papelBanco,
       papeis: papeisFinal,
     };
 

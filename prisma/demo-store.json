@@ -6,7 +6,7 @@
       "nome": "Administrador PEX",
       "email": "admin@pexagritech.com",
       "username": "ADMIN",
-      "senhaHash": "$2b$10$f4djZ/xMUMx27iEBmL.GB.nvyAqyCIjN9kNec9lBJI8GyW0MEm42m",
+      "senhaHash": "$2b$10$u27eR/YG8ttK4jdJ9DWrDuSXZwmUEKvpE2lhNtKQMQ1w4iC1yBj5O",
       "primeiroAcesso": false,
       "papel": "ADMIN",
       "papeis": [

@@ -85,14 +85,14 @@ export async function POST(req: NextRequest) {
       ? papeis
       : papel
       ? String(papel).split(',').map((p) => p.trim())
-      : ['ADMIN'];
+      : ['COMERCIAL'];
 
     const papeisValidos = papeisLista.filter((p) =>
       ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
     );
 
-    const papeisFinal = papeisValidos.length > 0 ? papeisValidos : ['ADMIN'];
-    const cargoPrimario = (papeisFinal[0] as Papel) || Papel.ADMIN;
+    const papeisFinal = papeisValidos.length > 0 ? papeisValidos : ['COMERCIAL'];
+    const cargoPrimario = (papeisFinal[0] as Papel) || Papel.COMERCIAL;
 
     const senhaHash = await hashPassword(senhaFinal);
 

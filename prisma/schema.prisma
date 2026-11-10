@@ -26,7 +26,7 @@ model Usuario {
   username           String?         @unique
   senhaHash          String?
   primeiroAcesso     Boolean         @default(true)
-  papel              Papel           @default(ADMIN)
+  papel              Papel           @default(COMERCIAL)
   ativo              Boolean         @default(true)
   imagem             String?
   criadoEm           DateTime        @default(now())

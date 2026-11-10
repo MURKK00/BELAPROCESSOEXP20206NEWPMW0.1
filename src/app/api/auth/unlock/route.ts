@@ -10,24 +10,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Senha não informada' }, { status: 400 });
     }
 
-    // Validação master rápida (@Bela2026 configurada como credencial admin do sistema)
-    if (password === '@Bela2026') {
-      return NextResponse.json({ success: true });
+    const userEmailCookie = req.cookies.get('bela_user_email')?.value;
+    const emailToSearch = userEmailCookie ? decodeURIComponent(userEmailCookie).toLowerCase() : null;
+
+    let targetUser = null;
+    if (emailToSearch) {
+      targetUser = await prisma.usuario.findUnique({
+        where: { email: emailToSearch },
+      });
     }
 
-    // Busca usuário admin ou ativo no banco para verificar hash
-    const adminUser = await prisma.usuario.findFirst({
-      where: {
-        OR: [
-          { username: 'ADMIN' },
-          { papel: 'ADMIN' },
-        ],
-        ativo: true,
-      },
-    });
+    if (!targetUser) {
+      targetUser = await prisma.usuario.findFirst({
+        where: {
+          ativo: true,
+        },
+      });
+    }
 
-    if (adminUser?.senhaHash) {
-      const match = await bcrypt.compare(password, adminUser.senhaHash);
+    if (targetUser?.senhaHash) {
+      const match = await bcrypt.compare(password, targetUser.senhaHash);
       if (match) {
         return NextResponse.json({ success: true });
       }

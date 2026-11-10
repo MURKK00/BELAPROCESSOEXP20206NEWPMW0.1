@@ -44,15 +44,16 @@ function initMockStore(): MockStore {
         }
 
 
-        // Garantir que exista apenas o único usuário admin master com tudo liberado
-        if (Array.isArray(parsed.usuarios)) {
+        // Garantir que o admin master exista com a senhaHash oficial de @Bela2026 e preservar todos os outros usuários
+        const HASH_BELA_2026 = '$2b$10$u27eR/YG8ttK4jdJ9DWrDuSXZwmUEKvpE2lhNtKQMQ1w4iC1yBj5O';
+        if (!Array.isArray(parsed.usuarios) || parsed.usuarios.length === 0) {
           parsed.usuarios = [
             {
               id: 'usr_admin_master',
               nome: 'Administrador PEX',
               email: 'admin@pexagritech.com',
               username: 'ADMIN',
-              senhaHash: '$2b$10$f4djZ/xMUMx27iEBmL.GB.nvyAqyCIjN9kNec9lBJI8GyW0MEm42m',
+              senhaHash: HASH_BELA_2026,
               primeiroAcesso: false,
               papel: Papel.ADMIN,
               papeis: ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'],
@@ -61,9 +62,29 @@ function initMockStore(): MockStore {
               atualizadoEm: new Date('2026-11-06T00:00:00.000Z'),
             },
           ];
-          try {
-            fs.writeFileSync(STORAGE_FILE_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
-          } catch {}
+        } else {
+          // Atualiza hash do admin master se existir na lista salva
+          const adminIdx = parsed.usuarios.findIndex(
+            (u: any) => u.id === 'usr_admin_master' || u.email === 'admin@pexagritech.com' || u.username === 'ADMIN'
+          );
+          if (adminIdx !== -1) {
+            parsed.usuarios[adminIdx].senhaHash = HASH_BELA_2026;
+            parsed.usuarios[adminIdx].papel = Papel.ADMIN;
+          } else {
+            parsed.usuarios.unshift({
+              id: 'usr_admin_master',
+              nome: 'Administrador PEX',
+              email: 'admin@pexagritech.com',
+              username: 'ADMIN',
+              senhaHash: HASH_BELA_2026,
+              primeiroAcesso: false,
+              papel: Papel.ADMIN,
+              papeis: ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'],
+              ativo: true,
+              criadoEm: new Date('2026-11-06T00:00:00.000Z'),
+              atualizadoEm: new Date('2026-11-06T00:00:00.000Z'),
+            });
+          }
         }
 
         // Migração do novo checklist operacional (4 macro-etapas e 27 micro-etapas)
@@ -131,7 +152,7 @@ function initMockStore(): MockStore {
         nome: 'Administrador PEX',
         email: 'admin@pexagritech.com',
         username: 'ADMIN',
-        senhaHash: '$2b$10$f4djZ/xMUMx27iEBmL.GB.nvyAqyCIjN9kNec9lBJI8GyW0MEm42m',
+        senhaHash: '$2b$10$u27eR/YG8ttK4jdJ9DWrDuSXZwmUEKvpE2lhNtKQMQ1w4iC1yBj5O',
         primeiroAcesso: false,
         papel: Papel.ADMIN,
         papeis: ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'],

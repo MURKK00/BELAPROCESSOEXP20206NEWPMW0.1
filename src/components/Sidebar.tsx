@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Handshake, FileSpreadsheet, DollarSign, TrendingUp, ShieldCheck, Tv2, Container, Activity } from 'lucide-react';
+import { LayoutDashboard, Compass, Handshake, FileSpreadsheet, DollarSign, TrendingUp, ShieldCheck, Tv2, Container } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
 import { 
@@ -30,25 +30,31 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
   }, []);
 
   const isVisaoGeral = pathname === '/';
+  const isCadastros = pathname.startsWith('/cadastros');
   const isNegociacoes = pathname.startsWith('/negociacoes');
   const isLogistica = pathname.startsWith('/logistica');
   const isNotasFiscais = pathname.startsWith('/notas-fiscais');
   const isFinanceiro = pathname.startsWith('/financeiro');
   const isCotacoes = pathname.startsWith('/cotacoes');
   const isBackoffice = pathname.startsWith('/backoffice');
-  const isSessoes = pathname.startsWith('/admin/sessoes');
-  const isAdmin = pathname.startsWith('/admin') && !isSessoes;
+  const isAdmin = pathname.startsWith('/admin');
 
   const tvOnly = isBackofficeTvOnly(currentUser);
 
-  // Filtragem de links por permissão (suporta múltiplos perfis por usuário)
+  // Filtragem de links por permissão (sem nenhum badge/card ao lado dos nomes)
   const allLinks = [
     {
       href: '/',
       label: 'PEX Cockpit',
       active: isVisaoGeral,
       icon: LayoutDashboard,
-      badge: '360°',
+      visivel: !tvOnly,
+    },
+    {
+      href: '/cadastros',
+      label: 'Cadastros & Rastreabilidade',
+      active: isCadastros,
+      icon: Compass,
       visivel: !tvOnly,
     },
     {
@@ -63,7 +69,6 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       label: 'PEX Box & Tracking',
       active: isLogistica,
       icon: Container,
-      badge: 'CONTAINERS',
       visivel: !tvOnly,
     },
     {
@@ -71,7 +76,6 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       label: 'Notas Fiscais',
       active: isNotasFiscais,
       icon: FileSpreadsheet,
-      badge: 'FISCAL',
       visivel: !tvOnly,
     },
     {
@@ -86,7 +90,6 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       label: 'Cotações Mercado',
       active: isCotacoes,
       icon: TrendingUp,
-      badge: 'LIVE',
       visivel: !tvOnly && (currentUser ? canAccessCotacoes(currentUser) : true),
     },
     {
@@ -94,7 +97,6 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       label: 'Backoffice Cockpit',
       active: isBackoffice,
       icon: Tv2,
-      badge: 'TV 4K',
       visivel: currentUser ? canAccessBackoffice(currentUser) : true,
     },
     {
@@ -102,15 +104,6 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       label: 'Painel Admin',
       active: isAdmin,
       icon: ShieldCheck,
-      badge: 'GESTAO',
-      visivel: !tvOnly && (currentUser ? canAccessAdmin(currentUser) : true),
-    },
-    {
-      href: '/admin/sessoes',
-      label: 'Sessões Conectadas',
-      active: isSessoes,
-      icon: Activity,
-      badge: 'AO VIVO',
       visivel: !tvOnly && (currentUser ? canAccessAdmin(currentUser) : true),
     },
   ];
@@ -146,24 +139,11 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
             />
             
             {!collapsed && <span className="flex-1 truncate">{link.label}</span>}
-            
-            {!collapsed && link.badge && (
-              <span className="px-1.5 py-0.5 text-[9px] font-black uppercase rounded tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 animate-pulse">
-                {link.badge}
-              </span>
-            )}
-
-            {collapsed && link.badge && (
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            )}
 
             {/* Tooltip flutuante discreto em modo recolhido no desktop */}
             {collapsed && (
               <div className="hidden group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-bold rounded-lg shadow-xl whitespace-nowrap z-50 border border-slate-700 items-center gap-1.5 pointer-events-none">
                 <span>{link.label}</span>
-                {link.badge && (
-                  <span className="text-[9px] text-emerald-400 font-extrabold font-mono">({link.badge})</span>
-                )}
               </div>
             )}
           </Link>

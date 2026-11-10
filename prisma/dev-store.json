@@ -6,7 +6,7 @@
       "nome": "Administrador PEX",
       "email": "admin@pexagritech.com",
       "username": "ADMIN",
-      "senhaHash": "$2b$10$f4djZ/xMUMx27iEBmL.GB.nvyAqyCIjN9kNec9lBJI8GyW0MEm42m",
+      "senhaHash": "$2b$10$u27eR/YG8ttK4jdJ9DWrDuSXZwmUEKvpE2lhNtKQMQ1w4iC1yBj5O",
       "primeiroAcesso": false,
       "papel": "ADMIN",
       "papeis": [
@@ -19,6 +19,21 @@
       "ativo": true,
       "criadoEm": "2026-11-06T00:00:00.000Z",
       "atualizadoEm": "2026-11-06T00:00:00.000Z"
+    },
+    {
+      "id": "usr_1794312412864_6mi9e",
+      "nome": "Lucas Ferreira",
+      "email": "lucas.comercial@belacereais.com.br",
+      "username": "LFERREIRA",
+      "senhaHash": "$2b$10$QRv0xOT64lL6lTI1sO816uGtcAs4.h1VgxAB2PaU/VT6F.wuoZgDC",
+      "papel": "COMERCIAL",
+      "papeis": [
+        "COMERCIAL"
+      ],
+      "primeiroAcesso": false,
+      "ativo": true,
+      "criadoEm": "2026-11-10T12:06:52.864Z",
+      "atualizadoEm": "2026-11-10T12:07:14.439Z"
     }
   ],
   "parceiros": [

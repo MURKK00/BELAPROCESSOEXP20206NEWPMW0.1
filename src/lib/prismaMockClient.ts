@@ -288,7 +288,7 @@ export function createMockPrismaClient() {
   const mockClient: any = {
     usuario: {
       findUnique: async ({ where }: any) => store.usuarios.find((u) => matchesWhere(u, where)) ?? null,
-      findFirst: async ({ where }: any = {}) => store.usuarios.find((u) => matchesWhere(u, where)) ?? store.usuarios[0] ?? null,
+      findFirst: async ({ where }: any = {}) => store.usuarios.find((u) => matchesWhere(u, where)) ?? null,
       findMany: async ({ where, orderBy }: any = {}) => {
         let list = store.usuarios.filter((u) => matchesWhere(u, where));
         if (orderBy?.criadoEm === 'desc') {

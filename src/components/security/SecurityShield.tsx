@@ -366,14 +366,6 @@ export function SecurityShield() {
     setErrorMsg(null);
 
     try {
-      if (password === '@Bela2026') {
-        setIsLocked(false);
-        setPassword('');
-        setErrorMsg(null);
-        resetInactivityTimer();
-        return;
-      }
-
       const res = await fetch('/api/auth/unlock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -390,13 +382,7 @@ export function SecurityShield() {
         setErrorMsg(data.error || 'Senha incorreta. Verifique suas credenciais.');
       }
     } catch {
-      if (password === '@Bela2026') {
-        setIsLocked(false);
-        setPassword('');
-        resetInactivityTimer();
-      } else {
-        setErrorMsg('Falha ao validar senha.');
-      }
+      setErrorMsg('Falha de conexão ao validar senha.');
     } finally {
       setLoadingUnlock(false);
     }

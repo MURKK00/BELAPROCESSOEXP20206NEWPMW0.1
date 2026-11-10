@@ -134,109 +134,128 @@ export default async function DashboardPage() {
         <VisaoGeralHeaderActions />
       </div>
 
-      {/* CARDS SUPERIORES ESTILIZADOS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4.5">
+      {/* CARDS SUPERIORES ESTILIZADOS E TRAVADOS (SEM VAZAMENTO) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
         {/* 1. VOLUME TOTAL */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 dark:border-amber-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-amber-500/40">
-          <div className="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+        <div 
+          className="relative overflow-hidden flex items-center gap-3 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 dark:border-amber-500/30 rounded-2xl p-4 sm:p-4.5 shadow-xs transition-all hover:shadow-md hover:border-amber-500/40 min-h-[104px]"
+          title={`${(volumeTotalTon * 1000).toLocaleString('pt-BR')} kg faturado`}
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
             <Scale className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block truncate">
               Volume Total
             </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <div className="flex items-baseline gap-1 mt-0.5 overflow-hidden">
+              <span className="text-lg sm:text-xl xl:text-[22px] font-black text-slate-900 dark:text-white tracking-tight truncate leading-tight">
                 {formatNum(volumeTotalTon, 3)}
               </span>
-              <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400">Ton</span>
+              <span className="text-xs font-black text-amber-600 dark:text-amber-400 shrink-0">Ton</span>
             </div>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 truncate font-medium">
               {(volumeTotalTon * 1000).toLocaleString('pt-BR')} kg faturado
             </span>
           </div>
         </div>
 
         {/* 2. VALOR EM OPERAÇÃO */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 dark:border-emerald-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-emerald-500/40">
-          <div className="w-11 h-11 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+        <div 
+          className="relative overflow-hidden flex items-center gap-3 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 dark:border-emerald-500/30 rounded-2xl p-4 sm:p-4.5 shadow-xs transition-all hover:shadow-md hover:border-emerald-500/40 min-h-[104px]"
+          title={`Valor total em operação: ${formatCurrency(valorEmOperacaoUsd)}`}
+        >
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <DollarSign className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block truncate">
               Valor em Operação
             </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <div className="flex items-baseline gap-1 mt-0.5 overflow-hidden">
+              <span className="text-lg sm:text-xl xl:text-[22px] font-black text-slate-900 dark:text-white tracking-tight truncate leading-tight">
                 {formatCurrency(valorEmOperacaoUsd)}
               </span>
             </div>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5 font-medium">
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block mt-0.5 truncate font-semibold">
               Portfólio ativo em USD
             </span>
           </div>
         </div>
 
-        {/* 3. CONTÊINERES MOVIMENTADOS (SOLICITADO) */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border border-indigo-500/20 dark:border-indigo-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-indigo-500/40">
-          <div className="w-11 h-11 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+        {/* 3. CONTÊINERES MOVIMENTADOS */}
+        <div 
+          className="relative overflow-hidden flex items-center gap-3 bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent border border-indigo-500/20 dark:border-indigo-500/30 rounded-2xl p-4 sm:p-4.5 shadow-xs transition-all hover:shadow-md hover:border-indigo-500/40 min-h-[104px]"
+          title={`${totalContainersMovimentados} contêineres: ${containersEmbarcados} embarcados e ${containersEmExecucao} em pátio/estufagem`}
+        >
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
             <Container className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block truncate">
               Contêineres Movimentados
             </span>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <div className="flex items-baseline gap-1 mt-0.5 overflow-hidden">
+              <span className="text-lg sm:text-xl xl:text-[22px] font-black text-slate-900 dark:text-white tracking-tight truncate leading-tight">
                 {totalContainersMovimentados}
               </span>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {totalContainersMovimentados === 1 ? 'contêiner' : 'contêineres'}
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 truncate">
+                {totalContainersMovimentados === 1 ? 'box' : 'boxes'}
               </span>
             </div>
-            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 block mt-0.5 font-medium">
-              {containersEmbarcados} embarcados · {containersEmExecucao} em pátio/estufagem
+            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 block mt-0.5 truncate font-medium">
+              {containersEmbarcados} emb · {containersEmExecucao} em pátio
             </span>
           </div>
         </div>
 
         {/* 4. EM EXECUÇÃO */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 dark:border-blue-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-blue-500/40">
-          <div className="w-11 h-11 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+        <div 
+          className="relative overflow-hidden flex items-center gap-3 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 dark:border-blue-500/30 rounded-2xl p-4 sm:p-4.5 shadow-xs transition-all hover:shadow-md hover:border-blue-500/40 min-h-[104px]"
+          title={`${processosEmExecucao.length} processos em execução operacional`}
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
             <Clock className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block truncate">
               Em Execução
             </span>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <div className="flex items-baseline gap-1 mt-0.5 overflow-hidden">
+              <span className="text-lg sm:text-xl xl:text-[22px] font-black text-slate-900 dark:text-white tracking-tight truncate leading-tight">
                 {processosEmExecucao.length}
               </span>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">processos</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 truncate">
+                {processosEmExecucao.length === 1 ? 'processo' : 'processos'}
+              </span>
             </div>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 truncate font-medium">
               Fase operacional ativa
             </span>
           </div>
         </div>
 
         {/* 5. EMBARCADOS */}
-        <div className="flex items-center gap-3.5 bg-gradient-to-br from-cyan-500/10 via-cyan-500/5 to-transparent border border-cyan-500/20 dark:border-cyan-500/30 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md hover:border-cyan-500/40">
-          <div className="w-11 h-11 rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shrink-0">
+        <div 
+          className="relative overflow-hidden flex items-center gap-3 bg-gradient-to-br from-cyan-500/10 via-cyan-500/5 to-transparent border border-cyan-500/20 dark:border-cyan-500/30 rounded-2xl p-4 sm:p-4.5 shadow-xs transition-all hover:shadow-md hover:border-cyan-500/40 min-h-[104px]"
+          title={`${processosEmbarcados.length} cargas embarcadas em trânsito marítimo`}
+        >
+          <div className="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shrink-0">
             <Ship className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block truncate">
               Embarcados
             </span>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <div className="flex items-baseline gap-1 mt-0.5 overflow-hidden">
+              <span className="text-lg sm:text-xl xl:text-[22px] font-black text-slate-900 dark:text-white tracking-tight truncate leading-tight">
                 {processosEmbarcados.length}
               </span>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">cargas</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 truncate">
+                {processosEmbarcados.length === 1 ? 'carga' : 'cargas'}
+              </span>
             </div>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5 truncate font-medium">
               Em trânsito marítimo
             </span>
           </div>

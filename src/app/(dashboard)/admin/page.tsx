@@ -77,7 +77,7 @@ function AdminDashboardContent() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [papeisSelecionados, setPapeisSelecionados] = useState<Papel[]>(['ADMIN']);
+  const [papeisSelecionados, setPapeisSelecionados] = useState<Papel[]>(['COMERCIAL']);
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   // Estados do Modal de Editar Perfis de Usuário Existente
@@ -227,7 +227,7 @@ function AdminDashboardContent() {
         setNome('');
         setEmail('');
         setPassword('');
-        setPapeisSelecionados(['ADMIN']);
+        setPapeisSelecionados(['COMERCIAL']);
         carregarPainel();
       } else {
         setMensagemErro(data.error || 'Não foi possível cadastrar o usuário.');

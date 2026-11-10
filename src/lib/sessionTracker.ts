@@ -59,92 +59,7 @@ export function parseUserAgent(uaString: string): { device: 'Desktop' | 'Mobile'
 }
 
 function getDefaultSessions(): UserSessionRecord[] {
-  const now = new Date();
-  const subMinutes = (m: number) => new Date(now.getTime() - m * 60 * 1000).toISOString();
-  const plusHours = (h: number) => new Date(now.getTime() + h * 60 * 60 * 1000).toISOString();
-
-  return [
-    {
-      id: 'sess_admin_master_1',
-      userId: 'usr_admin_master',
-      userName: 'Administrador PEX',
-      userEmail: 'admin@pexagritech.com',
-      userRole: 'ADMIN',
-      userPapeis: ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'],
-      ip: '177.136.241.108',
-      location: 'Maringá, PR • Brasil',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0.0.0 Safari/537.36',
-      device: 'Desktop',
-      browser: 'Google Chrome',
-      os: 'Windows 11',
-      startedAt: subMinutes(42),
-      lastActiveAt: subMinutes(1),
-      expiresAt: plusHours(11),
-      status: 'ACTIVE',
-      revokedAt: null,
-      revokedBy: null,
-    },
-    {
-      id: 'sess_comercial_1',
-      userId: 'usr_comercial_1',
-      userName: 'Carlos Mendes',
-      userEmail: 'carlos.mendes@pexagritech.com',
-      userRole: 'COMERCIAL',
-      userPapeis: ['COMERCIAL'],
-      ip: '189.44.112.55',
-      location: 'Curitiba, PR • Brasil',
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15',
-      device: 'Desktop',
-      browser: 'Apple Safari',
-      os: 'macOS Sonoma',
-      startedAt: subMinutes(115),
-      lastActiveAt: subMinutes(3),
-      expiresAt: plusHours(10),
-      status: 'ACTIVE',
-      revokedAt: null,
-      revokedBy: null,
-    },
-    {
-      id: 'sess_financeiro_1',
-      userId: 'usr_financeiro_1',
-      userName: 'Juliana Rocha',
-      userEmail: 'juliana.rocha@pexagritech.com',
-      userRole: 'FINANCEIRO',
-      userPapeis: ['FINANCEIRO'],
-      ip: '179.184.22.90',
-      location: 'Londrina, PR • Brasil',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Edg/131.0.0.0',
-      device: 'Desktop',
-      browser: 'Microsoft Edge',
-      os: 'Windows 11',
-      startedAt: subMinutes(190),
-      lastActiveAt: subMinutes(7),
-      expiresAt: plusHours(8),
-      status: 'IDLE',
-      revokedAt: null,
-      revokedBy: null,
-    },
-    {
-      id: 'sess_operacional_mobile',
-      userId: 'usr_operacional_1',
-      userName: 'Roberto Santos',
-      userEmail: 'roberto.santos@pexagritech.com',
-      userRole: 'ADMINISTRATIVO',
-      userPapeis: ['ADMINISTRATIVO'],
-      ip: '187.72.19.14',
-      location: 'Paranaguá, PR • Brasil (Porto)',
-      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148',
-      device: 'Mobile',
-      browser: 'Apple Safari',
-      os: 'iOS 18',
-      startedAt: subMinutes(65),
-      lastActiveAt: subMinutes(4),
-      expiresAt: plusHours(10),
-      status: 'ACTIVE',
-      revokedAt: null,
-      revokedBy: null,
-    }
-  ];
+  return [];
 }
 
 function loadSessionsStore(): UserSessionRecord[] {
@@ -152,16 +67,16 @@ function loadSessionsStore(): UserSessionRecord[] {
     if (fs.existsSync(SESSIONS_FILE)) {
       const raw = fs.readFileSync(SESSIONS_FILE, 'utf8');
       const data = JSON.parse(raw);
-      if (Array.isArray(data) && data.length > 0) {
-        return data;
+      if (Array.isArray(data)) {
+        // Expurgar sessões fictícias de demonstração antigas
+        const fakeIds = new Set(['sess_admin_master_1', 'sess_comercial_1', 'sess_financeiro_1', 'sess_operacional_mobile']);
+        return data.filter(s => s && s.id && !fakeIds.has(s.id));
       }
     }
   } catch (err) {
     console.error('[sessionTracker] Erro ao ler sessions-store.json:', err);
   }
-  const defaults = getDefaultSessions();
-  saveSessionsStore(defaults);
-  return defaults;
+  return [];
 }
 
 function saveSessionsStore(sessions: UserSessionRecord[]) {
