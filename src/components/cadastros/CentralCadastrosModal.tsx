@@ -27,13 +27,15 @@ import {
   Filter,
   Eye,
   Power,
-  Copy
+  Copy,
+  Star
 } from 'lucide-react';
 import { 
   salvarCadastroEntidadeAction, 
   excluirCadastroEntidadeAction, 
   toggleAtivarCadastroEntidadeAction,
-  type CadastroEntidadeInput 
+  type CadastroEntidadeInput,
+  type FazendaItem
 } from '@/server/actions/cadastrosActions';
 import type { TipoEntidadeComercial } from '@prisma/client';
 
@@ -80,6 +82,58 @@ export function CentralCadastrosModal({
   const [areaTotalHectares, setAreaTotalHectares] = useState('');
   const [certificacoes, setCertificacoes] = useState('');
   const [conformidadeSocioambiental, setConformidadeSocioambiental] = useState(true);
+
+  // Múltiplas Fazendas do Produtor Rural
+  const [fazendas, setFazendas] = useState<FazendaItem[]>([]);
+
+  function handleAdicionarFazenda() {
+    setFazendas((prev) => [
+      ...prev,
+      {
+        id: `faz_${Date.now()}_${prev.length + 1}`,
+        nomePropriedade: '',
+        carNumero: '',
+        inscricaoEstadual: '',
+        municipio: prev[0]?.municipio || 'Confresa',
+        uf: prev[0]?.uf || 'MT',
+        coordenadasGps: '',
+        areaTotalHectares: null,
+        certificacoes: 'RTRS Certified, Zero Desmatamento',
+        conformidadeSocioambiental: true,
+        padrao: prev.length === 0,
+      },
+    ]);
+  }
+
+  function handleRemoverFazenda(id: string) {
+    if (fazendas.length <= 1) {
+      alert('O produtor rural precisa ter pelo menos 1 propriedade / fazenda cadastrada.');
+      return;
+    }
+    setFazendas((prev) => {
+      const filtradas = prev.filter((f) => f.id !== id);
+      const temPadrao = filtradas.some((f) => f.padrao);
+      if (!temPadrao && filtradas.length > 0) {
+        filtradas[0].padrao = true;
+      }
+      return [...filtradas];
+    });
+  }
+
+  function handleDefinirFazendaPadrao(id: string) {
+    setFazendas((prev) =>
+      prev.map((f) => ({
+        ...f,
+        padrao: f.id === id,
+      }))
+    );
+  }
+
+  function handleAtualizarFazenda(id: string, campo: keyof FazendaItem, valor: any) {
+    setFazendas((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, [campo]: valor } : f))
+    );
+  }
 
   // Importador / Buyer específico
   const [pais, setPais] = useState('Brasil');
@@ -154,6 +208,26 @@ export function CentralCadastrosModal({
     setCertificacoes(tipo === 'PRODUTOR' ? 'RTRS, Zero Desmatamento' : tipo === 'ARMAZEM' ? 'Credenciado MAPA' : '');
     setConformidadeSocioambiental(true);
 
+    if (tipo === 'PRODUTOR') {
+      setFazendas([
+        {
+          id: `faz_${Date.now()}_1`,
+          nomePropriedade: '',
+          carNumero: '',
+          inscricaoEstadual: '',
+          municipio: 'Confresa',
+          uf: 'MT',
+          coordenadasGps: '',
+          areaTotalHectares: null,
+          certificacoes: 'RTRS, Zero Desmatamento',
+          conformidadeSocioambiental: true,
+          padrao: true,
+        },
+      ]);
+    } else {
+      setFazendas([]);
+    }
+
     setPais(tipo === 'PRODUTOR' || tipo === 'ARMAZEM' ? 'Brasil' : 'Vietnã');
     setCidade('');
     setEndereco('');
@@ -199,6 +273,31 @@ export function CentralCadastrosModal({
     setAreaTotalHectares(item.areaTotalHectares ? String(item.areaTotalHectares) : '');
     setCertificacoes(item.certificacoes || '');
     setConformidadeSocioambiental(item.conformidadeSocioambiental !== false);
+
+    // Carregar múltiplas fazendas
+    if (item.tipo === 'PRODUTOR') {
+      if (Array.isArray(item.fazendas) && item.fazendas.length > 0) {
+        setFazendas(item.fazendas);
+      } else {
+        setFazendas([
+          {
+            id: `faz_${Date.now()}_1`,
+            nomePropriedade: item.nomePropriedade || '',
+            carNumero: item.carNumero || '',
+            inscricaoEstadual: item.inscricaoEstadual || '',
+            municipio: item.municipio || 'Confresa',
+            uf: item.uf || 'MT',
+            coordenadasGps: item.coordenadasGps || '',
+            areaTotalHectares: item.areaTotalHectares ? Number(item.areaTotalHectares) : null,
+            certificacoes: item.certificacoes || '',
+            conformidadeSocioambiental: item.conformidadeSocioambiental !== false,
+            padrao: true,
+          },
+        ]);
+      }
+    } else {
+      setFazendas([]);
+    }
 
     setPais(item.pais || (item.tipo === 'PRODUTOR' || item.tipo === 'ARMAZEM' ? 'Brasil' : ''));
     setCidade(item.cidade || '');
@@ -248,6 +347,9 @@ export function CentralCadastrosModal({
     setMsgErro(null);
     setMsgSucesso(null);
 
+    // Identifica a fazenda padrão caso seja produtor
+    const fazendaPrincipal = fazendas.find((f) => f.padrao) || fazendas[0];
+
     const input: CadastroEntidadeInput = {
       id: editId || undefined,
       tipo: formTipo,
@@ -255,15 +357,19 @@ export function CentralCadastrosModal({
       nomeFantasia,
       documento,
 
-      inscricaoEstadual,
-      carNumero,
-      nomePropriedade,
-      municipio,
-      uf,
-      coordenadasGps,
-      areaTotalHectares: areaTotalHectares ? parseFloat(areaTotalHectares) : null,
-      certificacoes,
-      conformidadeSocioambiental,
+      inscricaoEstadual: formTipo === 'PRODUTOR' && fazendaPrincipal ? fazendaPrincipal.inscricaoEstadual : inscricaoEstadual,
+      carNumero: formTipo === 'PRODUTOR' && fazendaPrincipal ? fazendaPrincipal.carNumero : carNumero,
+      nomePropriedade: formTipo === 'PRODUTOR' && fazendaPrincipal ? fazendaPrincipal.nomePropriedade : nomePropriedade,
+      municipio: formTipo === 'PRODUTOR' && fazendaPrincipal ? fazendaPrincipal.municipio : municipio,
+      uf: formTipo === 'PRODUTOR' && fazendaPrincipal ? fazendaPrincipal.uf : uf,
+      coordenadasGps: formTipo === 'PRODUTOR' && fazendaPrincipal ? fazendaPrincipal.coordenadasGps : coordenadasGps,
+      areaTotalHectares:
+        formTipo === 'PRODUTOR' && fazendaPrincipal
+          ? (fazendaPrincipal.areaTotalHectares !== undefined && fazendaPrincipal.areaTotalHectares !== null ? Number(fazendaPrincipal.areaTotalHectares) : null)
+          : (areaTotalHectares ? parseFloat(areaTotalHectares) : null),
+      certificacoes: formTipo === 'PRODUTOR' && fazendaPrincipal ? fazendaPrincipal.certificacoes : certificacoes,
+      conformidadeSocioambiental: formTipo === 'PRODUTOR' && fazendaPrincipal ? fazendaPrincipal.conformidadeSocioambiental : conformidadeSocioambiental,
+      fazendas: formTipo === 'PRODUTOR' ? fazendas : null,
 
       pais,
       cidade,
@@ -330,7 +436,8 @@ export function CentralCadastrosModal({
     if (tabAtiva !== 'ALL' && item.tipo !== tabAtiva) return false;
     if (!termoBusca) return true;
     const q = termoBusca.toLowerCase();
-    return (
+
+    const matchesRoot =
       (item.razaoSocial || '').toLowerCase().includes(q) ||
       (item.nomeFantasia || '').toLowerCase().includes(q) ||
       (item.carNumero || '').toLowerCase().includes(q) ||
@@ -339,8 +446,21 @@ export function CentralCadastrosModal({
       (item.documento || '').toLowerCase().includes(q) ||
       (item.municipio || '').toLowerCase().includes(q) ||
       (item.cidade || '').toLowerCase().includes(q) ||
-      (item.pais || '').toLowerCase().includes(q)
-    );
+      (item.pais || '').toLowerCase().includes(q);
+
+    if (matchesRoot) return true;
+
+    if (Array.isArray(item.fazendas)) {
+      return item.fazendas.some(
+        (fz: any) =>
+          (fz.nomePropriedade || '').toLowerCase().includes(q) ||
+          (fz.carNumero || '').toLowerCase().includes(q) ||
+          (fz.inscricaoEstadual || '').toLowerCase().includes(q) ||
+          (fz.municipio || '').toLowerCase().includes(q)
+      );
+    }
+
+    return false;
   });
 
   return (
@@ -605,32 +725,65 @@ export function CentralCadastrosModal({
 
                           {/* DADOS ESPECÍFICOS DE PRODUTOR RURAL (CAR & IE) */}
                           {isProdutor ? (
-                            <div className="mt-3 p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 space-y-1.5 text-xs">
+                            <div className="mt-3 p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 space-y-2 text-xs">
+                              {/* HEADER DE FAZENDAS */}
+                              <div className="flex items-center justify-between pb-1 border-b border-amber-200/50 dark:border-amber-800/30">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-black text-amber-900 dark:text-amber-200">
+                                  🌾 {item.fazendas && Array.isArray(item.fazendas) ? `${item.fazendas.length} ${item.fazendas.length > 1 ? 'Fazendas / Propriedades' : 'Propriedade Rural'}` : '1 Propriedade Rural'}
+                                </span>
+                                <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                                  {item.fazendas && Array.isArray(item.fazendas) && item.fazendas.length > 1 ? 'Múltiplos CARs' : 'Origem Única'}
+                                </span>
+                              </div>
+
+                              {/* FAZENDA PRINCIPAL */}
                               {item.carNumero && (
                                 <div className="flex items-start gap-1.5">
                                   <span className="font-bold text-amber-900 dark:text-amber-300 shrink-0">
-                                    CAR:
+                                    CAR Principal:
                                   </span>
-                                  <span className="font-mono text-[11px] text-amber-950 dark:text-amber-200 break-all">
+                                  <span className="font-mono text-[11px] text-amber-950 dark:text-amber-200 break-all font-semibold">
                                     {item.carNumero}
                                   </span>
                                 </div>
                               )}
                               <div className="grid grid-cols-2 gap-2 text-[11px]">
                                 <div>
-                                  <span className="text-slate-500 dark:text-slate-400">Inscr. Estadual: </span>
-                                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                                  <span className="text-slate-500 dark:text-slate-400">IE Principal: </span>
+                                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
                                     {item.inscricaoEstadual || '—'}
                                   </span>
                                 </div>
                                 <div>
                                   <span className="text-slate-500 dark:text-slate-400">Fazenda: </span>
-                                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                                  <span className="font-bold text-slate-800 dark:text-slate-200 truncate block">
                                     {item.nomePropriedade || '—'}
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+
+                              {/* CHIPS DE OUTRAS FAZENDAS SE HOUVER */}
+                              {item.fazendas && Array.isArray(item.fazendas) && item.fazendas.length > 1 && (
+                                <div className="pt-1.5 border-t border-amber-200/40 dark:border-amber-800/30">
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block mb-1">
+                                    Outras propriedades vinculadas:
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {item.fazendas.filter((f: any) => !f.padrao).map((fz: any, idx: number) => (
+                                      <span
+                                        key={fz.id || idx}
+                                        className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-white dark:bg-slate-800 text-amber-900 dark:text-amber-200 border border-amber-200/70 dark:border-amber-800/50 flex items-center gap-1"
+                                        title={`CAR: ${fz.carNumero} | IE: ${fz.inscricaoEstadual}`}
+                                      >
+                                        <span>🌾 {fz.nomePropriedade || `Fazenda #${idx + 2}`}</span>
+                                        <span className="text-[9px] font-mono text-slate-400">({fz.municipio || 'MT'})</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-400 pt-0.5">
                                 <MapPin className="w-3 h-3 text-[#f58220] shrink-0" />
                                 <span>{item.municipio ? `${item.municipio} - ${item.uf || 'MT'}` : 'Localidade não informada'}</span>
                               </div>
@@ -817,52 +970,128 @@ export function CentralCadastrosModal({
                   )}
                 </div>
 
-                {/* 2. DADOS ESPECÍFICOS: PRODUTOR RURAL (CAR & IE) */}
+                {/* 2. DADOS ESPECÍFICOS: PRODUTOR RURAL (MÚLTIPLAS FAZENDAS, CAR & IE) */}
                 {entidadeVisualizar.tipo === 'PRODUTOR' && (
-                  <div className="p-4 rounded-2xl border border-amber-300/80 dark:border-amber-800/60 bg-amber-500/5 dark:bg-amber-950/20 space-y-2.5 text-xs">
-                    <h5 className="font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wide">
-                      Rastreabilidade do Grão & Fazenda
-                    </h5>
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">CAR da Propriedade:</span>
-                        {entidadeVisualizar.carNumero && (
-                          <button
-                            type="button"
-                            onClick={() => copiarParaClipboard(entidadeVisualizar.carNumero, 'car')}
-                            className="text-[10px] text-amber-600 dark:text-amber-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                          >
-                            <Copy className="w-3 h-3" />
-                            <span>{copiadoTexto === 'car' ? 'Copiado!' : 'Copiar'}</span>
-                          </button>
-                        )}
+                  <div className="md:col-span-2 p-4 rounded-2xl border border-amber-300/80 dark:border-amber-800/60 bg-amber-500/5 dark:bg-amber-950/20 space-y-3.5 text-xs">
+                    <div className="flex items-center justify-between pb-2 border-b border-amber-200/60 dark:border-amber-800/40">
+                      <div className="flex items-center gap-2">
+                        <Tractor className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        <h5 className="font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wide">
+                          Propriedades Rurais & Rastreabilidade do Grão
+                        </h5>
                       </div>
-                      <div className="font-mono font-bold text-amber-950 dark:text-amber-200 break-all">
-                        {entidadeVisualizar.carNumero || '—'}
-                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                        {Array.isArray(entidadeVisualizar.fazendas) && entidadeVisualizar.fazendas.length > 0
+                          ? `${entidadeVisualizar.fazendas.length} ${entidadeVisualizar.fazendas.length > 1 ? 'Fazendas Cadastradas' : 'Fazenda Cadastrada'}`
+                          : '1 Fazenda Cadastrada'}
+                      </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400">Inscrição Estadual:</span>
-                        <div className="font-mono font-bold text-slate-900 dark:text-white">{entidadeVisualizar.inscricaoEstadual || '—'}</div>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400">Fazenda / Gleba:</span>
-                        <div className="font-bold text-slate-900 dark:text-white">{entidadeVisualizar.nomePropriedade || '—'}</div>
-                      </div>
+
+                    {/* LISTA DAS FAZENDAS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {(Array.isArray(entidadeVisualizar.fazendas) && entidadeVisualizar.fazendas.length > 0
+                        ? entidadeVisualizar.fazendas
+                        : [
+                            {
+                              id: 'faz_single',
+                              nomePropriedade: entidadeVisualizar.nomePropriedade || 'Propriedade Principal',
+                              carNumero: entidadeVisualizar.carNumero || '',
+                              inscricaoEstadual: entidadeVisualizar.inscricaoEstadual || '',
+                              municipio: entidadeVisualizar.municipio || 'Confresa',
+                              uf: entidadeVisualizar.uf || 'MT',
+                              coordenadasGps: entidadeVisualizar.coordenadasGps || '',
+                              areaTotalHectares: entidadeVisualizar.areaTotalHectares || null,
+                              certificacoes: entidadeVisualizar.certificacoes || '',
+                              conformidadeSocioambiental: entidadeVisualizar.conformidadeSocioambiental !== false,
+                              padrao: true,
+                            },
+                          ]
+                      ).map((fz: any, idx: number) => (
+                        <div
+                          key={fz.id || idx}
+                          className={`p-3.5 rounded-xl border transition-all ${
+                            fz.padrao
+                              ? 'bg-amber-500/10 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700/80 shadow-xs'
+                              : 'bg-white/80 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-black text-slate-900 dark:text-white truncate text-xs">
+                                🌾 {fz.nomePropriedade || `Fazenda #${idx + 1}`}
+                              </span>
+                            </div>
+                            {fz.padrao ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shrink-0">
+                                <Star className="w-2.5 h-2.5 fill-emerald-600 text-emerald-600" /> Principal
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                #{idx + 1}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* CAR */}
+                          <div className="mb-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">CAR:</span>
+                              {fz.carNumero && (
+                                <button
+                                  type="button"
+                                  onClick={() => copiarParaClipboard(fz.carNumero, `car_${idx}`)}
+                                  className="text-[10px] text-amber-600 dark:text-amber-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                  <span>{copiadoTexto === `car_${idx}` ? 'Copiado!' : 'Copiar'}</span>
+                                </button>
+                              )}
+                            </div>
+                            <div className="font-mono font-bold text-[11px] text-amber-950 dark:text-amber-200 break-all bg-white/60 dark:bg-slate-950/40 p-1.5 rounded-lg border border-amber-200/50 dark:border-amber-900/40">
+                              {fz.carNumero || '—'}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-[11px] mb-2">
+                            <div>
+                              <span className="text-slate-500 dark:text-slate-400">Inscrição Estadual:</span>
+                              <div className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {fz.inscricaoEstadual || '—'}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 dark:text-slate-400">Localidade:</span>
+                              <div className="font-bold text-slate-800 dark:text-slate-200">
+                                {fz.municipio ? `${fz.municipio} - ${fz.uf || 'MT'}` : fz.uf || 'MT'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {(fz.areaTotalHectares || fz.coordenadasGps) && (
+                            <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600 dark:text-slate-300 pt-1 border-t border-amber-200/40 dark:border-amber-800/20">
+                              {fz.areaTotalHectares && (
+                                <div>
+                                  <span className="text-slate-400">Área: </span>
+                                  <strong>{Number(fz.areaTotalHectares).toLocaleString('pt-BR')} ha</strong>
+                                </div>
+                              )}
+                              {fz.coordenadasGps && (
+                                <div className="truncate">
+                                  <span className="text-slate-400">GPS: </span>
+                                  <strong className="font-mono">{fz.coordenadasGps}</strong>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {fz.certificacoes && (
+                            <div className="mt-1.5 text-[10px] text-emerald-700 dark:text-emerald-400 truncate">
+                              🌱 {fz.certificacoes}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    {entidadeVisualizar.coordenadasGps && (
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400">Coordenadas GPS:</span>
-                        <div className="font-mono text-slate-800 dark:text-slate-200">{entidadeVisualizar.coordenadasGps}</div>
-                      </div>
-                    )}
-                    {entidadeVisualizar.certificacoes && (
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400">Certificações:</span>
-                        <div className="font-semibold text-emerald-600 dark:text-emerald-400">{entidadeVisualizar.certificacoes}</div>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -1115,129 +1344,209 @@ export function CentralCadastrosModal({
                 </div>
               </div>
 
-              {/* SEÇÃO ESPECÍFICA: PRODUTOR RURAL (CAR & IE) */}
+              {/* SEÇÃO ESPECÍFICA: PRODUTOR RURAL (MÚLTIPLAS FAZENDAS COM CAR + IE) */}
               {formTipo === 'PRODUTOR' && (
-                <div className="p-4 rounded-2xl border border-amber-300/80 dark:border-amber-800/60 bg-amber-500/5 dark:bg-amber-950/20 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Tractor className="w-4 h-4 text-amber-600" />
-                      <h4 className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">
-                        2. Rastreabilidade & Origem do Grão (CAR & Inscrição Estadual)
-                      </h4>
+                <div className="p-4 sm:p-5 rounded-2xl border border-amber-300/80 dark:border-amber-800/60 bg-amber-500/5 dark:bg-amber-950/20 space-y-4">
+                  {/* CABEÇALHO DA SEÇÃO DE FAZENDAS */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-200/60 dark:border-amber-800/40">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Tractor className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                        <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">
+                          2. Propriedades Rurais & Fazendas do Produtor
+                        </h4>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                          {fazendas.length} {fazendas.length === 1 ? 'Propriedade' : 'Propriedades'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Cadastre cada fazenda com seu CAR, Inscrição Estadual (IE) e dados de localização para auditoria socioambiental e rastreabilidade do lote.
+                      </p>
                     </div>
-                    <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                      Obrigatórios p/ Trajeto
-                    </span>
+
+                    <button
+                      type="button"
+                      onClick={handleAdicionarFazenda}
+                      className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Adicionar Outra Fazenda</span>
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        CAR - Cadastro Ambiental Rural da Propriedade <span className="text-[#f58220]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ex: MT-5103007-6B18.C94A.5D12.44A8.B268.31E0.8921"
-                        value={carNumero}
-                        onChange={(e) => setCarNumero(e.target.value.toUpperCase())}
-                        className="w-full font-mono px-3 py-2 text-xs rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500/40 outline-none"
-                      />
-                    </div>
+                  {/* CARDS DINÂMICOS DE CADA FAZENDA */}
+                  <div className="space-y-4">
+                    {fazendas.map((fz, index) => (
+                      <div
+                        key={fz.id || index}
+                        className={`p-4 rounded-2xl border transition-all ${
+                          fz.padrao
+                            ? 'bg-white dark:bg-slate-900 border-amber-400 dark:border-amber-600/80 shadow-sm ring-2 ring-amber-400/20'
+                            : 'bg-white/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800'
+                        }`}
+                      >
+                        {/* CABEÇALHO DO CARD DA FAZENDA */}
+                        <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xs font-black shrink-0">
+                              #{index + 1}
+                            </span>
+                            <h5 className="text-xs font-black text-slate-900 dark:text-white truncate">
+                              {fz.nomePropriedade ? `Fazenda: ${fz.nomePropriedade}` : `Fazenda / Propriedade #${index + 1}`}
+                            </h5>
+                          </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        Inscrição Estadual (IE) <span className="text-[#f58220]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ex: 13.456.789-0"
-                        value={inscricaoEstadual}
-                        onChange={(e) => setInscricaoEstadual(e.target.value)}
-                        className="w-full font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
+                          <div className="flex items-center gap-2">
+                            {fz.padrao ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                                <Star className="w-3 h-3 fill-emerald-600 text-emerald-600" /> Fazenda Principal
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleDefinirFazendaPadrao(fz.id)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                                title="Definir esta fazenda como a origem principal/padrão deste produtor"
+                              >
+                                <Star className="w-3 h-3 text-slate-400" />
+                                <span>Tornar Principal</span>
+                              </button>
+                            )}
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        Nome da Propriedade / Fazenda / Gleba
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex: Fazenda Santa Maria - Gleba Araguaia"
-                        value={nomePropriedade}
-                        onChange={(e) => setNomePropriedade(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
+                            {fazendas.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoverFazenda(fz.id)}
+                                className="p-1 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                                title="Remover esta fazenda"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        Município de Origem
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex: Confresa"
-                        value={municipio}
-                        onChange={(e) => setMunicipio(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
+                        {/* CAMPOS DA FAZENDA */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                          {/* NOME DA FAZENDA */}
+                          <div className="sm:col-span-2">
+                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                              Nome da Propriedade / Fazenda / Gleba / Talhão <span className="text-[#f58220]">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Ex: Fazenda Santa Maria - Gleba Araguaia"
+                              value={fz.nomePropriedade || ''}
+                              onChange={(e) => handleAtualizarFazenda(fz.id, 'nomePropriedade', e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500/40 outline-none font-medium"
+                            />
+                          </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        UF (Estado)
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={2}
-                        placeholder="Ex: MT"
-                        value={uf}
-                        onChange={(e) => setUf(e.target.value.toUpperCase())}
-                        className="w-full uppercase font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
+                          {/* CAR */}
+                          <div>
+                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                              CAR - Cadastro Ambiental Rural da Propriedade <span className="text-[#f58220]">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Ex: MT-5103007-6B18.C94A.5D12.44A8.B268.31E0.8921"
+                              value={fz.carNumero || ''}
+                              onChange={(e) => handleAtualizarFazenda(fz.id, 'carNumero', e.target.value.toUpperCase())}
+                              className="w-full font-mono uppercase px-3 py-2 text-xs rounded-xl border border-amber-300 dark:border-amber-700/80 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500/40 outline-none font-medium"
+                            />
+                          </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        Coordenadas GPS (Latitude, Longitude)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex: -10.6439, -51.5694"
-                        value={coordenadasGps}
-                        onChange={(e) => setCoordenadasGps(e.target.value)}
-                        className="w-full font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
+                          {/* INSCRIÇÃO ESTADUAL */}
+                          <div>
+                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                              Inscrição Estadual (IE da Fazenda) <span className="text-[#f58220]">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Ex: 13.456.789-0"
+                              value={fz.inscricaoEstadual || ''}
+                              onChange={(e) => handleAtualizarFazenda(fz.id, 'inscricaoEstadual', e.target.value)}
+                              className="w-full font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none font-medium"
+                            />
+                          </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        Área Agricultável (Hectares)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Ex: 4850.00"
-                        value={areaTotalHectares}
-                        onChange={(e) => setAreaTotalHectares(e.target.value)}
-                        className="w-full font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
+                          {/* MUNICÍPIO */}
+                          <div>
+                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                              Município da Propriedade
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Confresa, Sinop, Canarana"
+                              value={fz.municipio || ''}
+                              onChange={(e) => handleAtualizarFazenda(fz.id, 'municipio', e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                            />
+                          </div>
 
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        Certificações Socioambientais
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex: RTRS Certified, ProTerra, Não-Transgênico (Non-GMO)"
-                        value={certificacoes}
-                        onChange={(e) => setCertificacoes(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
+                          {/* UF */}
+                          <div>
+                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                              UF (Estado)
+                            </label>
+                            <input
+                              type="text"
+                              maxLength={2}
+                              placeholder="Ex: MT"
+                              value={fz.uf || 'MT'}
+                              onChange={(e) => handleAtualizarFazenda(fz.id, 'uf', e.target.value.toUpperCase())}
+                              className="w-full uppercase font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                            />
+                          </div>
+
+                          {/* COORDENADAS GPS */}
+                          <div>
+                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                              Coordenadas GPS (Latitude, Longitude)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Ex: -10.6439, -51.5694"
+                              value={fz.coordenadasGps || ''}
+                              onChange={(e) => handleAtualizarFazenda(fz.id, 'coordenadasGps', e.target.value)}
+                              className="w-full font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                            />
+                          </div>
+
+                          {/* ÁREA HECTARES */}
+                          <div>
+                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                              Área Agricultável (Hectares)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="Ex: 4850.00"
+                              value={fz.areaTotalHectares !== null && fz.areaTotalHectares !== undefined ? String(fz.areaTotalHectares) : ''}
+                              onChange={(e) => handleAtualizarFazenda(fz.id, 'areaTotalHectares', e.target.value ? parseFloat(e.target.value) : null)}
+                              className="w-full font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                            />
+                          </div>
+
+                          {/* CERTIFICAÇÕES */}
+                          <div className="sm:col-span-2">
+                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                              Certificações Socioambientais da Fazenda
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Ex: GlobalGAP Pulses, RTRS Certified, Não-Transgênico (Non-GMO), Zero Desmatamento"
+                              value={fz.certificacoes || ''}
+                              onChange={(e) => handleAtualizarFazenda(fz.id, 'certificacoes', e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

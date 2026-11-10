@@ -54,6 +54,27 @@
   animation-play-state: paused;
 }
 
+/* ROLAGEM INTERNA SUAVE DENTRO DO BOX DOS NÚMEROS (QUANDO HOUVER OVERFLOW) */
+@keyframes kpiScroll {
+  0%, 25% {
+    transform: translateX(0);
+  }
+  60%, 85% {
+    transform: translateX(var(--overflow-x, -20px));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-kpi-scroll {
+  animation: kpiScroll 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.pause {
+  animation-play-state: paused !important;
+}
+
 /* Utilitário para ocultar barra de rolagem em abas horizontais touch */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

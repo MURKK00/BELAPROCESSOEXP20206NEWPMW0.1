@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "prisma generate && next dev -p 3000 -H 0.0.0.0",
-    "postinstall": "prisma generate",
-    "build": "prisma generate && rm -rf .next && NODE_ENV=production next build",
+    "dev": "npx prisma generate && next dev -p 3000 -H 0.0.0.0",
+    "postinstall": "npx prisma generate",
+    "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",

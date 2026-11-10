@@ -3,6 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import type { TipoEntidadeComercial } from '@prisma/client';
+import type { FazendaItem } from '@/lib/demoCadastrosData';
+
+export type { FazendaItem };
 
 export interface CadastroEntidadeInput {
   id?: string;
@@ -11,7 +14,7 @@ export interface CadastroEntidadeInput {
   nomeFantasia?: string | null;
   documento?: string | null;
 
-  // Produtor Rural & Fazenda (Rastreabilidade)
+  // Produtor Rural & Fazendas (Rastreabilidade)
   inscricaoEstadual?: string | null;
   carNumero?: string | null;
   nomePropriedade?: string | null;
@@ -21,6 +24,7 @@ export interface CadastroEntidadeInput {
   areaTotalHectares?: number | null;
   certificacoes?: string | null;
   conformidadeSocioambiental?: boolean;
+  fazendas?: FazendaItem[] | null;
 
   // Dados Comuns & Internacionais
   pais?: string | null;
@@ -53,12 +57,70 @@ export async function salvarCadastroEntidadeAction(data: CadastroEntidadeInput) 
       return { success: false, error: 'Razão Social / Nome Comercial é obrigatório.' };
     }
 
+    // Processamento de Múltiplas Fazendas para Produtor Rural
     if (data.tipo === 'PRODUTOR') {
-      if (!data.carNumero || data.carNumero.trim() === '') {
-        return { success: false, error: 'O CAR (Cadastro Ambiental Rural) é obrigatório para cadastro de Produtor Rural e rastreabilidade do grão.' };
-      }
-      if (!data.inscricaoEstadual || data.inscricaoEstadual.trim() === '') {
-        return { success: false, error: 'A Inscrição Estadual (IE) é obrigatória para o produtor rural.' };
+      if (Array.isArray(data.fazendas) && data.fazendas.length > 0) {
+        // Validação de cada fazenda preenchida
+        for (let i = 0; i < data.fazendas.length; i++) {
+          const f = data.fazendas[i];
+          if (!f.carNumero || f.carNumero.trim() === '') {
+            return {
+              success: false,
+              error: `A fazenda #${i + 1} ("${f.nomePropriedade || 'Sem nome'}") precisa ter o CAR (Cadastro Ambiental Rural) preenchido.`,
+            };
+          }
+          if (!f.inscricaoEstadual || f.inscricaoEstadual.trim() === '') {
+            return {
+              success: false,
+              error: `A fazenda #${i + 1} ("${f.nomePropriedade || 'Sem nome'}") precisa ter a Inscrição Estadual (IE) preenchida.`,
+            };
+          }
+        }
+
+        // Determina a fazenda principal/padrão
+        const indexPadrao = data.fazendas.findIndex((f) => f.padrao);
+        const fazendaPrincipal = indexPadrao >= 0 ? data.fazendas[indexPadrao] : data.fazendas[0];
+
+        // Normaliza flags padrão
+        data.fazendas = data.fazendas.map((f, idx) => ({
+          ...f,
+          padrao: indexPadrao >= 0 ? idx === indexPadrao : idx === 0,
+        }));
+
+        // Sincroniza campos raiz para retrocompatibilidade com telas existentes
+        data.carNumero = fazendaPrincipal.carNumero;
+        data.inscricaoEstadual = fazendaPrincipal.inscricaoEstadual;
+        data.nomePropriedade = fazendaPrincipal.nomePropriedade;
+        data.municipio = fazendaPrincipal.municipio;
+        data.uf = fazendaPrincipal.uf;
+        data.coordenadasGps = fazendaPrincipal.coordenadasGps;
+        data.areaTotalHectares = fazendaPrincipal.areaTotalHectares !== undefined && fazendaPrincipal.areaTotalHectares !== null ? Number(fazendaPrincipal.areaTotalHectares) : null;
+        data.certificacoes = fazendaPrincipal.certificacoes;
+        data.conformidadeSocioambiental = fazendaPrincipal.conformidadeSocioambiental !== undefined ? Boolean(fazendaPrincipal.conformidadeSocioambiental) : true;
+      } else {
+        // Modo legado sem array de fazendas
+        if (!data.carNumero || data.carNumero.trim() === '') {
+          return { success: false, error: 'O CAR (Cadastro Ambiental Rural) é obrigatório para cadastro de Produtor Rural e rastreabilidade do grão.' };
+        }
+        if (!data.inscricaoEstadual || data.inscricaoEstadual.trim() === '') {
+          return { success: false, error: 'A Inscrição Estadual (IE) é obrigatória para o produtor rural.' };
+        }
+
+        data.fazendas = [
+          {
+            id: `faz_${Date.now()}`,
+            nomePropriedade: data.nomePropriedade?.trim() || data.razaoSocial.trim(),
+            carNumero: data.carNumero.trim(),
+            inscricaoEstadual: data.inscricaoEstadual.trim(),
+            municipio: data.municipio?.trim() || null,
+            uf: data.uf?.trim() || 'MT',
+            coordenadasGps: data.coordenadasGps?.trim() || null,
+            areaTotalHectares: data.areaTotalHectares !== undefined && data.areaTotalHectares !== null ? Number(data.areaTotalHectares) : null,
+            certificacoes: data.certificacoes?.trim() || null,
+            conformidadeSocioambiental: data.conformidadeSocioambiental !== undefined ? Boolean(data.conformidadeSocioambiental) : true,
+            padrao: true,
+          },
+        ];
       }
     }
 
@@ -77,6 +139,7 @@ export async function salvarCadastroEntidadeAction(data: CadastroEntidadeInput) 
       areaTotalHectares: data.areaTotalHectares !== undefined && data.areaTotalHectares !== null ? Number(data.areaTotalHectares) : null,
       certificacoes: data.certificacoes?.trim() || null,
       conformidadeSocioambiental: data.conformidadeSocioambiental !== undefined ? Boolean(data.conformidadeSocioambiental) : true,
+      fazendas: data.fazendas || null,
 
       pais: data.pais?.trim() || 'Brasil',
       cidade: data.cidade?.trim() || null,
@@ -192,6 +255,7 @@ export async function vincularProdutorTrajetoAction(
   processoId: string,
   dados: {
     produtorId?: string | null;
+    fazendaId?: string | null;
     fazendaOrigemNome?: string | null;
     produtorCarCache?: string | null;
     produtorIeCache?: string | null;
@@ -210,20 +274,44 @@ export async function vincularProdutorTrajetoAction(
   }
 ) {
   try {
-    let produtorInfo = null;
+    let produtorInfo: any = null;
+    let fazendaEscolhida: any = null;
+
     if (dados.produtorId) {
       produtorInfo = await prisma.cadastroEntidade.findUnique({
         where: { id: dados.produtorId },
       });
+
+      if (produtorInfo && Array.isArray(produtorInfo.fazendas) && produtorInfo.fazendas.length > 0) {
+        if (dados.fazendaId) {
+          fazendaEscolhida = produtorInfo.fazendas.find((f: any) => f.id === dados.fazendaId);
+        }
+        if (!fazendaEscolhida) {
+          fazendaEscolhida = produtorInfo.fazendas.find((f: any) => f.padrao) || produtorInfo.fazendas[0];
+        }
+      }
     }
 
     const updated = await prisma.processo.update({
       where: { id: processoId },
       data: {
         produtorId: dados.produtorId || null,
-        fazendaOrigemNome: dados.fazendaOrigemNome || (produtorInfo?.nomePropriedade || produtorInfo?.razaoSocial) || null,
-        produtorCarCache: dados.produtorCarCache || produtorInfo?.carNumero || null,
-        produtorIeCache: dados.produtorIeCache || produtorInfo?.inscricaoEstadual || null,
+        fazendaOrigemNome:
+          dados.fazendaOrigemNome ||
+          fazendaEscolhida?.nomePropriedade ||
+          produtorInfo?.nomePropriedade ||
+          produtorInfo?.razaoSocial ||
+          null,
+        produtorCarCache:
+          dados.produtorCarCache ||
+          fazendaEscolhida?.carNumero ||
+          produtorInfo?.carNumero ||
+          null,
+        produtorIeCache:
+          dados.produtorIeCache ||
+          fazendaEscolhida?.inscricaoEstadual ||
+          produtorInfo?.inscricaoEstadual ||
+          null,
         trajetoStatus: dados.trajetoStatus || 'FAZENDA',
         siloArmazemOrigem: dados.siloArmazemOrigem || null,
         armazemCnpj: dados.armazemCnpj || null,

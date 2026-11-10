@@ -23,15 +23,30 @@ export async function GET(req: NextRequest) {
     });
 
     if (q) {
-      const filtered = entidades.filter(
-        (e) =>
+      const filtered = entidades.filter((e: any) => {
+        const matchesRoot =
           e.razaoSocial.toLowerCase().includes(q) ||
           (e.nomeFantasia && e.nomeFantasia.toLowerCase().includes(q)) ||
           (e.carNumero && e.carNumero.toLowerCase().includes(q)) ||
           (e.inscricaoEstadual && e.inscricaoEstadual.toLowerCase().includes(q)) ||
+          (e.nomePropriedade && e.nomePropriedade.toLowerCase().includes(q)) ||
           (e.cidade && e.cidade.toLowerCase().includes(q)) ||
-          (e.pais && e.pais.toLowerCase().includes(q))
-      );
+          (e.pais && e.pais.toLowerCase().includes(q));
+
+        if (matchesRoot) return true;
+
+        if (Array.isArray(e.fazendas)) {
+          return e.fazendas.some(
+            (fz: any) =>
+              (fz.nomePropriedade && fz.nomePropriedade.toLowerCase().includes(q)) ||
+              (fz.carNumero && fz.carNumero.toLowerCase().includes(q)) ||
+              (fz.inscricaoEstadual && fz.inscricaoEstadual.toLowerCase().includes(q)) ||
+              (fz.municipio && fz.municipio.toLowerCase().includes(q))
+          );
+        }
+
+        return false;
+      });
       return NextResponse.json(filtered);
     }
 

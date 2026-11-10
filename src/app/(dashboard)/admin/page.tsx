@@ -32,7 +32,6 @@ import { PAPEIS_DISPONIVEIS, Papel, canAccessAdmin } from '@/lib/permissions';
 import { gerarNomeUsuario, SENHA_PADRAO_NOVO_USUARIO } from '@/lib/userHelper';
 import { SessionsManager } from '@/components/admin/SessionsManager';
 
-export const dynamic = 'force-dynamic';
 
 interface UsuarioItem {
   id: string;

@@ -34,6 +34,7 @@ export function RastreabilidadeTrajetoCard({ processo }: RastreabilidadeTrajetoC
 
   // Estados do Produtor
   const [produtorId, setProdutorId] = useState(processo.produtorId || '');
+  const [fazendaSelecionadaId, setFazendaSelecionadaId] = useState<string>('');
   const [fazendaOrigemNome, setFazendaOrigemNome] = useState(processo.fazendaOrigemNome || '');
   const [produtorCarCache, setProdutorCarCache] = useState(processo.produtorCarCache || '');
   const [produtorIeCache, setProdutorIeCache] = useState(processo.produtorIeCache || '');
@@ -89,9 +90,31 @@ export function RastreabilidadeTrajetoCard({ processo }: RastreabilidadeTrajetoC
     setProdutorId(prodId);
     const p = produtores.find((item) => item.id === prodId);
     if (p) {
-      setFazendaOrigemNome(p.nomePropriedade || p.nomeFantasia || p.razaoSocial || '');
-      setProdutorCarCache(p.carNumero || '');
-      setProdutorIeCache(p.inscricaoEstadual || '');
+      if (Array.isArray(p.fazendas) && p.fazendas.length > 0) {
+        const fz = p.fazendas.find((f: any) => f.padrao) || p.fazendas[0];
+        setFazendaSelecionadaId(fz.id);
+        setFazendaOrigemNome(fz.nomePropriedade || p.nomeFantasia || p.razaoSocial || '');
+        setProdutorCarCache(fz.carNumero || '');
+        setProdutorIeCache(fz.inscricaoEstadual || '');
+      } else {
+        setFazendaSelecionadaId('');
+        setFazendaOrigemNome(p.nomePropriedade || p.nomeFantasia || p.razaoSocial || '');
+        setProdutorCarCache(p.carNumero || '');
+        setProdutorIeCache(p.inscricaoEstadual || '');
+      }
+    } else {
+      setFazendaSelecionadaId('');
+    }
+  }
+
+  function handleSelecionarFazendaDoProdutor(fazId: string) {
+    setFazendaSelecionadaId(fazId);
+    if (!produtorSelecionadoObj || !Array.isArray(produtorSelecionadoObj.fazendas)) return;
+    const fz = produtorSelecionadoObj.fazendas.find((f: any) => f.id === fazId);
+    if (fz) {
+      setFazendaOrigemNome(fz.nomePropriedade || '');
+      setProdutorCarCache(fz.carNumero || '');
+      setProdutorIeCache(fz.inscricaoEstadual || '');
     }
   }
 
@@ -127,6 +150,7 @@ export function RastreabilidadeTrajetoCard({ processo }: RastreabilidadeTrajetoC
 
     const res = await vincularProdutorTrajetoAction(processo.id, {
       produtorId: produtorId || null,
+      fazendaId: fazendaSelecionadaId || null,
       fazendaOrigemNome: fazendaOrigemNome || null,
       produtorCarCache: produtorCarCache || null,
       produtorIeCache: produtorIeCache || null,
@@ -220,33 +244,60 @@ export function RastreabilidadeTrajetoCard({ processo }: RastreabilidadeTrajetoC
             </div>
 
             {/* SELETOR DE PRODUTOR CADASTRADO - SELEÇÃO APENAS PELO NOME */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                Selecionar Produtor Rural (por nome)
-              </label>
-              <div className="flex gap-2">
-                <select
-                  value={produtorId}
-                  onChange={(e) => handleSelecionarProdutor(e.target.value)}
-                  className="flex-1 px-3 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none font-medium"
-                >
-                  <option value="">— Selecione o produtor rural pelo nome —</option>
-                  {produtores.map((prod) => (
-                    <option key={prod.id} value={prod.id}>
-                      {prod.razaoSocial}
-                    </option>
-                  ))}
-                </select>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Selecionar Produtor Rural (por nome)
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={produtorId}
+                    onChange={(e) => handleSelecionarProdutor(e.target.value)}
+                    className="flex-1 px-3 py-2.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none font-medium"
+                  >
+                    <option value="">— Selecione o produtor rural pelo nome —</option>
+                    {produtores.map((prod) => (
+                      <option key={prod.id} value={prod.id}>
+                        {prod.razaoSocial}
+                      </option>
+                    ))}
+                  </select>
 
-                <button
-                  type="button"
-                  onClick={() => setModalProdutorAberto(true)}
-                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shrink-0 cursor-pointer"
-                  title="Cadastrar ou editar produtores"
-                >
-                  Gerenciar
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalProdutorAberto(true)}
+                    className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shrink-0 cursor-pointer"
+                    title="Cadastrar ou editar produtores"
+                  >
+                    Gerenciar
+                  </button>
+                </div>
               </div>
+
+              {/* SELETOR DINÂMICO DE FAZENDA DESTE PRODUTOR SE ELE TIVER MÚLTIPLAS */}
+              {produtorSelecionadoObj && Array.isArray(produtorSelecionadoObj.fazendas) && produtorSelecionadoObj.fazendas.length > 1 && (
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-300/80 dark:border-amber-700/60 space-y-1.5 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-amber-950 dark:text-amber-200">
+                      🌾 Selecionar Fazenda de Origem deste Lote ({produtorSelecionadoObj.fazendas.length} fazendas cadastradas):
+                    </label>
+                    <span className="text-[10px] text-amber-700 dark:text-amber-300 font-semibold">
+                      Colheita específica
+                    </span>
+                  </div>
+                  <select
+                    value={fazendaSelecionadaId}
+                    onChange={(e) => handleSelecionarFazendaDoProdutor(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500/40 outline-none font-semibold cursor-pointer"
+                  >
+                    {produtorSelecionadoObj.fazendas.map((fz: any) => (
+                      <option key={fz.id} value={fz.id}>
+                        {fz.padrao ? '★ [Principal] ' : ''}{fz.nomePropriedade || 'Propriedade'} — {fz.municipio || 'MT'} (CAR: {fz.carNumero})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* INFORMAÇÕES DO PRODUTOR SELECIONADO APARECENDO LOGO ABAIXO */}

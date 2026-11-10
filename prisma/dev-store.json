@@ -5174,6 +5174,34 @@
       "areaTotalHectares": 4850,
       "certificacoes": "GlobalGAP Pulses, RTRS Certified, Não-Transgênico (Non-GMO), Zero Desmatamento 2008+",
       "conformidadeSocioambiental": true,
+      "fazendas": [
+        {
+          "id": "faz_prod1_1",
+          "nomePropriedade": "Fazenda Santa Maria - Gleba Araguaia",
+          "carNumero": "MT-5103007-6B18.C94A.5D12.44A8.B268.31E0.8921",
+          "inscricaoEstadual": "13.456.789-0",
+          "municipio": "Confresa",
+          "uf": "MT",
+          "coordenadasGps": "-10.6439, -51.5694",
+          "areaTotalHectares": 4850,
+          "certificacoes": "GlobalGAP Pulses, RTRS Certified, Zero Desmatamento",
+          "conformidadeSocioambiental": true,
+          "padrao": true
+        },
+        {
+          "id": "faz_prod1_2",
+          "nomePropriedade": "Fazenda Bela Vista - Módulo Norte",
+          "carNumero": "MT-5103007-9C42.A118.44DF.77E1.CC10.2291.9902",
+          "inscricaoEstadual": "13.456.789-1",
+          "municipio": "Porto Alegre do Norte",
+          "uf": "MT",
+          "coordenadasGps": "-10.8712, -51.6240",
+          "areaTotalHectares": 3200,
+          "certificacoes": "RTRS Certified, Pulses Export Grade A",
+          "conformidadeSocioambiental": true,
+          "padrao": false
+        }
+      ],
       "pais": "Brasil",
       "cidade": "Confresa",
       "endereco": "Rodovia MT-430, Km 42 - Zona Rural",
@@ -5199,6 +5227,47 @@
       "areaTotalHectares": 6200,
       "certificacoes": "Rastreabilidade EUDR Compliant 2024, Soja Plus, Pulses Certified",
       "conformidadeSocioambiental": true,
+      "fazendas": [
+        {
+          "id": "faz_prod2_1",
+          "nomePropriedade": "Fazenda Primavera - Talhão Safra Sul",
+          "carNumero": "MT-5107909-7C29.D81B.4E31.89C1.A119.55F2.4401",
+          "inscricaoEstadual": "13.987.654-2",
+          "municipio": "Sinop",
+          "uf": "MT",
+          "coordenadasGps": "-11.8542, -55.5110",
+          "areaTotalHectares": 6200,
+          "certificacoes": "EUDR Compliant 2024, Soja Plus",
+          "conformidadeSocioambiental": true,
+          "padrao": true
+        },
+        {
+          "id": "faz_prod2_2",
+          "nomePropriedade": "Fazenda Rio Bonito II - Gleba Teles Pires",
+          "carNumero": "MT-5107909-3D41.B882.11C0.55A9.9912.44A1.3389",
+          "inscricaoEstadual": "13.987.654-9",
+          "municipio": "Sorriso",
+          "uf": "MT",
+          "coordenadasGps": "-12.5410, -55.7210",
+          "areaTotalHectares": 5100,
+          "certificacoes": "Pulses Certified, Zero Desmatamento",
+          "conformidadeSocioambiental": true,
+          "padrao": false
+        },
+        {
+          "id": "faz_prod2_3",
+          "nomePropriedade": "Estância Boa Esperança",
+          "carNumero": "MT-5108402-4A19.CC22.8801.44DE.5511.0029.1177",
+          "inscricaoEstadual": "13.987.655-0",
+          "municipio": "Vera",
+          "uf": "MT",
+          "coordenadasGps": "-12.3021, -55.3289",
+          "areaTotalHectares": 2800,
+          "certificacoes": "RTRS Certified",
+          "conformidadeSocioambiental": true,
+          "padrao": false
+        }
+      ],
       "pais": "Brasil",
       "cidade": "Sinop",
       "endereco": "Estrada da Virgínia, Km 18",
@@ -5224,6 +5293,34 @@
       "areaTotalHectares": 3900,
       "certificacoes": "Agricultura Regenerativa, Pulses Quality Grade A",
       "conformidadeSocioambiental": true,
+      "fazendas": [
+        {
+          "id": "faz_prod3_1",
+          "nomePropriedade": "Fazenda Alvorada - Módulo Pulses Canarana",
+          "carNumero": "MT-5102504-8A12.EE90.33D1.77A2.B991.2201.8844",
+          "inscricaoEstadual": "13.882.102-5",
+          "municipio": "Canarana",
+          "uf": "MT",
+          "coordenadasGps": "-13.1125, -52.2689",
+          "areaTotalHectares": 3900,
+          "certificacoes": "Agricultura Regenerativa, Pulses Quality Grade A",
+          "conformidadeSocioambiental": true,
+          "padrao": true
+        },
+        {
+          "id": "faz_prod3_2",
+          "nomePropriedade": "Fazenda Alvorada II - Gleba Xingu",
+          "carNumero": "MT-5102504-1B99.8822.44A1.66D2.8899.1122.3344",
+          "inscricaoEstadual": "13.882.102-8",
+          "municipio": "Canarana",
+          "uf": "MT",
+          "coordenadasGps": "-13.2501, -52.4102",
+          "areaTotalHectares": 2450,
+          "certificacoes": "Pulses Certified Non-GMO",
+          "conformidadeSocioambiental": true,
+          "padrao": false
+        }
+      ],
       "pais": "Brasil",
       "cidade": "Canarana",
       "endereco": "Rodovia MT-110, Km 35",
