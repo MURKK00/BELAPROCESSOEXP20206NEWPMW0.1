@@ -97,24 +97,42 @@ function AdminDashboardContent() {
     carregarPainel();
   }, []);
 
-  async function carregarPainel() {
+async function carregarPainel() {
     setCarregandoDados(true);
     setMensagemErro(null);
 
     try {
-      // 1. Status do Modo Demonstração
-      const resDemo = await fetch('/api/admin/demo-mode');
+      // 1. Status do Modo Demonstração (sem cache)
+      const resDemo = await fetch('/api/admin/demo-mode', { cache: 'no-store' });
       const dataDemo = await resDemo.json();
       if (dataDemo.success) {
         setIsDemoMode(Boolean(dataDemo.isDemoMode));
         setCountProcessos(dataDemo.countProcessos || 0);
       }
 
-      // 2. Lista de Usuários
-      const resUsers = await fetch('/api/admin/users');
+      // 2. Lista de Usuários (sem cache + mesclagem segura com localStorage)
+      const resUsers = await fetch('/api/admin/users', { cache: 'no-store' });
       const dataUsers = await resUsers.json();
       if (dataUsers.success) {
-        setUsuarios(dataUsers.usuarios || []);
+        const listaApi: UsuarioItem[] = dataUsers.usuarios || [];
+        
+        // Recupera usuários criados localmente caso a API esteja em modo read-only/demo na Vercel
+        let listaLocal: UsuarioItem[] = [];
+        try {
+          const salvos = localStorage.getItem('bela_usuarios_custom');
+          if (salvos) listaLocal = JSON.parse(salvos);
+        } catch {}
+
+        // Mescla sem duplicar por ID ou e-mail
+        const mapa = new Map<string, UsuarioItem>();
+        [...listaLocal, ...listaApi].forEach((u) => {
+          const chave = (u.email || u.id).toLowerCase();
+          if (!mapa.has(chave)) {
+            mapa.set(chave, u);
+          }
+        });
+
+        setUsuarios(Array.from(mapa.values()));
       }
     } catch (err: any) {
       console.error('Erro ao carregar dados do admin:', err);
@@ -204,6 +222,7 @@ function AdminDashboardContent() {
     }
 
     setExecutandoAcao(true);
+    const usernameGerado = gerarNomeUsuario(nome);
 
     try {
       const res = await fetch('/api/admin/users', {
@@ -212,6 +231,7 @@ function AdminDashboardContent() {
         body: JSON.stringify({
           nome: nome.trim(),
           email: email.trim().toLowerCase(),
+          username: usernameGerado,
           password,
           papeis: papeisSelecionados,
           papel: papeisSelecionados[0],
@@ -221,13 +241,39 @@ function AdminDashboardContent() {
       const data = await res.json();
 
       if (data.success) {
-        setMensagemSucesso(`Usuário ${data.usuario.nome} cadastrado com perfis: [${papeisSelecionados.join(' + ')}]!`);
+        // Garante que o objeto tenha todos os campos exigidos pela tabela
+        const novoUsuario: UsuarioItem = {
+          id: data.usuario?.id || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          nome: data.usuario?.nome || nome.trim(),
+          email: data.usuario?.email || email.trim().toLowerCase(),
+          username: data.usuario?.username || usernameGerado,
+          primeiroAcesso: data.usuario?.primeiroAcesso ?? true,
+          papel: data.usuario?.papel || papeisSelecionados[0],
+          papeis: Array.isArray(data.usuario?.papeis) && data.usuario.papeis.length > 0
+            ? data.usuario.papeis
+            : papeisSelecionados,
+          ativo: data.usuario?.ativo ?? true,
+          criadoEm: data.usuario?.criadoEm || new Date().toISOString(),
+        };
+
+        // 1. Atualiza imediatamente a tabela na tela!
+        setUsuarios((prev) => {
+          const filtrada = prev.filter(
+            (u) => u.id !== novoUsuario.id && u.email.toLowerCase() !== novoUsuario.email.toLowerCase()
+          );
+          const atualizada = [novoUsuario, ...filtrada];
+          try {
+            localStorage.setItem('bela_usuarios_custom', JSON.stringify(atualizada));
+          } catch {}
+          return atualizada;
+        });
+
+        setMensagemSucesso(`Usuário ${novoUsuario.nome} cadastrado com perfis: [${papeisSelecionados.join(' + ')}]!`);
         setModalNovoUsuario(false);
         setNome('');
         setEmail('');
         setPassword('');
         setPapeisSelecionados(['COMERCIAL']);
-        carregarPainel();
       } else {
         setMensagemErro(data.error || 'Não foi possível cadastrar o usuário.');
       }
@@ -238,6 +284,7 @@ function AdminDashboardContent() {
     }
   }
 
+  // Salvar edição de múltiplos perfis de usuário existente
   // Salvar edição de múltiplos perfis de usuário existente
   async function handleSalvarPerfisUsuario(e: React.FormEvent) {
     e.preventDefault();
@@ -264,9 +311,19 @@ function AdminDashboardContent() {
       const data = await res.json();
 
       if (data.success) {
+        setUsuarios((prev) => {
+          const atualizada = prev.map((u) =>
+            u.id === modalEditarPerfis.id
+              ? { ...u, papeis: modalEditarPerfis.papeis, papel: modalEditarPerfis.papeis[0] }
+              : u
+          );
+          try {
+            localStorage.setItem('bela_usuarios_custom', JSON.stringify(atualizada));
+          } catch {}
+          return atualizada;
+        });
         setMensagemSucesso(`Perfis de ${modalEditarPerfis.nome} atualizados: [${modalEditarPerfis.papeis.join(' + ')}]!`);
         setModalEditarPerfis(null);
-        carregarPainel();
       } else {
         setMensagemErro(data.error || 'Erro ao atualizar perfis.');
       }
@@ -340,7 +397,13 @@ function AdminDashboardContent() {
       const data = await res.json();
 
       if (data.success) {
-        setUsuarios((prev) => prev.filter((u) => u.id !== id));
+        setUsuarios((prev) => {
+          const atualizada = prev.filter((u) => u.id !== id);
+          try {
+            localStorage.setItem('bela_usuarios_custom', JSON.stringify(atualizada));
+          } catch {}
+          return atualizada;
+        });
         setMensagemSucesso(`Usuário "${nomeUsuario}" excluído com sucesso.`);
       } else {
         setMensagemErro(data.error || 'Erro ao excluir usuário.');

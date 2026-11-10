@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/passwordUtils';
-import { Papel } from '@prisma/client';
-import { getUserPapeis } from '@/lib/permissions';
+import { getUserPapeis, Papel } from '@/lib/permissions';
 import { gerarNomeUsuarioUnico, SENHA_PADRAO_NOVO_USUARIO } from '@/lib/userHelper';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   try {
-    const usuarios = await prisma.usuario.findMany({
+    const usuarios = await (prisma.usuario as any).findMany({
       orderBy: { criadoEm: 'desc' },
     });
 
-    // Sanitiza removendo senhaHash da resposta e inclui múltiplos papéis e username
     const sanitized = usuarios.map((u: any) => ({
       id: u.id,
       nome: u.nome,
@@ -21,14 +22,23 @@ export async function GET() {
       papel: u.papel || 'ADMIN',
       papeis: getUserPapeis(u),
       ativo: u.ativo !== false,
-      criadoEm: u.criadoEm,
-      atualizadoEm: u.atualizadoEm,
+      criadoEm: u.criadoEm || new Date().toISOString(),
+      atualizadoEm: u.atualizadoEm || new Date().toISOString(),
     }));
 
-    return NextResponse.json({
-      success: true,
-      usuarios: sanitized,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        usuarios: sanitized,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('[API Users GET] Erro:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -49,8 +59,7 @@ export async function POST(req: NextRequest) {
 
     const emailNormalizado = String(email).trim().toLowerCase();
 
-    // Verifica se já existe usuário com este e-mail
-    const existe = await prisma.usuario.findUnique({
+    const existe = await (prisma.usuario as any).findUnique({
       where: { email: emailNormalizado },
     });
 
@@ -61,10 +70,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Senha fornecida ou senha padrão do sistema: abc12345
-    const senhaFinal = (password && String(password).trim().length > 0)
-      ? String(password).trim()
-      : SENHA_PADRAO_NOVO_USUARIO;
+    const senhaFinal =
+      password && String(password).trim().length > 0
+        ? String(password).trim()
+        : SENHA_PADRAO_NOVO_USUARIO;
 
     if (senhaFinal.length < 6) {
       return NextResponse.json(
@@ -73,30 +82,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Busca todos os usuários para garantir username único (ex: MNUNES)
-    const todosUsuarios = await prisma.usuario.findMany({
-      select: { id: true, username: true },
-    });
+    const todosUsuarios = await (prisma.usuario as any).findMany();
 
     const usernameGerado = gerarNomeUsuarioUnico(nome, todosUsuarios);
 
-    // Normaliza os múltiplos papéis selecionados
-    const papeisLista: string[] = Array.isArray(papeis) && papeis.length > 0
-      ? papeis
-      : papel
-      ? String(papel).split(',').map((p) => p.trim())
-      : ['COMERCIAL'];
+    const papeisLista: string[] =
+      Array.isArray(papeis) && papeis.length > 0
+        ? papeis
+        : papel
+        ? String(papel)
+            .split(',')
+            .map((p: string) => p.trim())
+        : ['COMERCIAL'];
 
-    const papeisValidos = papeisLista.filter((p) =>
+    const papeisValidos = papeisLista.filter((p: string) =>
       ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
     );
 
     const papeisFinal = papeisValidos.length > 0 ? papeisValidos : ['COMERCIAL'];
-    const cargoPrimario = (papeisFinal[0] as Papel) || Papel.COMERCIAL;
+    const cargoPrimario = (papeisFinal[0] as Papel) || 'COMERCIAL';
 
     const senhaHash = await hashPassword(senhaFinal);
+    const agoraIso = new Date().toISOString();
 
-    // Cria o usuário com primeiroAcesso = true (para que redefina a senha ao entrar)
     const novoUsuario = await (prisma.usuario as any).create({
       data: {
         nome: String(nome).trim(),
@@ -107,6 +115,7 @@ export async function POST(req: NextRequest) {
         papeis: papeisFinal,
         primeiroAcesso: true,
         ativo: true,
+        criadoEm: agoraIso,
       },
     });
 
@@ -118,9 +127,10 @@ export async function POST(req: NextRequest) {
         email: novoUsuario.email,
         username: novoUsuario.username || usernameGerado,
         primeiroAcesso: true,
-        papel: novoUsuario.papel,
-        papeis: papeisFinal,
-        ativo: novoUsuario.ativo,
+        papel: novoUsuario.papel || cargoPrimario,
+        papeis: getUserPapeis(novoUsuario).length > 0 ? getUserPapeis(novoUsuario) : papeisFinal,
+        ativo: novoUsuario.ativo ?? true,
+        criadoEm: novoUsuario.criadoEm || agoraIso,
       },
       message: `Usuário cadastrado com sucesso! Usuário de login: ${usernameGerado}. Senha padrão: abc12345 (redefinição obrigatória no 1º acesso).`,
     });
@@ -144,7 +154,7 @@ export async function PATCH(req: NextRequest) {
     if (nome) updateData.nome = String(nome).trim();
 
     if (Array.isArray(papeis) && papeis.length > 0) {
-      const papeisValidos = papeis.filter((p) =>
+      const papeisValidos = papeis.filter((p: string) =>
         ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
       );
       if (papeisValidos.length > 0) {
@@ -152,16 +162,21 @@ export async function PATCH(req: NextRequest) {
         updateData.papel = papeisValidos[0] as Papel;
       }
     } else if (papel) {
-      const pArr = String(papel).split(',').map((p) => p.trim());
+      const pArr = String(papel)
+        .split(',')
+        .map((p: string) => p.trim());
       updateData.papeis = pArr;
-      if (Object.values(Papel).includes(pArr[0] as any)) {
+      if (['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(pArr[0])) {
         updateData.papel = pArr[0] as Papel;
       }
     }
 
     if (novaSenha) {
       if (novaSenha.length < 6) {
-        return NextResponse.json({ success: false, error: 'A nova senha deve ter no mínimo 6 caracteres.' }, { status: 400 });
+        return NextResponse.json(
+          { success: false, error: 'A nova senha deve ter no mínimo 6 caracteres.' },
+          { status: 400 }
+        );
       }
       updateData.senhaHash = await hashPassword(novaSenha);
     }
@@ -177,9 +192,11 @@ export async function PATCH(req: NextRequest) {
         id: usuarioAtualizado.id,
         nome: usuarioAtualizado.nome,
         email: usuarioAtualizado.email,
+        username: usuarioAtualizado.username || null,
         papel: usuarioAtualizado.papel,
         papeis: getUserPapeis(usuarioAtualizado),
         ativo: usuarioAtualizado.ativo,
+        criadoEm: usuarioAtualizado.criadoEm,
       },
       message: 'Usuário atualizado com sucesso!',
     });
@@ -198,23 +215,22 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'ID do usuário é obrigatório.' }, { status: 400 });
     }
 
-    // Protege contra exclusão do admin principal se for o único
-    const countAdmins = await prisma.usuario.count({
-      where: { papel: Papel.ADMIN, ativo: true },
+    const countAdmins = await (prisma.usuario as any).count({
+      where: { papel: 'ADMIN', ativo: true },
     });
 
-    const targetUser = await prisma.usuario.findUnique({
+    const targetUser = await (prisma.usuario as any).findUnique({
       where: { id },
     });
 
-    if (targetUser?.papel === Papel.ADMIN && countAdmins <= 1) {
+    if (targetUser?.papel === 'ADMIN' && countAdmins <= 1) {
       return NextResponse.json(
         { success: false, error: 'Não é possível excluir o único administrador ativo do sistema.' },
         { status: 400 }
       );
     }
 
-    await prisma.usuario.delete({
+    await (prisma.usuario as any).delete({
       where: { id },
     });
 
