@@ -58,32 +58,66 @@ export const authOptions: NextAuthOptions = {
         const termo = identifier.trim();
         const termoEmail = termo.toLowerCase();
         const termoUsername = termo.replace(/^@/, '').toUpperCase();
+        const termoCpfLimpo = termo.replace(/\D/g, '');
 
-        // Busca o usuário por email, username ou nome completo
-        let usuario = await prisma.usuario.findFirst({
-          where: {
-            OR: [
-              { email: termoEmail },
-              { username: termoUsername },
-              { nome: termo },
-            ],
-          },
-        });
+        const orConditions: any[] = [
+          { email: termoEmail },
+          { username: termoUsername },
+          { username: termo },
+          { nome: termo },
+        ];
+
+        if (termoCpfLimpo.length >= 9) {
+          orConditions.push({ cpf: termoCpfLimpo });
+          orConditions.push({ cpf: termo });
+        }
+
+        // Busca o usuário por email, username, CPF ou nome completo
+        let usuario: any = null;
+        try {
+          usuario = await (prisma.usuario as any).findFirst({
+            where: {
+              OR: orConditions,
+            },
+          });
+        } catch {
+          try {
+            usuario = await (prisma.usuario as any).findFirst({
+              where: {
+                OR: [
+                  { email: termoEmail },
+                  { username: termoUsername },
+                  { nome: termo },
+                ],
+              },
+            });
+          } catch {}
+        }
 
         if (!usuario) {
-          usuario = await prisma.usuario.findUnique({
+          usuario = await (prisma.usuario as any).findUnique({
             where: { email: termoEmail },
           });
         }
 
         if (!usuario) {
-          usuario = await prisma.usuario.findFirst({
+          usuario = await (prisma.usuario as any).findFirst({
             where: { username: termoUsername },
           });
         }
 
+        if (!usuario && termoCpfLimpo.length >= 9) {
+          try {
+            usuario = await (prisma.usuario as any).findFirst({
+              where: {
+                OR: [{ cpf: termoCpfLimpo }, { cpf: termo }],
+              },
+            });
+          } catch {}
+        }
+
         if (!usuario) {
-          usuario = await prisma.usuario.findFirst({
+          usuario = await (prisma.usuario as any).findFirst({
             where: { nome: termo },
           });
         }
@@ -93,7 +127,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (usuario.ativo === false) {
-          throw new Error('Usuário inativo. Procure o administrador do sistema.');
+          throw new Error('Usuário bloqueado pelo administrador. Acesso não permitido.');
         }
 
         if (!usuario.senhaHash) {
@@ -115,6 +149,7 @@ export const authOptions: NextAuthOptions = {
           name: usuario.nome,
           email: usuario.email,
           username: (usuario as any).username || null,
+          cpf: (usuario as any).cpf || null,
           role: papelBanco,
           papel: papelBanco,
           papeis,

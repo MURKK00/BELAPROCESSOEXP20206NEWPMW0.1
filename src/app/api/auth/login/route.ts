@@ -21,33 +21,73 @@ export async function POST(req: NextRequest) {
     const termo = String(identifier).trim();
     const termoEmail = termo.toLowerCase();
     const termoUsername = termo.replace(/^@/, '').toUpperCase();
+    const termoCpfLimpo = termo.replace(/\D/g, '');
 
-    // Busca o usuário no banco de dados por e-mail, username (@MNUNES ou MNUNES) ou nome completo
-    let usuario = await prisma.usuario.findFirst({
-      where: {
-        OR: [
-          { email: termoEmail },
-          { username: termoUsername },
-          { nome: termo },
-        ],
-      },
-    });
+    const orConditions: any[] = [
+      { email: termoEmail },
+      { username: termoUsername },
+      { username: termo },
+      { nome: termo },
+    ];
+
+    if (termoCpfLimpo.length >= 9) {
+      orConditions.push({ cpf: termoCpfLimpo });
+      orConditions.push({ cpf: termo });
+    }
+
+    // Busca o usuário no banco de dados por e-mail, username (@MNUNES ou MNUNES), CPF ou nome completo
+    let usuario: any = null;
+    try {
+      usuario = await (prisma.usuario as any).findFirst({
+        where: {
+          OR: orConditions,
+        },
+      });
+    } catch (err: any) {
+      console.warn('[API Login] Erro na busca findFirst com OR amplo, tentando formato base:', err?.message);
+      try {
+        usuario = await (prisma.usuario as any).findFirst({
+          where: {
+            OR: [
+              { email: termoEmail },
+              { username: termoUsername },
+              { username: termo },
+              { nome: termo },
+            ],
+          },
+        });
+      } catch (err2: any) {
+        console.warn('[API Login] Erro na busca com OR básico:', err2?.message);
+      }
+    }
 
     // Fallbacks de busca direta
     if (!usuario) {
-      usuario = await prisma.usuario.findUnique({
+      usuario = await (prisma.usuario as any).findUnique({
         where: { email: termoEmail },
       });
     }
 
     if (!usuario) {
-      usuario = await prisma.usuario.findFirst({
+      usuario = await (prisma.usuario as any).findFirst({
         where: { username: termoUsername },
       });
     }
 
+    if (!usuario && termoCpfLimpo.length >= 9) {
+      try {
+        usuario = await (prisma.usuario as any).findFirst({
+          where: {
+            OR: [{ cpf: termoCpfLimpo }, { cpf: termo }],
+          },
+        });
+      } catch {
+        // Coluna cpf ainda não migrada no banco
+      }
+    }
+
     if (!usuario) {
-      usuario = await prisma.usuario.findFirst({
+      usuario = await (prisma.usuario as any).findFirst({
         where: { nome: termo },
       });
     }
@@ -61,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     if (usuario.ativo === false) {
       return NextResponse.json(
-        { success: false, error: 'Usuário inativo. Procure o administrador do sistema.' },
+        { success: false, error: 'Usuário bloqueado pelo administrador. Acesso não permitido.' },
         { status: 403 }
       );
     }
@@ -93,6 +133,7 @@ export async function POST(req: NextRequest) {
           nome: usuario.nome,
           email: usuario.email,
           username: (usuario as any).username || null,
+          cpf: (usuario as any).cpf || null,
         },
         message: 'Primeiro acesso detectado. Por favor, defina a sua nova senha pessoal.',
       });
@@ -113,6 +154,7 @@ export async function POST(req: NextRequest) {
       name: usuario.nome,
       email: usuario.email,
       username: (usuario as any).username || null,
+      cpf: (usuario as any).cpf || null,
       role: papelBanco,
       papel: papelBanco,
       papeis: papeisFinal,

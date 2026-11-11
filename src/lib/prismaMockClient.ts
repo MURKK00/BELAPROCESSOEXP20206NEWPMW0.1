@@ -18,6 +18,14 @@ function matchesWhere(item: any, where?: Record<string, any>): boolean {
       const uVal = String(val || '').replace(/^@/, '').trim().toUpperCase();
       if (uItem !== uVal) return false;
     }
+    if (key === 'cpf') {
+      const cItem = String(item.cpf || '').replace(/\D/g, '');
+      const cVal = String(val || '').replace(/\D/g, '');
+      if (cItem && cVal && cItem !== cVal) return false;
+      if (!cItem || !cVal) {
+        if (item.cpf !== val) return false;
+      }
+    }
     if (key === 'nome' && String(item.nome || '').trim().toLowerCase() !== String(val).trim().toLowerCase()) return false;
     if (key === 'primeiroAcesso' && item.primeiroAcesso !== val) return false;
     if (key === 'processoId' && item.processoId !== val) return false;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hashPassword, verifyPassword } from '@/lib/passwordUtils';
+import { hashPassword, verifyPassword, validarRequisitosSenha } from '@/lib/passwordUtils';
 import { SENHA_PADRAO_NOVO_USUARIO } from '@/lib/userHelper';
 import { getUserPapeis } from '@/lib/permissions';
 
@@ -25,16 +25,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (novaSenha.length < 6) {
+    if (novaSenha.trim() === SENHA_PADRAO_NOVO_USUARIO) {
       return NextResponse.json(
-        { success: false, error: 'A nova senha deve possuir no mínimo 6 caracteres.' },
+        { success: false, error: 'A nova senha não pode ser igual à senha provisória padrão (abc12345). Escolha uma senha pessoal.' },
         { status: 400 }
       );
     }
 
-    if (novaSenha.trim() === SENHA_PADRAO_NOVO_USUARIO) {
+    const validacao = validarRequisitosSenha(novaSenha.trim(), false);
+    if (!validacao.valida) {
       return NextResponse.json(
-        { success: false, error: 'A nova senha não pode ser igual à senha provisória padrão (abc12345). Escolha uma senha pessoal.' },
+        { success: false, error: validacao.erro || 'A senha deve conter no mínimo 6 caracteres, letras, números e caracteres especiais.' },
         { status: 400 }
       );
     }

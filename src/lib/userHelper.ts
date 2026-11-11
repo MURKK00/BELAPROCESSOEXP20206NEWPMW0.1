@@ -1,5 +1,5 @@
 /**
- * Utilitários para gestão de usuários, geração automática de username e controle de primeiro acesso.
+ * Utilitários para gestão de usuários, geração automática de username, CPF e controle de primeiro acesso.
  * 
  * Regra de Negócio:
  * - Padrão de nome de usuário: primeira letra do primeiro nome acompanhada do último sobrenome em maiúsculas.
@@ -66,4 +66,55 @@ export function gerarNomeUsuarioUnico(
   }
 
   return `${base}${contador}`;
+}
+
+/**
+ * Limpa o CPF mantendo apenas dígitos numéricos.
+ */
+export function limparCPF(cpf?: string | null): string {
+  if (!cpf) return '';
+  return String(cpf).replace(/\D/g, '');
+}
+
+/**
+ * Aplica máscara de CPF: 000.000.000-00
+ */
+export function formatarCPF(cpf?: string | null): string {
+  const limpo = limparCPF(cpf);
+  if (!limpo) return '';
+  if (limpo.length <= 3) return limpo;
+  if (limpo.length <= 6) return `${limpo.slice(0, 3)}.${limpo.slice(3)}`;
+  if (limpo.length <= 9) return `${limpo.slice(0, 3)}.${limpo.slice(3, 6)}.${limpo.slice(6)}`;
+  return `${limpo.slice(0, 3)}.${limpo.slice(3, 6)}.${limpo.slice(6, 9)}-${limpo.slice(9, 11)}`;
+}
+
+/**
+ * Validação dos dígitos verificadores do CPF brasileiro.
+ */
+export function validarCPF(cpf?: string | null): boolean {
+  const limpo = limparCPF(cpf);
+  if (!limpo || limpo.length !== 11) return false;
+
+  // Rejeita sequências repetidas (ex: 111.111.111-11)
+  if (/^(\d)\1{10}$/.test(limpo)) return false;
+
+  let soma = 0;
+  let resto;
+
+  for (let i = 1; i <= 9; i++) {
+    soma += parseInt(limpo.substring(i - 1, i), 10) * (11 - i);
+  }
+  resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
+  if (resto !== parseInt(limpo.substring(9, 10), 10)) return false;
+
+  soma = 0;
+  for (let i = 1; i <= 10; i++) {
+    soma += parseInt(limpo.substring(i - 1, i), 10) * (12 - i);
+  }
+  resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
+  if (resto !== parseInt(limpo.substring(10, 11), 10)) return false;
+
+  return true;
 }

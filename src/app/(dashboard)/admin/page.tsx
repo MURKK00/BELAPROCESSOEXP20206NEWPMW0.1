@@ -20,24 +20,35 @@ import {
   CheckCircle2, 
   Power, 
   Lock,
+  Unlock,
   Mail,
   User,
   Shield,
   Check,
   Edit2,
   Info,
-  Activity
+  Activity,
+  Zap,
+  CreditCard
 } from 'lucide-react';
 import { PAPEIS_DISPONIVEIS, Papel, canAccessAdmin } from '@/lib/permissions';
-import { gerarNomeUsuario, SENHA_PADRAO_NOVO_USUARIO } from '@/lib/userHelper';
+import { 
+  gerarNomeUsuario, 
+  SENHA_PADRAO_NOVO_USUARIO, 
+  formatarCPF, 
+  limparCPF, 
+  validarCPF 
+} from '@/lib/userHelper';
+import { validarRequisitosSenha, SENHA_PADRAO_SISTEMA } from '@/lib/passwordUtils';
 import { SessionsManager } from '@/components/admin/SessionsManager';
-
 
 interface UsuarioItem {
   id: string;
   nome: string;
   email: string;
   username?: string | null;
+  cpf?: string | null;
+  cpfRaw?: string | null;
   primeiroAcesso?: boolean;
   papel: string;
   papeis: string[];
@@ -75,16 +86,32 @@ function AdminDashboardContent() {
   const [modalNovoUsuario, setModalNovoUsuario] = useState<boolean>(false);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [usarSenhaPadrao, setUsarSenhaPadrao] = useState<boolean>(true);
+  const [password, setPassword] = useState(SENHA_PADRAO_NOVO_USUARIO);
   const [papeisSelecionados, setPapeisSelecionados] = useState<Papel[]>(['COMERCIAL']);
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
-  // Estados do Modal de Editar Perfis de Usuário Existente
+  // Estados do Modal de Edição Completa de Usuário Existente
+  const [modalEditarUsuario, setModalEditarUsuario] = useState<{
+    id: string;
+    nome: string;
+    email: string;
+    username: string;
+    cpf: string;
+    papeis: Papel[];
+    ativo: boolean;
+  } | null>(null);
+
+  // Estados do Modal de Editar Perfis de Usuário Existente (legado/rápido)
   const [modalEditarPerfis, setModalEditarPerfis] = useState<{ id: string; nome: string; email: string; papeis: Papel[] } | null>(null);
 
   // Estados do Modal de Redefinir Senha
   const [modalResetSenha, setModalResetSenha] = useState<{ id: string; nome: string; email: string } | null>(null);
   const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarNovaSenha, setConfirmarNovaSenha] = useState('');
+  const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
+  const [mostrarConfirmarNovaSenha, setMostrarConfirmarNovaSenha] = useState(false);
 
   const [abaAtiva, setAbaAtiva] = useState<'USUARIOS' | 'SESSOES' | 'BANCO'>('USUARIOS');
 
@@ -209,19 +236,35 @@ async function carregarPainel() {
     }
   }
 
-  // Criação de novo usuário com múltiplos perfis
+  // Criação de novo usuário com múltiplos perfis e CPF
   async function handleCriarUsuario(e: React.FormEvent) {
     e.preventDefault();
     setMensagemErro(null);
     setMensagemSucesso(null);
 
-    if (!nome || !email || !password) {
-      setMensagemErro('Preencha todos os campos obrigatórios.');
+    if (!nome.trim() || !email.trim()) {
+      setMensagemErro('Preencha o nome completo e o e-mail corporativo.');
       return;
     }
 
     if (papeisSelecionados.length === 0) {
       setMensagemErro('Selecione ao menos um perfil de acesso.');
+      return;
+    }
+
+    const senhaParaCriar = usarSenhaPadrao ? SENHA_PADRAO_NOVO_USUARIO : password.trim();
+
+    if (!usarSenhaPadrao) {
+      const validacao = validarRequisitosSenha(senhaParaCriar, false);
+      if (!validacao.valida) {
+        setMensagemErro(validacao.erro || 'A senha deve conter no mínimo 6 caracteres, letras, números e caracteres especiais.');
+        return;
+      }
+    }
+
+    const cpfLimpo = cpf.trim() ? limparCPF(cpf) : '';
+    if (cpfLimpo && !validarCPF(cpfLimpo)) {
+      setMensagemErro('CPF inválido. Verifique os 11 dígitos digitados.');
       return;
     }
 
@@ -235,8 +278,9 @@ async function carregarPainel() {
         body: JSON.stringify({
           nome: nome.trim(),
           email: email.trim().toLowerCase(),
+          cpf: cpfLimpo || undefined,
           username: usernameGerado,
-          password,
+          password: senhaParaCriar,
           papeis: papeisSelecionados,
           papel: papeisSelecionados[0],
         }),
@@ -245,13 +289,13 @@ async function carregarPainel() {
       const data = await res.json();
 
       if (data.success) {
-        // Garante que o objeto tenha todos os campos exigidos pela tabela
         const novoUsuario: UsuarioItem = {
           id: data.usuario?.id || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
           nome: data.usuario?.nome || nome.trim(),
           email: data.usuario?.email || email.trim().toLowerCase(),
           username: data.usuario?.username || usernameGerado,
-          primeiroAcesso: data.usuario?.primeiroAcesso ?? true,
+          cpf: data.usuario?.cpf || (cpfLimpo ? formatarCPF(cpfLimpo) : null),
+          primeiroAcesso: true,
           papel: data.usuario?.papel || papeisSelecionados[0],
           papeis: Array.isArray(data.usuario?.papeis) && data.usuario.papeis.length > 0
             ? data.usuario.papeis
@@ -260,7 +304,6 @@ async function carregarPainel() {
           criadoEm: data.usuario?.criadoEm || new Date().toISOString(),
         };
 
-        // 1. Atualiza imediatamente a tabela na tela!
         setUsuarios((prev) => {
           const filtrada = prev.filter(
             (u) => u.id !== novoUsuario.id && u.email.toLowerCase() !== novoUsuario.email.toLowerCase()
@@ -272,14 +315,15 @@ async function carregarPainel() {
           return atualizada;
         });
 
-        setMensagemSucesso(`Usuário ${novoUsuario.nome} cadastrado com perfis: [${papeisSelecionados.join(' + ')}]! Login: @${novoUsuario.username || usernameGerado}`);
+        setMensagemSucesso(`Usuário ${novoUsuario.nome} cadastrado com sucesso! Login: @${novoUsuario.username || usernameGerado} (Senha padrão: abc12345).`);
         setModalNovoUsuario(false);
         setNome('');
         setEmail('');
-        setPassword('');
+        setCpf('');
+        setPassword(SENHA_PADRAO_NOVO_USUARIO);
+        setUsarSenhaPadrao(true);
         setPapeisSelecionados(['COMERCIAL']);
 
-        // Recarrega os dados do painel do backend para sincronização imediata
         await carregarPainel();
       } else {
         setMensagemErro(data.error || 'Não foi possível cadastrar o usuário.');
@@ -291,8 +335,83 @@ async function carregarPainel() {
     }
   }
 
-  // Salvar edição de múltiplos perfis de usuário existente
-  // Salvar edição de múltiplos perfis de usuário existente
+  // Salvar edição completa de dados do usuário
+  async function handleSalvarEdicaoUsuario(e: React.FormEvent) {
+    e.preventDefault();
+    if (!modalEditarUsuario) return;
+
+    if (!modalEditarUsuario.nome.trim() || !modalEditarUsuario.email.trim()) {
+      setMensagemErro('Nome e e-mail são obrigatórios.');
+      return;
+    }
+
+    if (modalEditarUsuario.papeis.length === 0) {
+      setMensagemErro('O usuário deve possuir ao menos 1 perfil ativo.');
+      return;
+    }
+
+    const cpfLimpo = modalEditarUsuario.cpf.trim() ? limparCPF(modalEditarUsuario.cpf) : '';
+    if (cpfLimpo && !validarCPF(cpfLimpo)) {
+      setMensagemErro('CPF inválido.');
+      return;
+    }
+
+    setExecutandoAcao(true);
+    setMensagemErro(null);
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: modalEditarUsuario.id,
+          nome: modalEditarUsuario.nome.trim(),
+          email: modalEditarUsuario.email.trim().toLowerCase(),
+          username: modalEditarUsuario.username.trim() || undefined,
+          cpf: cpfLimpo || null,
+          papeis: modalEditarUsuario.papeis,
+          papel: modalEditarUsuario.papeis[0],
+          ativo: modalEditarUsuario.ativo,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setUsuarios((prev) => {
+          const atualizada = prev.map((u) =>
+            u.id === modalEditarUsuario.id
+              ? {
+                  ...u,
+                  nome: modalEditarUsuario.nome.trim(),
+                  email: modalEditarUsuario.email.trim().toLowerCase(),
+                  username: modalEditarUsuario.username.trim() || u.username,
+                  cpf: cpfLimpo ? formatarCPF(cpfLimpo) : null,
+                  papeis: modalEditarUsuario.papeis,
+                  papel: modalEditarUsuario.papeis[0],
+                  ativo: modalEditarUsuario.ativo,
+                }
+              : u
+          );
+          try {
+            localStorage.setItem('bela_usuarios_custom', JSON.stringify(atualizada));
+          } catch {}
+          return atualizada;
+        });
+
+        setMensagemSucesso(`Dados do usuário ${modalEditarUsuario.nome} atualizados com sucesso!`);
+        setModalEditarUsuario(null);
+        await carregarPainel();
+      } else {
+        setMensagemErro(data.error || 'Erro ao atualizar dados do usuário.');
+      }
+    } catch (err: any) {
+      setMensagemErro('Falha de conexão ao salvar alterações.');
+    } finally {
+      setExecutandoAcao(false);
+    }
+  }
+
+  // Salvar edição rápida de múltiplos perfis
   async function handleSalvarPerfisUsuario(e: React.FormEvent) {
     e.preventDefault();
     if (!modalEditarPerfis) return;
@@ -329,7 +448,7 @@ async function carregarPainel() {
           } catch {}
           return atualizada;
         });
-        setMensagemSucesso(`Perfis de ${modalEditarPerfis.nome} atualizados: [${modalEditarPerfis.papeis.join(' + ')}]!`);
+        setMensagemSucesso(`Perfis de ${modalEditarPerfis.nome} atualizados com sucesso!`);
         setModalEditarPerfis(null);
       } else {
         setMensagemErro(data.error || 'Erro ao atualizar perfis.');
@@ -341,29 +460,14 @@ async function carregarPainel() {
     }
   }
 
-  // Alterna status ativo do usuário
-  async function toggleStatusUsuario(id: string, ativoAtual: boolean) {
-    try {
-      const res = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, ativo: !ativoAtual }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setUsuarios((prev) =>
-          prev.map((u) => (u.id === id ? { ...u, ativo: !ativoAtual } : u))
-        );
-      }
-    } catch (err) {
-      console.error('Erro ao alternar status do usuário:', err);
-    }
-  }
+  // Alterna status de Bloqueio do usuário (Impede login imediatamente)
+  async function handleToggleBloqueioUsuario(user: UsuarioItem) {
+    const acaoBloquear = user.ativo;
+    const confirmMsg = acaoBloquear
+      ? `Tem certeza que deseja BLOQUEAR o usuário "${user.nome}"? Ele não conseguirá mais efetuar login no sistema.`
+      : `Deseja DESBLOQUEAR o usuário "${user.nome}" para restabelecer o acesso ao sistema?`;
 
-  // Redefinir senha de usuário
-  async function handleRedefinirSenha(e: React.FormEvent) {
-    e.preventDefault();
-    if (!modalResetSenha || !novaSenha) return;
+    if (!confirm(confirmMsg)) return;
 
     setExecutandoAcao(true);
     setMensagemErro(null);
@@ -372,19 +476,122 @@ async function carregarPainel() {
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: modalResetSenha.id, novaSenha }),
+        body: JSON.stringify({ id: user.id, ativo: !user.ativo }),
       });
       const data = await res.json();
-
       if (data.success) {
-        setMensagemSucesso(`Senha de ${modalResetSenha.nome} atualizada com sucesso!`);
+        const novoStatus = !user.ativo;
+        setUsuarios((prev) => {
+          const atualizada = prev.map((u) => (u.id === user.id ? { ...u, ativo: novoStatus } : u));
+          try {
+            localStorage.setItem('bela_usuarios_custom', JSON.stringify(atualizada));
+          } catch {}
+          return atualizada;
+        });
+        setMensagemSucesso(
+          novoStatus
+            ? `Usuário "${user.nome}" DESBLOQUEADO com sucesso! Acesso liberado.`
+            : `Usuário "${user.nome}" BLOQUEADO com sucesso. Acesso ao login suspenso.`
+        );
+      } else {
+        setMensagemErro(data.error || 'Erro ao alterar bloqueio do usuário.');
+      }
+    } catch (err) {
+      setMensagemErro('Falha ao comunicar com o servidor.');
+    } finally {
+      setExecutandoAcao(false);
+    }
+  }
+
+  // Redefinir para a senha padrão 'abc12345' (ativa primeiroAcesso = true)
+  async function handleResetParaPadrao() {
+    if (!modalResetSenha) return;
+    setExecutandoAcao(true);
+    setMensagemErro(null);
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: modalResetSenha.id, resetarParaPadrao: true }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUsuarios((prev) => {
+          const atualizada = prev.map((u) =>
+            u.id === modalResetSenha.id ? { ...u, primeiroAcesso: true } : u
+          );
+          try {
+            localStorage.setItem('bela_usuarios_custom', JSON.stringify(atualizada));
+          } catch {}
+          return atualizada;
+        });
+        setMensagemSucesso(
+          `Senha de ${modalResetSenha.nome} alterada para a padrão (abc12345). No próximo login, o usuário deverá definir sua nova senha pessoal.`
+        );
         setModalResetSenha(null);
         setNovaSenha('');
+        setConfirmarNovaSenha('');
+      } else {
+        setMensagemErro(data.error || 'Erro ao redefinir para a senha padrão.');
+      }
+    } catch (err: any) {
+      setMensagemErro('Falha ao redefinir para a senha padrão.');
+    } finally {
+      setExecutandoAcao(false);
+    }
+  }
+
+  // Salvar nova senha personalizada com validação estrita de requisitos
+  async function handleSalvarNovaSenhaPersonalizada(e: React.FormEvent) {
+    e.preventDefault();
+    if (!modalResetSenha) return;
+
+    if (!novaSenha || !confirmarNovaSenha) {
+      setMensagemErro('Preencha a nova senha e a confirmação.');
+      return;
+    }
+
+    if (novaSenha !== confirmarNovaSenha) {
+      setMensagemErro('A nova senha e a confirmação não coincidem.');
+      return;
+    }
+
+    const validacao = validarRequisitosSenha(novaSenha.trim(), false);
+    if (!validacao.valida) {
+      setMensagemErro(validacao.erro || 'A senha deve conter no mínimo 6 caracteres, letras, números e caracteres especiais.');
+      return;
+    }
+
+    setExecutandoAcao(true);
+    setMensagemErro(null);
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: modalResetSenha.id, novaSenha: novaSenha.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUsuarios((prev) => {
+          const atualizada = prev.map((u) =>
+            u.id === modalResetSenha.id ? { ...u, primeiroAcesso: false } : u
+          );
+          try {
+            localStorage.setItem('bela_usuarios_custom', JSON.stringify(atualizada));
+          } catch {}
+          return atualizada;
+        });
+        setMensagemSucesso(`Nova senha para ${modalResetSenha.nome} salva com sucesso!`);
+        setModalResetSenha(null);
+        setNovaSenha('');
+        setConfirmarNovaSenha('');
       } else {
         setMensagemErro(data.error || 'Erro ao atualizar senha.');
       }
     } catch (err: any) {
-      setMensagemErro('Falha ao redefinir senha.');
+      setMensagemErro('Falha ao salvar nova senha.');
     } finally {
       setExecutandoAcao(false);
     }
@@ -778,10 +985,10 @@ async function carregarPainel() {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="py-3.5 px-4">Nome &amp; Usuário de Login</th>
+                <th className="py-3.5 px-4">Nome &amp; Usuário / CPF</th>
                 <th className="py-3.5 px-4">E-mail Corporativo</th>
                 <th className="py-3.5 px-4">Perfis de Acesso (Cargos)</th>
-                <th className="py-3.5 px-4">Status &amp; Acesso</th>
+                <th className="py-3.5 px-4">Status &amp; Bloqueio</th>
                 <th className="py-3.5 px-4">Data Cadastro</th>
                 <th className="py-3.5 px-4 text-right">Ações</th>
               </tr>
@@ -796,12 +1003,16 @@ async function carregarPainel() {
                   <tr key={user.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-black text-xs flex items-center justify-center shrink-0">
+                        <div className={`w-8 h-8 rounded-full font-black text-xs flex items-center justify-center shrink-0 ${
+                          user.ativo 
+                            ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200' 
+                            : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
+                        }`}>
                           {(user.nome || user.email)[0].toUpperCase()}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900 dark:text-white">
+                            <span className={`font-bold ${user.ativo ? 'text-slate-900 dark:text-white' : 'text-slate-500 line-through'}`}>
                               {user.nome || 'Sem nome'}
                             </span>
                             {user.username && (
@@ -810,9 +1021,14 @@ async function carregarPainel() {
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-slate-400">
-                            ID: {user.id}
-                          </span>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                            <span className="flex items-center gap-1">
+                              <CreditCard className="w-3 h-3 text-slate-400" />
+                              CPF: {user.cpf || 'Não informado'}
+                            </span>
+                            <span>•</span>
+                            <span>ID: {user.id}</span>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -838,19 +1054,39 @@ async function carregarPainel() {
                     </td>
                     <td className="py-3.5 px-4">
                       <div className="flex flex-col gap-1 items-start">
-                        <button
-                          type="button"
-                          onClick={() => toggleStatusUsuario(user.id, user.ativo)}
-                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
-                            user.ativo
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-                          }`}
-                          title="Clique para alternar o status do usuário"
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${user.ativo ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                          <span>{user.ativo ? 'Ativo' : 'Inativo'}</span>
-                        </button>
+                        {user.ativo ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>Ativo</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleBloqueioUsuario(user)}
+                              className="text-[10px] text-rose-600 hover:text-rose-700 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                              title="Bloquear usuário (impede login)"
+                            >
+                              <Lock className="w-3 h-3" />
+                              <span>Bloquear</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
+                              <Lock className="w-3 h-3" />
+                              <span>Bloqueado</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleBloqueioUsuario(user)}
+                              className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                              title="Desbloquear acesso do usuário"
+                            >
+                              <Unlock className="w-3 h-3" />
+                              <span>Desbloquear</span>
+                            </button>
+                          </div>
+                        )}
                         {user.primeiroAcesso && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-900" title="Aguardando usuário definir nova senha no 1º login">
                             1º Acesso Pendente
@@ -865,30 +1101,49 @@ async function carregarPainel() {
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setModalEditarPerfis({
+                          onClick={() => setModalEditarUsuario({
                             id: user.id,
                             nome: user.nome,
                             email: user.email,
+                            username: user.username || '',
+                            cpf: user.cpf || '',
                             papeis: (userPapeis as Papel[]),
+                            ativo: user.ativo,
                           })}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                          title="Gerenciar perfis de acesso deste usuário"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                          title="Editar dados completos do usuário (Nome, E-mail, Username, CPF, Perfis)"
                         >
-                          <Shield className="w-3.5 h-3.5" />
+                          <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => setModalResetSenha(user)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                          title="Redefinir senha"
+                          onClick={() => {
+                            setModalResetSenha(user);
+                            setNovaSenha('');
+                            setConfirmarNovaSenha('');
+                          }}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                          title="Redefinir Senha (Mudar para padrão abc12345 ou digitar nova)"
                         >
                           <KeyRound className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
+                          onClick={() => handleToggleBloqueioUsuario(user)}
+                          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                            user.ativo
+                              ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50 border-slate-200 dark:border-slate-700'
+                              : 'text-rose-600 hover:text-emerald-600 hover:bg-emerald-50 border-rose-200 dark:border-rose-800'
+                          }`}
+                          title={user.ativo ? "Bloquear usuário" : "Desbloquear usuário"}
+                        >
+                          {user.ativo ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleExcluirUsuario(user.id, user.nome)}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                          title="Excluir usuário"
+                          title="Excluir usuário permanentemente"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -903,7 +1158,7 @@ async function carregarPainel() {
       </div>
       )}
 
-      {/* MODAL 1: CADASTRAR NOVO USUÁRIO COM MULTIPERFIS */}
+      {/* MODAL 1: CADASTRAR NOVO USUÁRIO COM CPF & MULTIPERFIS */}
       {isMounted && modalNovoUsuario && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs animate-fadeIn overflow-hidden">
           <div className="bg-white dark:bg-[#0f172a] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden relative animate-scaleUp">
@@ -917,7 +1172,7 @@ async function carregarPainel() {
                   <h3 className="text-base font-black text-slate-900 dark:text-white">
                     Novo Usuário do Sistema
                   </h3>
-                  <p className="text-xs text-slate-500">Crie login, senha e selecione os perfis de acesso combinados.</p>
+                  <p className="text-xs text-slate-500">Cadastre nome, CPF, login e selecione os perfis de acesso.</p>
                 </div>
               </div>
               <button
@@ -935,7 +1190,7 @@ async function carregarPainel() {
               <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Nome Completo
+                    Nome Completo *
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -955,7 +1210,7 @@ async function carregarPainel() {
                 {/* Box de Preview do Nome de Usuário (Login) */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Nome de Usuário (Login)
+                    Nome de Usuário (Login Automático)
                   </label>
                   <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-1.5">
@@ -970,9 +1225,29 @@ async function carregarPainel() {
                   </div>
                 </div>
 
+                {/* Campo de CPF */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    E-mail de Login
+                    CPF (Cadastro de Pessoa Física)
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      maxLength={14}
+                      placeholder="000.000.000-00"
+                      value={cpf}
+                      onChange={(e) => setCpf(formatarCPF(e.target.value))}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    E-mail de Login *
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -981,7 +1256,7 @@ async function carregarPainel() {
                     <input
                       type="email"
                       required
-                      placeholder="carlos.santos@belacereais.com.br"
+                      placeholder="exemplo@belacereais.com.br"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
@@ -989,46 +1264,110 @@ async function carregarPainel() {
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
+                {/* Bloco de Configuração de Senha */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="flex items-center justify-between">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Senha Provisória Inicial
+                      Senha Inicial de Acesso
                     </label>
+                    <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
+                      {usarSenhaPadrao ? 'Padrão abc12345' : 'Personalizada'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => setPassword(SENHA_PADRAO_NOVO_USUARIO)}
-                      className="text-[10px] text-orange-600 dark:text-orange-400 font-bold hover:underline cursor-pointer"
+                      onClick={() => {
+                        setUsarSenhaPadrao(true);
+                        setPassword(SENHA_PADRAO_NOVO_USUARIO);
+                      }}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+                        usarSenhaPadrao 
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm' 
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
                     >
-                      Usar padrão (abc12345)
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Senha Padrão (abc12345)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUsarSenhaPadrao(false);
+                        setPassword('');
+                      }}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
+                        !usarSenhaPadrao 
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm' 
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Senha Personalizada</span>
                     </button>
                   </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <Lock className="w-4 h-4" />
+
+                  {usarSenhaPadrao ? (
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                      O usuário receberá a senha inicial <strong>abc12345</strong> e, ao fazer login pela primeira vez, o sistema exigirá obrigatoriamente a criação da sua senha definitiva (digitada 2 vezes).
+                    </p>
+                  ) : (
+                    <div className="space-y-2 pt-1">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <input
+                          type={mostrarSenha ? 'text' : 'password'}
+                          required={!usarSenhaPadrao}
+                          placeholder="Digite a nova senha forte"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full pl-9 pr-10 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setMostrarSenha(!mostrarSenha)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          {mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+
+                      {/* Checklist dinâmico de requisitos de senha */}
+                      <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1 text-[10px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className={password.length >= 6 ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                            {password.length >= 6 ? '✓' : '○'} Mínimo 6 caracteres no total
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={/[a-zA-Z]/.test(password) ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                            {/[a-zA-Z]/.test(password) ? '✓' : '○'} Pelo menos uma letra (a-z ou A-Z)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={/[0-9]/.test(password) ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                            {/[0-9]/.test(password) ? '✓' : '○'} Pelo menos um número (0-9)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={/[^a-zA-Z0-9\s]/.test(password) ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                            {/[^a-zA-Z0-9\s]/.test(password) ? '✓' : '○'} Caractere especial (ex: @, #, $, !, %, &)
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <input
-                      type={mostrarSenha ? 'text' : 'password'}
-                      required
-                      placeholder="abc12345"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-9 pr-10 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setMostrarSenha(!mostrarSenha)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
-                    >
-                      {mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+                  )}
                 </div>
 
                 {/* SELETOR MULTI-PERFIS */}
                 <div className="pt-1">
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Perfis de Acesso (Selecione 1 ou mais)
+                      Perfis de Acesso (Selecione 1 ou mais) *
                     </label>
                     <span className="text-[10px] font-bold text-slate-400">
                       {papeisSelecionados.length} selecionado(s)
@@ -1130,24 +1469,26 @@ async function carregarPainel() {
         document.body
       )}
 
-      {/* MODAL 2: EDITAR PERFIS DE USUÁRIO EXISTENTE */}
-      {isMounted && modalEditarPerfis && createPortal(
+      {/* MODAL 2: EDITAR DADOS COMPLETOS DO USUÁRIO (NOME, EMAIL, USERNAME, CPF, PERFIS, STATUS) */}
+      {isMounted && modalEditarUsuario && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs animate-fadeIn overflow-hidden">
           <div className="bg-white dark:bg-[#0f172a] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden relative animate-scaleUp">
-            {/* Header fixo no topo */}
+            {/* Header fixo */}
             <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-[#0f172a]">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-orange-500" />
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                  <Edit2 className="w-5 h-5" />
+                </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                    Gerenciar Perfis de Acesso
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Editar Cadastro do Usuário
                   </h3>
-                  <p className="text-xs text-slate-500">{modalEditarPerfis.nome} ({modalEditarPerfis.email})</p>
+                  <p className="text-xs text-slate-500">Altere nome, e-mail, username, CPF, perfis e status de acesso.</p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setModalEditarPerfis(null)}
+                onClick={() => setModalEditarUsuario(null)}
                 className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer text-sm font-bold transition-colors"
                 title="Fechar"
               >
@@ -1155,71 +1496,158 @@ async function carregarPainel() {
               </button>
             </div>
 
-            {/* Formulário com corpo rolável e rodapé fixo */}
-            <form onSubmit={handleSalvarPerfisUsuario} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-5 space-y-2">
-                {PAPEIS_DISPONIVEIS.map((p) => {
-                  const isSelected = modalEditarPerfis.papeis.includes(p.id);
-                  return (
-                    <div
-                      key={p.id}
-                      onClick={() => {
-                        const current = modalEditarPerfis.papeis;
-                        let next: Papel[];
-                        if (current.includes(p.id)) {
-                          if (current.length === 1) return;
-                          next = current.filter((x) => x !== p.id);
-                        } else {
-                          next = [...current, p.id];
-                        }
-                        setModalEditarPerfis({ ...modalEditarPerfis, papeis: next });
-                      }}
-                      className={`p-3 rounded-2xl border text-xs cursor-pointer transition-all flex items-start gap-2.5 ${
-                        isSelected
-                          ? 'bg-orange-500/5 dark:bg-orange-500/10 border-orange-500/40 shadow-2xs'
-                          : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/80 hover:border-slate-300'
-                      }`}
-                    >
-                      <div
-                        className={`w-4 h-4 rounded-md mt-0.5 flex items-center justify-center border shrink-0 transition-colors ${
-                          isSelected
-                            ? 'bg-orange-500 border-orange-500 text-white'
-                            : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
-                        }`}
-                      >
-                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 dark:text-white">{p.label}</span>
-                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider border ${p.badgeClass}`}>
-                            {p.id}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-                          {p.desc}
-                        </p>
-                      </div>
+            {/* Formulário com corpo rolável */}
+            <form onSubmit={handleSalvarEdicaoUsuario} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Nome Completo *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={modalEditarUsuario.nome}
+                    onChange={(e) => setModalEditarUsuario({ ...modalEditarUsuario, nome: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                      Nome de Usuário (@Username)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-mono text-xs font-bold select-none">@</span>
+                      <input
+                        type="text"
+                        value={modalEditarUsuario.username}
+                        onChange={(e) => setModalEditarUsuario({ ...modalEditarUsuario, username: e.target.value.replace(/^@/, '').toUpperCase() })}
+                        className="w-full pl-7 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
+                      />
                     </div>
-                  );
-                })}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                      CPF
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={14}
+                      placeholder="000.000.000-00"
+                      value={modalEditarUsuario.cpf}
+                      onChange={(e) => setModalEditarUsuario({ ...modalEditarUsuario, cpf: formatarCPF(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    E-mail de Login *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={modalEditarUsuario.email}
+                    onChange={(e) => setModalEditarUsuario({ ...modalEditarUsuario, email: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 outline-none"
+                  />
+                </div>
+
+                {/* Status da Conta: Ativo ou Bloqueado */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">Status de Acesso</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {modalEditarUsuario.ativo ? 'Usuário ativo (pode fazer login normalmente)' : 'Usuário bloqueado (login terminantemente impedido)'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setModalEditarUsuario({ ...modalEditarUsuario, ativo: !modalEditarUsuario.ativo })}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      modalEditarUsuario.ativo
+                        ? 'bg-emerald-500 text-white shadow-sm'
+                        : 'bg-rose-500 text-white shadow-sm'
+                    }`}
+                  >
+                    {modalEditarUsuario.ativo ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                    <span>{modalEditarUsuario.ativo ? 'Ativo' : 'Bloqueado'}</span>
+                  </button>
+                </div>
+
+                {/* Perfis de Acesso */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+                    Perfis de Acesso (Cargos) *
+                  </label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {PAPEIS_DISPONIVEIS.map((p) => {
+                      const isSelected = modalEditarUsuario.papeis.includes(p.id);
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => {
+                            const current = modalEditarUsuario.papeis;
+                            let next: Papel[];
+                            if (current.includes(p.id)) {
+                              if (current.length === 1) return;
+                              next = current.filter((x) => x !== p.id);
+                            } else {
+                              next = [...current, p.id];
+                            }
+                            setModalEditarUsuario({ ...modalEditarUsuario, papeis: next });
+                          }}
+                          className={`p-2.5 rounded-2xl border text-xs cursor-pointer transition-all flex items-start gap-2.5 ${
+                            isSelected
+                              ? 'bg-orange-500/5 dark:bg-orange-500/10 border-orange-500/40 shadow-2xs'
+                              : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/80 hover:border-slate-300'
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-md mt-0.5 flex items-center justify-center border shrink-0 transition-colors ${
+                              isSelected
+                                ? 'bg-orange-500 border-orange-500 text-white'
+                                : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 dark:text-white">{p.label}</span>
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider border ${p.badgeClass}`}>
+                                {p.id}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                              {p.desc}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               {/* Rodapé fixo */}
               <div className="p-4 flex items-center justify-end gap-2 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setModalEditarPerfis(null)}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                  onClick={() => setModalEditarUsuario(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 cursor-pointer transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={executandoAcao}
-                  className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white text-xs font-bold transition-all shadow-md shadow-orange-500/20 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white text-xs font-bold transition-all shadow-md shadow-orange-500/20 cursor-pointer disabled:opacity-50"
                 >
-                  Salvar Perfis
+                  Salvar Alterações
                 </button>
               </div>
             </form>
@@ -1228,15 +1656,15 @@ async function carregarPainel() {
         document.body
       )}
 
-      {/* MODAL 3: REDEFINIR SENHA */}
+      {/* MODAL 3: REDEFINIR SENHA COM BOTÃO DE SENHA PADRÃO (abc12345) & SENHA PERSONALIZADA */}
       {isMounted && modalResetSenha && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs animate-fadeIn overflow-hidden">
-          <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-7 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-sm w-full max-h-[90vh] overflow-y-auto relative animate-scaleUp">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
+          <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-7 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto relative animate-scaleUp space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-orange-500" />
-                <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                  Redefinir Senha
+                <KeyRound className="w-5 h-5 text-orange-500" />
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Redefinir Senha de Acesso
                 </h3>
               </div>
               <button
@@ -1249,19 +1677,114 @@ async function carregarPainel() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-              Informe a nova senha para <strong className="text-slate-800 dark:text-slate-200">{modalResetSenha.nome}</strong> ({modalResetSenha.email}):
-            </p>
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs">
+              <span className="text-slate-500 dark:text-slate-400 block text-[10px] uppercase font-bold">Usuário Selecionado</span>
+              <strong className="text-slate-900 dark:text-white block mt-0.5 text-sm">{modalResetSenha.nome}</strong>
+              <span className="text-slate-500 font-mono text-[11px]">{modalResetSenha.email}</span>
+            </div>
 
-            <form onSubmit={handleRedefinirSenha} className="space-y-4">
-              <input
-                type="password"
-                required
-                placeholder="Nova senha (mínimo 6 dígitos)"
-                value={novaSenha}
-                onChange={(e) => setNovaSenha(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 outline-none"
-              />
+            {/* OPÇÃO 1 EM DESTAQUE: MUDAR PARA SENHA PADRÃO (abc12345) */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-transparent border border-orange-500/30 space-y-2.5">
+              <div className="flex items-center gap-2 text-orange-700 dark:text-orange-400 font-black text-xs uppercase tracking-wider">
+                <Zap className="w-4 h-4 text-orange-500" />
+                <span>Opção Rápida Recomendada</span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
+                Redefine imediatamente a senha para <strong>abc12345</strong>. No próximo login, o usuário será forçado a definir uma nova senha pessoal confirmando 2 vezes.
+              </p>
+              <button
+                type="button"
+                onClick={handleResetParaPadrao}
+                disabled={executandoAcao}
+                className="w-full py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-black text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/20 cursor-pointer disabled:opacity-50"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>Mudar para Senha Padrão (abc12345)</span>
+              </button>
+            </div>
+
+            {/* DIVISOR */}
+            <div className="relative flex items-center justify-center">
+              <div className="border-t border-slate-200 dark:border-slate-700 w-full" />
+              <span className="bg-white dark:bg-[#0f172a] px-3 text-[10px] uppercase font-bold text-slate-400 tracking-wider shrink-0">
+                Ou Digite uma Nova Senha Manual
+              </span>
+            </div>
+
+            {/* OPÇÃO 2: FORMULÁRIO DE NOVA SENHA PERSONALIZADA COM CHECKLIST ESTREITO */}
+            <form onSubmit={handleSalvarNovaSenhaPersonalizada} className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                  Nova Senha Personalizada
+                </label>
+                <div className="relative">
+                  <input
+                    type={mostrarNovaSenha ? 'text' : 'password'}
+                    placeholder="Digite a nova senha forte"
+                    value={novaSenha}
+                    onChange={(e) => setNovaSenha(e.target.value)}
+                    className="w-full pl-3 pr-10 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarNovaSenha(!mostrarNovaSenha)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {mostrarNovaSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                  Confirme a Nova Senha (2ª vez)
+                </label>
+                <div className="relative">
+                  <input
+                    type={mostrarConfirmarNovaSenha ? 'text' : 'password'}
+                    placeholder="Repita a nova senha"
+                    value={confirmarNovaSenha}
+                    onChange={(e) => setConfirmarNovaSenha(e.target.value)}
+                    className="w-full pl-3 pr-10 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:ring-2 focus:ring-orange-500/30 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarConfirmarNovaSenha(!mostrarConfirmarNovaSenha)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {mostrarConfirmarNovaSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Checklist dinâmico de senha forte */}
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1 text-[10px]">
+                <div className="flex items-center gap-1.5">
+                  <span className={novaSenha.length >= 6 ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                    {novaSenha.length >= 6 ? '✓' : '○'} Mínimo 6 caracteres no total
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={/[a-zA-Z]/.test(novaSenha) ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                    {/[a-zA-Z]/.test(novaSenha) ? '✓' : '○'} Contém letras (a-z, A-Z)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={/[0-9]/.test(novaSenha) ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                    {/[0-9]/.test(novaSenha) ? '✓' : '○'} Contém números (0-9)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={/[^a-zA-Z0-9\s]/.test(novaSenha) ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                    {/[^a-zA-Z0-9\s]/.test(novaSenha) ? '✓' : '○'} Contém caractere especial (ex: @, #, $, !, %, &)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={novaSenha.length > 0 && novaSenha === confirmarNovaSenha ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                    {novaSenha.length > 0 && novaSenha === confirmarNovaSenha ? '✓' : '○'} Senhas coincidem
+                  </span>
+                </div>
+              </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
@@ -1273,10 +1796,17 @@ async function carregarPainel() {
                 </button>
                 <button
                   type="submit"
-                  disabled={executandoAcao}
-                  className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold cursor-pointer disabled:opacity-50"
+                  disabled={
+                    executandoAcao || 
+                    novaSenha.length < 6 || 
+                    novaSenha !== confirmarNovaSenha ||
+                    !/[a-zA-Z]/.test(novaSenha) ||
+                    !/[0-9]/.test(novaSenha) ||
+                    !/[^a-zA-Z0-9\s]/.test(novaSenha)
+                  }
+                  className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold cursor-pointer disabled:opacity-50 transition-all shadow-md shadow-orange-500/20"
                 >
-                  Salvar Nova Senha
+                  {executandoAcao ? 'Salvando...' : 'Salvar Nova Senha'}
                 </button>
               </div>
             </form>

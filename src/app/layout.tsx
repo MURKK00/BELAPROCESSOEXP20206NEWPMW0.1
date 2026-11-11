@@ -9,11 +9,14 @@ export const metadata: Metadata = {
   description: 'PEX Agritech | Inteligência em Exportação - Plataforma de inteligência e gestão operacional de exportações agrícolas.',
   icons: {
     icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/pex-favicon.png', type: 'image/png' },
       { url: '/pex-favicon.svg', type: 'image/svg+xml' },
-      { url: '/pex-logo.png', type: 'image/png' },
+      { url: '/text1.png', type: 'image/png' },
     ],
-    shortcut: '/pex-favicon.svg',
-    apple: '/pex-logo.png',
+    shortcut: '/favicon.ico',
+    apple: '/pex-favicon.png',
   },
 };
 

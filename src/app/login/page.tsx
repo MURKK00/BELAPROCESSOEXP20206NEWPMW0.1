@@ -60,9 +60,13 @@ function LoginForm() {
 
   // Validações em tempo real para o primeiro acesso
   const temSeisCaracteres = novaSenha.length >= 6;
+  const temLetra = /[a-zA-Z]/.test(novaSenha);
+  const temNumero = /[0-9]/.test(novaSenha);
+  const temEspecial = /[^a-zA-Z0-9\s]/.test(novaSenha);
   const senhasIguais = novaSenha.length > 0 && novaSenha === confirmacaoSenha;
   const diferentePadrao = novaSenha.trim() !== SENHA_PADRAO_NOVO_USUARIO;
-  const formularioPrimeiroAcessoValido = temSeisCaracteres && senhasIguais && diferentePadrao;
+  const formularioPrimeiroAcessoValido = 
+    temSeisCaracteres && temLetra && temNumero && temEspecial && senhasIguais && diferentePadrao;
 
   // Submissão do login inicial
   async function handleSubmit(e: React.FormEvent) {
@@ -459,6 +463,39 @@ function LoginForm() {
                 )}
                 <span className={temSeisCaracteres ? 'text-emerald-700 dark:text-emerald-300 font-bold' : 'text-slate-500'}>
                   Mínimo de 6 caracteres
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {temLetra ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 shrink-0" />
+                )}
+                <span className={temLetra ? 'text-emerald-700 dark:text-emerald-300 font-bold' : 'text-slate-500'}>
+                  Contém ao menos uma letra (A-Z)
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {temNumero ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 shrink-0" />
+                )}
+                <span className={temNumero ? 'text-emerald-700 dark:text-emerald-300 font-bold' : 'text-slate-500'}>
+                  Contém ao menos um número (0-9)
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {temEspecial ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 shrink-0" />
+                )}
+                <span className={temEspecial ? 'text-emerald-700 dark:text-emerald-300 font-bold' : 'text-slate-500'}>
+                  Contém caractere especial (ex: @, #, $, !, %, &)
                 </span>
               </div>
 

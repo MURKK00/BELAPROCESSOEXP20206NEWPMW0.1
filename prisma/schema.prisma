@@ -24,9 +24,11 @@ model Usuario {
   nome               String
   email              String          @unique
   username           String?         @unique
+  cpf                String?         @unique
   senhaHash          String?
   primeiroAcesso     Boolean         @default(true)
   papel              Papel           @default(COMERCIAL)
+  papeis             String[]        @default([])
   ativo              Boolean         @default(true)
   imagem             String?
   criadoEm           DateTime        @default(now())
