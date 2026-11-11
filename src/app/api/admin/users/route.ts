@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, ensureDatabaseSchema } from '@/lib/prisma';
 import { hashPassword, validarRequisitosSenha, SENHA_PADRAO_SISTEMA } from '@/lib/passwordUtils';
 import { getUserPapeis, Papel } from '@/lib/permissions';
 import { 
@@ -15,6 +15,7 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
+    await ensureDatabaseSchema(prisma);
     const usuarios = await (prisma.usuario as any).findMany({
       orderBy: { criadoEm: 'desc' },
     });
@@ -55,6 +56,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDatabaseSchema(prisma);
     const body = await req.json();
     const { nome, email, cpf, password, papel, papeis } = body;
 
@@ -203,6 +205,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    await ensureDatabaseSchema(prisma);
     const body = await req.json();
     const { 
       id, 

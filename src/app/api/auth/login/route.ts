@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, ensureDatabaseSchema } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/passwordUtils';
 import { registerLoginSession } from '@/lib/sessionTracker';
 
@@ -7,6 +7,8 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDatabaseSchema(prisma);
+
     const body = await req.json();
     const identifier = body.username || body.email || body.identifier;
     const { password } = body;
@@ -26,7 +28,10 @@ export async function POST(req: NextRequest) {
     const orConditions: any[] = [
       { email: termoEmail },
       { username: termoUsername },
+      { username: `@${termoUsername}` },
       { username: termo },
+      { username: termo.toUpperCase() },
+      { username: termo.toLowerCase() },
       { nome: termo },
     ];
 
@@ -106,15 +111,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validação estrita da senha com bcrypt comparando com o hash do usuário encontrado
-    if (!usuario.senhaHash) {
-      return NextResponse.json(
-        { success: false, error: 'Credenciais inválidas. Verifique o usuário e senha.' },
-        { status: 401 }
-      );
-    }
+    // Validação da senha:
+    // Se o usuário está em primeiro acesso e informou a senha padrão 'abc12345',
+    // aceita a credencial e conduz para a redefinição de senha obrigatória (2x).
+    const digitouPadraoPrimeiroAcesso = 
+      usuario.primeiroAcesso && password === 'abc12345';
 
-    const senhaValida = await verifyPassword(password, usuario.senhaHash);
+    let senhaValida = false;
+    if (digitouPadraoPrimeiroAcesso) {
+      senhaValida = true;
+    } else if (usuario.senhaHash) {
+      senhaValida = await verifyPassword(password, usuario.senhaHash);
+    }
 
     if (!senhaValida) {
       return NextResponse.json(

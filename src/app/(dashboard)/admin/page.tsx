@@ -113,6 +113,11 @@ function AdminDashboardContent() {
   const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
   const [mostrarConfirmarNovaSenha, setMostrarConfirmarNovaSenha] = useState(false);
 
+  // Estados de Modais Nativos do Sistema (substituindo pop-ups nativos do navegador)
+  const [modalPreviewUsuario, setModalPreviewUsuario] = useState<UsuarioItem | null>(null);
+  const [modalConfirmarBloqueio, setModalConfirmarBloqueio] = useState<{ user: UsuarioItem; acao: 'BLOQUEAR' | 'DESBLOQUEAR' } | null>(null);
+  const [modalConfirmarExclusao, setModalConfirmarExclusao] = useState<{ id: string; nome: string } | null>(null);
+
   const [abaAtiva, setAbaAtiva] = useState<'USUARIOS' | 'SESSOES' | 'BANCO'>('USUARIOS');
 
   useEffect(() => {
@@ -149,6 +154,30 @@ async function carregarPainel() {
           const salvos = localStorage.getItem('bela_usuarios_custom');
           if (salvos) listaLocal = JSON.parse(salvos);
         } catch {}
+
+        // Sincroniza usuários do localStorage com a base real do Supabase caso haja pendências
+        const emailsApi = new Set(listaApi.map((u) => (u.email || '').toLowerCase()));
+        const pendentesSync = listaLocal.filter((u) => u.email && !emailsApi.has(u.email.toLowerCase()));
+        if (pendentesSync.length > 0) {
+          try {
+            await fetch('/api/admin/users/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ usuarios: pendentesSync }),
+            });
+            const resReload = await fetch('/api/admin/users', { cache: 'no-store' });
+            const dataReload = await resReload.json();
+            if (dataReload.success && Array.isArray(dataReload.usuarios)) {
+              setUsuarios(dataReload.usuarios);
+              try {
+                localStorage.setItem('bela_usuarios_custom', JSON.stringify(dataReload.usuarios));
+              } catch {}
+              return;
+            }
+          } catch (eSync) {
+            console.warn('Erro ao sincronizar usuários com a base real:', eSync);
+          }
+        }
 
         // Mescla sem duplicar por ID ou e-mail (API tem prioridade absoluta)
         const mapa = new Map<string, UsuarioItem>();
@@ -460,14 +489,11 @@ async function carregarPainel() {
     }
   }
 
-  // Alterna status de Bloqueio do usuário (Impede login imediatamente)
-  async function handleToggleBloqueioUsuario(user: UsuarioItem) {
-    const acaoBloquear = user.ativo;
-    const confirmMsg = acaoBloquear
-      ? `Tem certeza que deseja BLOQUEAR o usuário "${user.nome}"? Ele não conseguirá mais efetuar login no sistema.`
-      : `Deseja DESBLOQUEAR o usuário "${user.nome}" para restabelecer o acesso ao sistema?`;
-
-    if (!confirm(confirmMsg)) return;
+  // Executa o Bloqueio / Desbloqueio do usuário a partir do modal nativo do sistema
+  async function executarToggleBloqueio() {
+    if (!modalConfirmarBloqueio) return;
+    const { user, acao } = modalConfirmarBloqueio;
+    const novoStatus = acao === 'DESBLOQUEAR';
 
     setExecutandoAcao(true);
     setMensagemErro(null);
@@ -476,11 +502,10 @@ async function carregarPainel() {
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: user.id, ativo: !user.ativo }),
+        body: JSON.stringify({ id: user.id, ativo: novoStatus }),
       });
       const data = await res.json();
       if (data.success) {
-        const novoStatus = !user.ativo;
         setUsuarios((prev) => {
           const atualizada = prev.map((u) => (u.id === user.id ? { ...u, ativo: novoStatus } : u));
           try {
@@ -493,6 +518,7 @@ async function carregarPainel() {
             ? `Usuário "${user.nome}" DESBLOQUEADO com sucesso! Acesso liberado.`
             : `Usuário "${user.nome}" BLOQUEADO com sucesso. Acesso ao login suspenso.`
         );
+        setModalConfirmarBloqueio(null);
       } else {
         setMensagemErro(data.error || 'Erro ao alterar bloqueio do usuário.');
       }
@@ -597,11 +623,10 @@ async function carregarPainel() {
     }
   }
 
-  // Excluir usuário
-  async function handleExcluirUsuario(id: string, nomeUsuario: string) {
-    if (!confirm(`Tem certeza que deseja excluir permanentemente o usuário "${nomeUsuario}"?`)) {
-      return;
-    }
+  // Excluir usuário a partir do modal nativo do sistema
+  async function executarExcluirUsuario() {
+    if (!modalConfirmarExclusao) return;
+    const { id, nome } = modalConfirmarExclusao;
 
     setExecutandoAcao(true);
     setMensagemErro(null);
@@ -618,7 +643,8 @@ async function carregarPainel() {
           } catch {}
           return atualizada;
         });
-        setMensagemSucesso(`Usuário "${nomeUsuario}" excluído com sucesso.`);
+        setMensagemSucesso(`Usuário "${nome}" excluído com sucesso.`);
+        setModalConfirmarExclusao(null);
       } else {
         setMensagemErro(data.error || 'Erro ao excluir usuário.');
       }
@@ -980,17 +1006,16 @@ async function carregarPainel() {
           </button>
         </div>
 
-        {/* TABELA DE USUÁRIOS */}
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
+        {/* TABELA DE USUÁRIOS - VISUALIZAÇÃO ÚNICA SEM ROLAGEM HORIZONTAL */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] overflow-hidden shadow-xs">
+          <table className="w-full text-left text-xs table-fixed">
+            <thead className="bg-slate-50/90 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="py-3.5 px-4">Nome &amp; Usuário / CPF</th>
-                <th className="py-3.5 px-4">E-mail Corporativo</th>
-                <th className="py-3.5 px-4">Perfis de Acesso (Cargos)</th>
-                <th className="py-3.5 px-4">Status &amp; Bloqueio</th>
-                <th className="py-3.5 px-4">Data Cadastro</th>
-                <th className="py-3.5 px-4 text-right">Ações</th>
+                <th className="py-3 px-3 text-left w-[36%]">Nome &amp; Usuário / CPF</th>
+                <th className="py-3 px-3 text-left w-[24%]">E-mail Corporativo</th>
+                <th className="py-3 px-3 text-left w-[18%]">Perfis (Cargos)</th>
+                <th className="py-3 px-2 text-center w-[10%]">Status</th>
+                <th className="py-3 px-3 text-right w-[12%]">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
@@ -1001,48 +1026,62 @@ async function carregarPainel() {
 
                 return (
                   <tr key={user.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-full font-black text-xs flex items-center justify-center shrink-0 ${
+                    {/* COLUNA 1: ÍCONE DE PRÉ-VISUALIZAÇÃO + AVATAR + NOME + @USERNAME + CPF */}
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-2">
+                        {/* Ícone para pré-visualização do cadastro no canto esquerdo antes do nome */}
+                        <button
+                          type="button"
+                          onClick={() => setModalPreviewUsuario(user)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                          title="Pré-visualizar cadastro completo (com opção de editar)"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+
+                        <div className={`w-7 h-7 rounded-full font-black text-[11px] flex items-center justify-center shrink-0 ${
                           user.ativo 
                             ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200' 
                             : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
                         }`}>
                           {(user.nome || user.email)[0].toUpperCase()}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className={`font-bold ${user.ativo ? 'text-slate-900 dark:text-white' : 'text-slate-500 line-through'}`}>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            <span 
+                              className={`font-bold text-xs truncate max-w-[130px] sm:max-w-[170px] ${user.ativo ? 'text-slate-900 dark:text-white' : 'text-slate-500 line-through'}`}
+                              title={user.nome}
+                            >
                               {user.nome || 'Sem nome'}
                             </span>
                             {user.username && (
-                              <span className="font-mono font-black text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-200 dark:border-orange-900 tracking-wider">
+                              <span className="font-mono font-black text-[9px] px-1.5 py-0.2 rounded bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-200 dark:border-orange-900 tracking-wider shrink-0">
                                 @{user.username}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
-                            <span className="flex items-center gap-1">
-                              <CreditCard className="w-3 h-3 text-slate-400" />
-                              CPF: {user.cpf || 'Não informado'}
-                            </span>
-                            <span>•</span>
-                            <span>ID: {user.id}</span>
+                          <div className="text-[10px] text-slate-400 font-mono whitespace-nowrap truncate">
+                            CPF: {user.cpf || 'Não informado'}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600 dark:text-slate-300">
+
+                    {/* COLUNA 2: E-MAIL */}
+                    <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600 dark:text-slate-300 whitespace-nowrap truncate" title={user.email}>
                       {user.email}
                     </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {userPapeis.map((p) => {
+
+                    {/* COLUNA 3: PERFIS (CARGOS) - COMPACTO SEM QUEBRA */}
+                    <td className="py-2.5 px-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        {userPapeis.slice(0, 2).map((p) => {
                           const meta = PAPEIS_DISPONIVEIS.find((pd) => pd.id === p);
                           return (
                             <span
                               key={p}
-                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shrink-0 ${
                                 meta?.badgeClass || 'bg-slate-500/15 text-slate-600 border-slate-500/25'
                               }`}
                             >
@@ -1050,55 +1089,52 @@ async function carregarPainel() {
                             </span>
                           );
                         })}
+                        {userPapeis.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => setModalPreviewUsuario(user)}
+                            className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 cursor-pointer shrink-0"
+                            title={`+${userPapeis.length - 2} outros perfis: ${userPapeis.slice(2).join(', ')} (clique para ver todos)`}
+                          >
+                            +{userPapeis.length - 2}
+                          </button>
+                        )}
                       </div>
                     </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex flex-col gap-1 items-start">
+
+                    {/* COLUNA 4: STATUS */}
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                      <div className="inline-flex flex-col items-center">
                         {user.ativo ? (
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              <span>Ativo</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleBloqueioUsuario(user)}
-                              className="text-[10px] text-rose-600 hover:text-rose-700 font-bold hover:underline cursor-pointer flex items-center gap-1"
-                              title="Bloquear usuário (impede login)"
-                            >
-                              <Lock className="w-3 h-3" />
-                              <span>Bloquear</span>
-                            </button>
-                          </div>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>Ativo</span>
+                          </span>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
-                              <Lock className="w-3 h-3" />
-                              <span>Bloqueado</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleBloqueioUsuario(user)}
-                              className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold hover:underline cursor-pointer flex items-center gap-1"
-                              title="Desbloquear acesso do usuário"
-                            >
-                              <Unlock className="w-3 h-3" />
-                              <span>Desbloquear</span>
-                            </button>
-                          </div>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
+                            <Lock className="w-2.5 h-2.5" />
+                            <span>Bloqueado</span>
+                          </span>
                         )}
                         {user.primeiroAcesso && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-900" title="Aguardando usuário definir nova senha no 1º login">
-                            1º Acesso Pendente
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8.5px] font-bold bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-900 mt-0.5">
+                            1º Acesso
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 text-[11px]">
-                      {user.criadoEm ? new Date(user.criadoEm).toLocaleDateString('pt-BR') : '-'}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+
+                    {/* COLUNA 5: AÇÕES */}
+                    <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setModalPreviewUsuario(user)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                          title="Ficha completa de cadastro"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => setModalEditarUsuario({
@@ -1110,8 +1146,8 @@ async function carregarPainel() {
                             papeis: (userPapeis as Papel[]),
                             ativo: user.ativo,
                           })}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                          title="Editar dados completos do usuário (Nome, E-mail, Username, CPF, Perfis)"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                          title="Editar dados cadastrais"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -1123,27 +1159,30 @@ async function carregarPainel() {
                             setConfirmarNovaSenha('');
                           }}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                          title="Redefinir Senha (Mudar para padrão abc12345 ou digitar nova)"
+                          title="Redefinir senha (Padrão abc12345 ou personalizada)"
                         >
                           <KeyRound className="w-3.5 h-3.5" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleToggleBloqueioUsuario(user)}
+                          onClick={() => setModalConfirmarBloqueio({
+                            user,
+                            acao: user.ativo ? 'BLOQUEAR' : 'DESBLOQUEAR'
+                          })}
                           className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
                             user.ativo
                               ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50 border-slate-200 dark:border-slate-700'
                               : 'text-rose-600 hover:text-emerald-600 hover:bg-emerald-50 border-rose-200 dark:border-rose-800'
                           }`}
-                          title={user.ativo ? "Bloquear usuário" : "Desbloquear usuário"}
+                          title={user.ativo ? "Bloquear acesso (impede login)" : "Desbloquear acesso ao sistema"}
                         >
                           {user.ativo ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleExcluirUsuario(user.id, user.nome)}
+                          onClick={() => setModalConfirmarExclusao({ id: user.id, nome: user.nome })}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                          title="Excluir usuário permanentemente"
+                          title="Excluir usuário"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1853,6 +1892,326 @@ async function carregarPainel() {
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20 cursor-pointer disabled:opacity-50"
               >
                 Sim, Zerar Todos os Lançamentos
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL 5: PRÉ-VISUALIZAÇÃO COMPLETA DO CADASTRO (COM OPÇÃO DE EDITAR) */}
+      {isMounted && modalPreviewUsuario && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs animate-fadeIn overflow-hidden">
+          <div className="bg-white dark:bg-[#0f172a] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden relative animate-scaleUp">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-[#0f172a]">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-2xl font-black text-sm flex items-center justify-center shrink-0 ${
+                  modalPreviewUsuario.ativo 
+                    ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' 
+                    : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                }`}>
+                  {(modalPreviewUsuario.nome || modalPreviewUsuario.email)[0].toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                      {modalPreviewUsuario.nome}
+                    </h3>
+                    {modalPreviewUsuario.username && (
+                      <span className="font-mono font-black text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-200 dark:border-orange-900">
+                        @{modalPreviewUsuario.username}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">Ficha cadastral de usuário do sistema</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalPreviewUsuario(null)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer text-sm font-bold transition-colors"
+                title="Fechar"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Conteúdo rolável */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+              {/* Badges de Status */}
+              <div className="flex items-center gap-2 pb-2">
+                {modalPreviewUsuario.ativo ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Conta Ativa</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Acesso Bloqueado</span>
+                  </span>
+                )}
+                {modalPreviewUsuario.primeiroAcesso && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
+                    <KeyRound className="w-3 h-3" />
+                    1º Acesso Pendente
+                  </span>
+                )}
+              </div>
+
+              {/* Grid de Informações */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Nome Completo
+                  </span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                    {modalPreviewUsuario.nome || '—'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Nome de Usuário (Login)
+                  </span>
+                  <span className="text-xs font-mono font-bold text-orange-600 dark:text-orange-400 block">
+                    {modalPreviewUsuario.username ? `@${modalPreviewUsuario.username}` : 'Não configurado'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    CPF
+                  </span>
+                  <span className="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 block">
+                    {modalPreviewUsuario.cpf || 'Não informado'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    E-mail Corporativo
+                  </span>
+                  <span className="text-xs font-mono text-slate-800 dark:text-slate-200 block truncate" title={modalPreviewUsuario.email}>
+                    {modalPreviewUsuario.email}
+                  </span>
+                </div>
+              </div>
+
+              {/* Perfis de Acesso (Cargos) */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                  Perfis de Acesso (Cargos Atribuídos)
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(Array.isArray(modalPreviewUsuario.papeis) && modalPreviewUsuario.papeis.length > 0 
+                    ? modalPreviewUsuario.papeis 
+                    : [modalPreviewUsuario.papel || 'ADMIN']
+                  ).map((p) => {
+                    const meta = PAPEIS_DISPONIVEIS.find((pd) => pd.id === p);
+                    return (
+                      <span
+                        key={p}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
+                          meta?.badgeClass || 'bg-slate-500/15 text-slate-600 border-slate-500/25'
+                        }`}
+                      >
+                        {meta?.label || p}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Metadados */}
+              <div className="p-3 rounded-xl bg-slate-100/60 dark:bg-slate-800/40 text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                <span>Cadastro: {modalPreviewUsuario.criadoEm ? new Date(modalPreviewUsuario.criadoEm).toLocaleDateString('pt-BR') : '—'}</span>
+                <span className="font-mono">ID: {modalPreviewUsuario.id}</span>
+              </div>
+            </div>
+
+            {/* Rodapé com Ações (incluindo Edição direta na pré-visualização) */}
+            <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2.5 bg-slate-50/80 dark:bg-slate-900/60">
+              <button
+                type="button"
+                onClick={() => setModalPreviewUsuario(null)}
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+              >
+                Fechar
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const u = modalPreviewUsuario;
+                    setModalPreviewUsuario(null);
+                    setModalConfirmarBloqueio({
+                      user: u,
+                      acao: u.ativo ? 'BLOQUEAR' : 'DESBLOQUEAR'
+                    });
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                    modalPreviewUsuario.ativo
+                      ? 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-800'
+                      : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+                  }`}
+                >
+                  {modalPreviewUsuario.ativo ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                  <span>{modalPreviewUsuario.ativo ? 'Bloquear' : 'Desbloquear'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const u = modalPreviewUsuario;
+                    setModalPreviewUsuario(null);
+                    setModalEditarUsuario({
+                      id: u.id,
+                      nome: u.nome,
+                      email: u.email,
+                      username: u.username || '',
+                      cpf: u.cpf || '',
+                      papeis: (Array.isArray(u.papeis) && u.papeis.length > 0 ? u.papeis : [u.papel || 'ADMIN']) as Papel[],
+                      ativo: u.ativo,
+                    });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-md shadow-orange-500/20 cursor-pointer transition-all"
+                  title="Editar cadastro deste usuário"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Editar Cadastro</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL 6: CONFIRMAR BLOQUEIO / DESBLOQUEIO NATIVO DO SISTEMA (SEM POPUP DO NAVEGADOR) */}
+      {isMounted && modalConfirmarBloqueio && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs animate-fadeIn overflow-hidden">
+          <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-7 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto relative animate-scaleUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`p-3 rounded-2xl ${
+                modalConfirmarBloqueio.acao === 'BLOQUEAR'
+                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+              }`}>
+                {modalConfirmarBloqueio.acao === 'BLOQUEAR' ? (
+                  <Lock className="w-6 h-6" />
+                ) : (
+                  <Unlock className="w-6 h-6" />
+                )}
+              </div>
+              <div>
+                <h3 className={`text-base font-black ${
+                  modalConfirmarBloqueio.acao === 'BLOQUEAR'
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                }`}>
+                  {modalConfirmarBloqueio.acao === 'BLOQUEAR' ? 'Confirmar Bloqueio' : 'Confirmar Desbloqueio'}
+                </h3>
+                <p className="text-xs text-slate-500">Controle de acesso do usuário</p>
+              </div>
+            </div>
+
+            {/* Cartão do Usuário */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs text-slate-900 dark:text-white">
+                  {modalConfirmarBloqueio.user.nome}
+                </span>
+                {modalConfirmarBloqueio.user.username && (
+                  <span className="font-mono font-black text-[10px] px-1.5 py-0.2 rounded bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
+                    @{modalConfirmarBloqueio.user.username}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block mt-0.5">
+                {modalConfirmarBloqueio.user.email}
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+              {modalConfirmarBloqueio.acao === 'BLOQUEAR' ? (
+                <>
+                  Tem certeza que deseja <strong className="text-rose-600 font-bold">BLOQUEAR</strong> este usuário? Ele não conseguirá mais efetuar login no sistema até que seja reativado por um administrador.
+                </>
+              ) : (
+                <>
+                  Deseja <strong className="text-emerald-600 font-bold">DESBLOQUEAR</strong> este usuário? O acesso ao sistema será restabelecido imediatamente com as permissões cadastradas.
+                </>
+              )}
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setModalConfirmarBloqueio(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executarToggleBloqueio}
+                disabled={executandoAcao}
+                className={`px-4 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50 ${
+                  modalConfirmarBloqueio.acao === 'BLOQUEAR'
+                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+                    : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
+                }`}
+              >
+                {executandoAcao 
+                  ? 'Processando...' 
+                  : modalConfirmarBloqueio.acao === 'BLOQUEAR' 
+                  ? 'Sim, Bloquear Usuário' 
+                  : 'Sim, Desbloquear Usuário'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL 7: CONFIRMAR EXCLUSÃO NATIVO DO SISTEMA */}
+      {isMounted && modalConfirmarExclusao && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs animate-fadeIn overflow-hidden">
+          <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-7 border border-rose-200 dark:border-rose-900/60 shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto relative animate-scaleUp">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-600">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-rose-600 dark:text-rose-400">
+                  Excluir Usuário
+                </h3>
+                <p className="text-xs text-slate-500">Remoção permanente de cadastro</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+              Tem certeza que deseja excluir permanentemente o cadastro de <strong className="text-slate-900 dark:text-white font-bold">&quot;{modalConfirmarExclusao.nome}&quot;</strong>? Esta ação não poderá ser desfeita.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setModalConfirmarExclusao(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executarExcluirUsuario}
+                disabled={executandoAcao}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20 cursor-pointer disabled:opacity-50"
+              >
+                {executandoAcao ? 'Excluindo...' : 'Sim, Excluir Usuário'}
               </button>
             </div>
           </div>
