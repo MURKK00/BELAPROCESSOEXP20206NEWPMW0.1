@@ -28,7 +28,9 @@ import {
   Eye,
   Power,
   Copy,
-  Star
+  Star,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   salvarCadastroEntidadeAction, 
@@ -38,6 +40,66 @@ import {
   type FazendaItem
 } from '@/server/actions/cadastrosActions';
 import type { TipoEntidadeComercial } from '@prisma/client';
+
+export interface FazendaValidacaoDetalhe {
+  fazendaId: string;
+  fazendaIndex: number;
+  nomePropriedade: string;
+  faltandoCar: boolean;
+  faltandoIE: boolean;
+  faltandoNome: boolean;
+}
+
+export interface ValidacaoFazendasResult {
+  valido: boolean;
+  erros: string[];
+  detalhes: FazendaValidacaoDetalhe[];
+}
+
+/**
+ * Função de validação que verifica se todos os campos de CAR e IE
+ * estão preenchidos para cada item da lista de fazendas antes de permitir salvar o produtor.
+ */
+export function validarFazendasProdutor(fazendasList: FazendaItem[]): ValidacaoFazendasResult {
+  const erros: string[] = [];
+  const detalhes: FazendaValidacaoDetalhe[] = [];
+
+  if (!fazendasList || fazendasList.length === 0) {
+    erros.push('O produtor rural precisa ter ao menos uma propriedade/fazenda cadastrada.');
+    return { valido: false, erros, detalhes };
+  }
+
+  fazendasList.forEach((fz, index) => {
+    const nome = fz.nomePropriedade?.trim() || `Fazenda #${index + 1}`;
+    const faltandoCar = !fz.carNumero || fz.carNumero.trim() === '';
+    const faltandoIE = !fz.inscricaoEstadual || fz.inscricaoEstadual.trim() === '';
+    const faltandoNome = !fz.nomePropriedade || fz.nomePropriedade.trim() === '';
+
+    if (faltandoCar || faltandoIE || faltandoNome) {
+      detalhes.push({
+        fazendaId: fz.id,
+        fazendaIndex: index + 1,
+        nomePropriedade: nome,
+        faltandoCar,
+        faltandoIE,
+        faltandoNome,
+      });
+
+      const pendencias: string[] = [];
+      if (faltandoNome) pendencias.push('Nome da Propriedade');
+      if (faltandoCar) pendencias.push('CAR (Cadastro Ambiental Rural)');
+      if (faltandoIE) pendencias.push('Inscrição Estadual (IE)');
+
+      erros.push(`Fazenda #${index + 1} ("${nome}"): ${pendencias.join(' e ')} ${pendencias.length > 1 ? 'são obrigatórios' : 'é obrigatório'}.`);
+    }
+  });
+
+  return {
+    valido: erros.length === 0,
+    erros,
+    detalhes,
+  };
+}
 
 interface CentralCadastrosModalProps {
   isOpen: boolean;
@@ -85,6 +147,9 @@ export function CentralCadastrosModal({
 
   // Múltiplas Fazendas do Produtor Rural
   const [fazendas, setFazendas] = useState<FazendaItem[]>([]);
+  const [fazendasValidacaoErros, setFazendasValidacaoErros] = useState<FazendaValidacaoDetalhe[]>([]);
+  const [modalConfirmarFazendas, setModalConfirmarFazendas] = useState<boolean>(false);
+  const [modalErrosFazendas, setModalErrosFazendas] = useState<string[] | null>(null);
 
   function handleAdicionarFazenda() {
     setFazendas((prev) => [
@@ -118,6 +183,7 @@ export function CentralCadastrosModal({
       }
       return [...filtradas];
     });
+    setFazendasValidacaoErros((prev) => prev.filter((err) => err.fazendaId !== id));
   }
 
   function handleDefinirFazendaPadrao(id: string) {
@@ -132,6 +198,19 @@ export function CentralCadastrosModal({
   function handleAtualizarFazenda(id: string, campo: keyof FazendaItem, valor: any) {
     setFazendas((prev) =>
       prev.map((f) => (f.id === id ? { ...f, [campo]: valor } : f))
+    );
+    // Limpa pendência em tempo real assim que o usuário digita
+    setFazendasValidacaoErros((prev) =>
+      prev
+        .map((err) => {
+          if (err.fazendaId === id) {
+            if (campo === 'carNumero' && String(valor).trim()) return { ...err, faltandoCar: false };
+            if (campo === 'inscricaoEstadual' && String(valor).trim()) return { ...err, faltandoIE: false };
+            if (campo === 'nomePropriedade' && String(valor).trim()) return { ...err, faltandoNome: false };
+          }
+          return err;
+        })
+        .filter((err) => err.faltandoCar || err.faltandoIE || err.faltandoNome)
     );
   }
 
@@ -341,11 +420,43 @@ export function CentralCadastrosModal({
     setLoading(false);
   }
 
-  async function handleSalvar(e: React.FormEvent) {
+  function handleSalvar(e: React.FormEvent) {
     e.preventDefault();
+    setMsgErro(null);
+    setMsgSucesso(null);
+
+    if (!razaoSocial || razaoSocial.trim() === '') {
+      setMsgErro('Razão Social / Nome Comercial é obrigatório.');
+      return;
+    }
+
+    // Se for Produtor Rural, executa validação obrigatória de CAR e IE para cada fazenda registrada
+    if (formTipo === 'PRODUTOR') {
+      const validacao = validarFazendasProdutor(fazendas);
+      if (!validacao.valido) {
+        setFazendasValidacaoErros(validacao.detalhes);
+        setModalErrosFazendas(validacao.erros);
+        setMsgErro(`Atenção: existem ${validacao.erros.length} pendências obrigatórias nas propriedades rurais. Preencha todos os CARs e Inscrições Estaduais.`);
+        return;
+      }
+      setFazendasValidacaoErros([]);
+
+      // Se possui múltiplas fazendas (mais de 1 fazenda), abre o modal de confirmação para garantia dos dados
+      if (fazendas.length > 1) {
+        setModalConfirmarFazendas(true);
+        return;
+      }
+    }
+
+    // Grava diretamente se for fazenda única ou outra entidade
+    executarSalvarReal();
+  }
+
+  async function executarSalvarReal() {
     setSalvando(true);
     setMsgErro(null);
     setMsgSucesso(null);
+    setModalConfirmarFazendas(false);
 
     // Identifica a fazenda padrão caso seja produtor
     const fazendaPrincipal = fazendas.find((f) => f.padrao) || fazendas[0];
@@ -353,9 +464,9 @@ export function CentralCadastrosModal({
     const input: CadastroEntidadeInput = {
       id: editId || undefined,
       tipo: formTipo,
-      razaoSocial,
-      nomeFantasia,
-      documento,
+      razaoSocial: razaoSocial.trim(),
+      nomeFantasia: nomeFantasia?.trim() || null,
+      documento: documento?.trim() || null,
 
       inscricaoEstadual: formTipo === 'PRODUTOR' && fazendaPrincipal ? fazendaPrincipal.inscricaoEstadual : inscricaoEstadual,
       carNumero: formTipo === 'PRODUTOR' && fazendaPrincipal ? fazendaPrincipal.carNumero : carNumero,
@@ -1376,19 +1487,38 @@ export function CentralCadastrosModal({
 
                   {/* CARDS DINÂMICOS DE CADA FAZENDA */}
                   <div className="space-y-4">
-                    {fazendas.map((fz, index) => (
+                    {fazendas.map((fz, index) => {
+                      const erroFz = fazendasValidacaoErros.find((e) => e.fazendaId === fz.id || e.fazendaIndex === index + 1);
+
+                      return (
                       <div
                         key={fz.id || index}
                         className={`p-4 rounded-2xl border transition-all ${
-                          fz.padrao
+                          erroFz
+                            ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-400 dark:border-rose-600 ring-2 ring-rose-400/20 shadow-xs'
+                            : fz.padrao
                             ? 'bg-white dark:bg-slate-900 border-amber-400 dark:border-amber-600/80 shadow-sm ring-2 ring-amber-400/20'
                             : 'bg-white/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800'
                         }`}
                       >
+                        {/* ALERTA VISUAL DE ERRO DE VALIDAÇÃO DESTA FAZENDA */}
+                        {erroFz && (
+                          <div className="flex items-center gap-2 p-2.5 mb-3 rounded-xl bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-bold animate-fadeIn">
+                            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                            <span>
+                              Pendência nesta fazenda: {erroFz.faltandoCar && 'CAR obrigatório não informado'} {erroFz.faltandoCar && erroFz.faltandoIE && '•'} {erroFz.faltandoIE && 'Inscrição Estadual (IE) obrigatória não informada'}.
+                            </span>
+                          </div>
+                        )}
+
                         {/* CABEÇALHO DO CARD DA FAZENDA */}
                         <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-800">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xs font-black shrink-0">
+                            <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
+                              erroFz
+                                ? 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
+                                : 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                            }`}>
                               #{index + 1}
                             </span>
                             <h5 className="text-xs font-black text-slate-900 dark:text-white truncate">
@@ -1445,32 +1575,66 @@ export function CentralCadastrosModal({
 
                           {/* CAR */}
                           <div>
-                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                              CAR - Cadastro Ambiental Rural da Propriedade <span className="text-[#f58220]">*</span>
-                            </label>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                                CAR - Cadastro Ambiental Rural da Propriedade <span className="text-[#f58220]">*</span>
+                              </label>
+                              {erroFz?.faltandoCar && (
+                                <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" /> Obrigatório
+                                </span>
+                              )}
+                            </div>
                             <input
                               type="text"
                               required
                               placeholder="Ex: MT-5103007-6B18.C94A.5D12.44A8.B268.31E0.8921"
                               value={fz.carNumero || ''}
                               onChange={(e) => handleAtualizarFazenda(fz.id, 'carNumero', e.target.value.toUpperCase())}
-                              className="w-full font-mono uppercase px-3 py-2 text-xs rounded-xl border border-amber-300 dark:border-amber-700/80 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500/40 outline-none font-medium"
+                              className={`w-full font-mono uppercase px-3 py-2 text-xs rounded-xl border bg-white dark:bg-slate-950 text-slate-900 dark:text-white outline-none font-medium transition-all ${
+                                erroFz?.faltandoCar
+                                  ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/30 dark:bg-rose-950/20'
+                                  : 'border-amber-300 dark:border-amber-700/80 focus:ring-2 focus:ring-amber-500/40'
+                              }`}
                             />
+                            {erroFz?.faltandoCar && (
+                              <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 shrink-0" />
+                                O CAR é indispensável para validação socioambiental e rastreabilidade desta fazenda.
+                              </p>
+                            )}
                           </div>
 
                           {/* INSCRIÇÃO ESTADUAL */}
                           <div>
-                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                              Inscrição Estadual (IE da Fazenda) <span className="text-[#f58220]">*</span>
-                            </label>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                                Inscrição Estadual (IE da Fazenda) <span className="text-[#f58220]">*</span>
+                              </label>
+                              {erroFz?.faltandoIE && (
+                                <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" /> Obrigatório
+                                </span>
+                              )}
+                            </div>
                             <input
                               type="text"
                               required
                               placeholder="Ex: 13.456.789-0"
                               value={fz.inscricaoEstadual || ''}
                               onChange={(e) => handleAtualizarFazenda(fz.id, 'inscricaoEstadual', e.target.value)}
-                              className="w-full font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none font-medium"
+                              className={`w-full font-mono px-3 py-2 text-xs rounded-xl border bg-white dark:bg-slate-950 text-slate-900 dark:text-white outline-none font-medium transition-all ${
+                                erroFz?.faltandoIE
+                                  ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/30 dark:bg-rose-950/20'
+                                  : 'border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-[#f58220]/40'
+                              }`}
                             />
+                            {erroFz?.faltandoIE && (
+                              <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 mt-1 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 shrink-0" />
+                                A Inscrição Estadual é indispensável para emissão de nota fiscal na SEFAZ.
+                              </p>
+                            )}
                           </div>
 
                           {/* MUNICÍPIO */}
@@ -1546,7 +1710,8 @@ export function CentralCadastrosModal({
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1758,6 +1923,179 @@ export function CentralCadastrosModal({
                 </button>
               </div>
             </form>
+          )}
+
+          {/* MODAL DE ALERTA: CAR / IE PENDENTES EM FAZENDAS */}
+          {modalErrosFazendas && modalErrosFazendas.length > 0 && (
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fadeIn">
+              <div className="bg-white dark:bg-[#0f172a] rounded-3xl border border-rose-300 dark:border-rose-900 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-scaleUp">
+                <div className="flex items-start gap-3">
+                  <div className="p-3 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 shrink-0">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                      Validação de Propriedades Rurais Obrigatória
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Para atender às exigências de conformidade socioambiental (EUDR, Moratória da Soja) e de emissão fiscal na SEFAZ, <strong>todas as fazendas registradas</strong> precisam ter o <strong>CAR</strong> e a <strong>Inscrição Estadual (IE)</strong> preenchidos.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 space-y-2">
+                  <span className="text-[11px] font-bold text-rose-800 dark:text-rose-300 uppercase tracking-wider block">
+                    Pendências Detectadas ({modalErrosFazendas.length}):
+                  </span>
+                  <ul className="space-y-1.5 text-xs text-rose-900 dark:text-rose-200">
+                    {modalErrosFazendas.map((err, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                        <span className="font-medium">{err}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setModalErrosFazendas(null)}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer"
+                  >
+                    Voltar e Corrigir os Campos
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL DE CONFIRMAÇÃO: REVISÃO DE MÚLTIPLAS FAZENDAS */}
+          {modalConfirmarFazendas && (
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fadeIn">
+              <div className="bg-white dark:bg-[#0f172a] rounded-3xl border border-amber-300 dark:border-amber-800 shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-scaleUp">
+                {/* Header fixo */}
+                <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-[#0f172a]">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                      <ShieldCheck className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">
+                        Confirmação de Rastreabilidade & Múltiplas Fazendas
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {fazendas.length} propriedades rurais validadas para este produtor.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setModalConfirmarFazendas(false)}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Conteúdo rolável */}
+                <div className="p-5 overflow-y-auto space-y-4">
+                  <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200">
+                    <p className="font-semibold">
+                      Produtor: <span className="font-black text-slate-900 dark:text-white">{razaoSocial}</span>
+                    </p>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                      Todos os CARs e Inscrições Estaduais foram conferidos. Revise a relação antes de gravar definitivamente no banco de dados:
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {fazendas.map((fz, idx) => (
+                      <div
+                        key={fz.id || idx}
+                        className={`p-3.5 rounded-2xl border transition-all ${
+                          fz.padrao
+                            ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-400 dark:border-amber-700'
+                            : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center text-[10px] font-black">
+                              #{idx + 1}
+                            </span>
+                            <span className="font-black text-xs text-slate-900 dark:text-white">
+                              {fz.nomePropriedade || `Fazenda #${idx + 1}`}
+                            </span>
+                          </div>
+                          {fz.padrao && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                              <Star className="w-3 h-3 fill-emerald-600 text-emerald-600" /> Origem Principal
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div className="flex items-center gap-1.5 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-bold text-slate-400 block uppercase">CAR</span>
+                              <span className="font-mono font-bold text-[11px] text-slate-800 dark:text-slate-200 truncate block">
+                                {fz.carNumero}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-bold text-slate-400 block uppercase">Inscrição Estadual</span>
+                              <span className="font-mono font-bold text-[11px] text-slate-800 dark:text-slate-200 truncate block">
+                                {fz.inscricaoEstadual}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-3">
+                          <span>Localização: <strong>{fz.municipio || 'Confresa'} - {fz.uf || 'MT'}</strong></span>
+                          {fz.areaTotalHectares && <span>Área: <strong>{fz.areaTotalHectares} ha</strong></span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Footer fixo */}
+                <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-[#0f172a]">
+                  <button
+                    type="button"
+                    onClick={() => setModalConfirmarFazendas(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Voltar para Edição
+                  </button>
+                  <button
+                    type="button"
+                    onClick={executarSalvarReal}
+                    disabled={salvando}
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-[#f58220] hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition-all cursor-pointer"
+                  >
+                    {salvando ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Salvando no Banco...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Confirmar e Gravar Cadastro</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

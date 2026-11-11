@@ -34,6 +34,25 @@
       "ativo": true,
       "criadoEm": "2026-11-10T12:06:52.864Z",
       "atualizadoEm": "2026-11-10T12:07:14.439Z"
+    },
+    {
+      "id": "usr_murillo_maciel_nunes",
+      "nome": "Murillo Maciel Nunes",
+      "email": "murillo.maciel@belacereais.com.br",
+      "username": "MNUNES",
+      "senhaHash": "$2b$10$u27eR/YG8ttK4jdJ9DWrDuSXZwmUEKvpE2lhNtKQMQ1w4iC1yBj5O",
+      "primeiroAcesso": false,
+      "papel": "ADMIN",
+      "papeis": [
+        "ADMIN",
+        "DIRETORIA",
+        "COMERCIAL",
+        "FINANCEIRO",
+        "ADMINISTRATIVO"
+      ],
+      "ativo": true,
+      "criadoEm": "2026-11-11T00:00:00.000Z",
+      "atualizadoEm": "2026-11-11T00:00:00.000Z"
     }
   ],
   "parceiros": [

@@ -85,6 +85,36 @@ function initMockStore(): MockStore {
               atualizadoEm: new Date('2026-11-06T00:00:00.000Z'),
             });
           }
+
+          // Garante a existência do usuário Murillo Maciel Nunes com perfil ADMIN
+          const murilloIdx = parsed.usuarios.findIndex(
+            (u: any) =>
+              u.id === 'usr_murillo_maciel_nunes' ||
+              String(u.email || '').toLowerCase() === 'murillo.maciel@belacereais.com.br' ||
+              String(u.username || '').toUpperCase() === 'MNUNES' ||
+              String(u.nome || '').toLowerCase().includes('murillo maciel')
+          );
+          if (murilloIdx !== -1) {
+            parsed.usuarios[murilloIdx].senhaHash = parsed.usuarios[murilloIdx].senhaHash || HASH_BELA_2026;
+            parsed.usuarios[murilloIdx].papel = Papel.ADMIN;
+            parsed.usuarios[murilloIdx].papeis = ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'];
+            parsed.usuarios[murilloIdx].ativo = true;
+            parsed.usuarios[murilloIdx].primeiroAcesso = false;
+          } else {
+            parsed.usuarios.push({
+              id: 'usr_murillo_maciel_nunes',
+              nome: 'Murillo Maciel Nunes',
+              email: 'murillo.maciel@belacereais.com.br',
+              username: 'MNUNES',
+              senhaHash: HASH_BELA_2026,
+              primeiroAcesso: false,
+              papel: Papel.ADMIN,
+              papeis: ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'],
+              ativo: true,
+              criadoEm: new Date('2026-11-11T00:00:00.000Z'),
+              atualizadoEm: new Date('2026-11-11T00:00:00.000Z'),
+            });
+          }
         }
 
         // Migração do novo checklist operacional (4 macro-etapas e 27 micro-etapas)

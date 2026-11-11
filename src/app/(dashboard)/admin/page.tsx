@@ -123,16 +123,20 @@ async function carregarPainel() {
           if (salvos) listaLocal = JSON.parse(salvos);
         } catch {}
 
-        // Mescla sem duplicar por ID ou e-mail
+        // Mescla sem duplicar por ID ou e-mail (API tem prioridade absoluta)
         const mapa = new Map<string, UsuarioItem>();
-        [...listaLocal, ...listaApi].forEach((u) => {
+        [...listaApi, ...listaLocal].forEach((u) => {
           const chave = (u.email || u.id).toLowerCase();
           if (!mapa.has(chave)) {
             mapa.set(chave, u);
           }
         });
 
-        setUsuarios(Array.from(mapa.values()));
+        const listaFinal = Array.from(mapa.values());
+        setUsuarios(listaFinal);
+        try {
+          localStorage.setItem('bela_usuarios_custom', JSON.stringify(listaFinal));
+        } catch {}
       }
     } catch (err: any) {
       console.error('Erro ao carregar dados do admin:', err);
@@ -268,12 +272,15 @@ async function carregarPainel() {
           return atualizada;
         });
 
-        setMensagemSucesso(`Usuário ${novoUsuario.nome} cadastrado com perfis: [${papeisSelecionados.join(' + ')}]!`);
+        setMensagemSucesso(`Usuário ${novoUsuario.nome} cadastrado com perfis: [${papeisSelecionados.join(' + ')}]! Login: @${novoUsuario.username || usernameGerado}`);
         setModalNovoUsuario(false);
         setNome('');
         setEmail('');
         setPassword('');
         setPapeisSelecionados(['COMERCIAL']);
+
+        // Recarrega os dados do painel do backend para sincronização imediata
+        await carregarPainel();
       } else {
         setMensagemErro(data.error || 'Não foi possível cadastrar o usuário.');
       }

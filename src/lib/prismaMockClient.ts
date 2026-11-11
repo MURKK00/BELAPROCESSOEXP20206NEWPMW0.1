@@ -12,9 +12,13 @@ function matchesWhere(item: any, where?: Record<string, any>): boolean {
     if (val === undefined) continue;
     if (key === 'id' && item.id !== val) return false;
     if (key === 'numeroProcesso' && item.numeroProcesso !== val) return false;
-    if (key === 'email' && String(item.email || '').toLowerCase() !== String(val).toLowerCase()) return false;
-    if (key === 'username' && String(item.username || '').toUpperCase() !== String(val).toUpperCase()) return false;
-    if (key === 'nome' && item.nome !== val) return false;
+    if (key === 'email' && String(item.email || '').trim().toLowerCase() !== String(val).trim().toLowerCase()) return false;
+    if (key === 'username') {
+      const uItem = String(item.username || '').replace(/^@/, '').trim().toUpperCase();
+      const uVal = String(val || '').replace(/^@/, '').trim().toUpperCase();
+      if (uItem !== uVal) return false;
+    }
+    if (key === 'nome' && String(item.nome || '').trim().toLowerCase() !== String(val).trim().toLowerCase()) return false;
     if (key === 'primeiroAcesso' && item.primeiroAcesso !== val) return false;
     if (key === 'processoId' && item.processoId !== val) return false;
     if (key === 'financeiroId' && item.financeiroId !== val) return false;
@@ -306,25 +310,29 @@ export function createMockPrismaClient() {
         const item = {
           id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
           ...data,
-          username: username ? String(username).toUpperCase() : undefined,
+          username: username ? String(username).replace(/^@/, '').toUpperCase() : undefined,
           primeiroAcesso: data.primeiroAcesso !== undefined ? data.primeiroAcesso : true,
           ativo: data.ativo !== undefined ? data.ativo : true,
-          criadoEm: new Date(),
+          criadoEm: data.criadoEm ? new Date(data.criadoEm) : new Date(),
           atualizadoEm: new Date(),
         };
         store.usuarios.push(item);
+        saveMockStoreToFile(store);
         return item;
       },
       update: async ({ where, data }: any) => {
         const item = store.usuarios.find((u) => matchesWhere(u, where));
         if (!item) throw new Error('Usuário não encontrado');
         Object.assign(item, data, { atualizadoEm: new Date() });
+        saveMockStoreToFile(store);
         return item;
       },
       delete: async ({ where }: any) => {
         const idx = store.usuarios.findIndex((u) => matchesWhere(u, where));
         if (idx !== -1) {
-          return store.usuarios.splice(idx, 1)[0];
+          const deleted = store.usuarios.splice(idx, 1)[0];
+          saveMockStoreToFile(store);
+          return deleted;
         }
         throw new Error('Usuário não encontrado para exclusão');
       },
@@ -333,6 +341,7 @@ export function createMockPrismaClient() {
         let item = store.usuarios.find((u) => matchesWhere(u, where));
         if (item) {
           Object.assign(item, update, { atualizadoEm: new Date() });
+          saveMockStoreToFile(store);
           return item;
         }
         item = {
@@ -343,6 +352,7 @@ export function createMockPrismaClient() {
           atualizadoEm: new Date(),
         };
         store.usuarios.push(item);
+        saveMockStoreToFile(store);
         return item;
       },
     },
@@ -912,18 +922,21 @@ export function createMockPrismaClient() {
         };
         if (!store.cadastroEntidades) store.cadastroEntidades = [];
         store.cadastroEntidades.push(newItem);
+        saveMockStoreToFile(store);
         return ensureDates({ ...newItem });
       },
       update: async ({ where, data }: any) => {
         const item = (store.cadastroEntidades || []).find((e: any) => matchesWhere(e, where));
         if (!item) throw new Error('Entidade não encontrada');
         Object.assign(item, data, { atualizadoEm: new Date() });
+        saveMockStoreToFile(store);
         return ensureDates({ ...item });
       },
       delete: async ({ where }: any) => {
         const idx = (store.cadastroEntidades || []).findIndex((e: any) => matchesWhere(e, where));
         if (idx !== -1) {
           const [deleted] = store.cadastroEntidades.splice(idx, 1);
+          saveMockStoreToFile(store);
           return deleted;
         }
         return {};

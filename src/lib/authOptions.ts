@@ -57,14 +57,15 @@ export const authOptions: NextAuthOptions = {
 
         const termo = identifier.trim();
         const termoEmail = termo.toLowerCase();
-        const termoUsername = termo.toUpperCase();
+        const termoUsername = termo.replace(/^@/, '').toUpperCase();
 
-        // Busca o usuário por email ou username
+        // Busca o usuário por email, username ou nome completo
         let usuario = await prisma.usuario.findFirst({
           where: {
             OR: [
               { email: termoEmail },
               { username: termoUsername },
+              { nome: termo },
             ],
           },
         });
@@ -72,6 +73,18 @@ export const authOptions: NextAuthOptions = {
         if (!usuario) {
           usuario = await prisma.usuario.findUnique({
             where: { email: termoEmail },
+          });
+        }
+
+        if (!usuario) {
+          usuario = await prisma.usuario.findFirst({
+            where: { username: termoUsername },
+          });
+        }
+
+        if (!usuario) {
+          usuario = await prisma.usuario.findFirst({
+            where: { nome: termo },
           });
         }
 

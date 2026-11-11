@@ -20,22 +20,35 @@ export async function POST(req: NextRequest) {
 
     const termo = String(identifier).trim();
     const termoEmail = termo.toLowerCase();
-    const termoUsername = termo.toUpperCase();
+    const termoUsername = termo.replace(/^@/, '').toUpperCase();
 
-    // Busca o usuário no banco de dados por e-mail ou nome de usuário (username)
+    // Busca o usuário no banco de dados por e-mail, username (@MNUNES ou MNUNES) ou nome completo
     let usuario = await prisma.usuario.findFirst({
       where: {
         OR: [
           { email: termoEmail },
           { username: termoUsername },
+          { nome: termo },
         ],
       },
     });
 
-    // Fallback de segurança se findFirst não retornar
+    // Fallbacks de busca direta
     if (!usuario) {
       usuario = await prisma.usuario.findUnique({
         where: { email: termoEmail },
+      });
+    }
+
+    if (!usuario) {
+      usuario = await prisma.usuario.findFirst({
+        where: { username: termoUsername },
+      });
+    }
+
+    if (!usuario) {
+      usuario = await prisma.usuario.findFirst({
+        where: { nome: termo },
       });
     }
 

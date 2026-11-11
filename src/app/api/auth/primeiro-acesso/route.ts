@@ -50,11 +50,14 @@ export async function POST(req: NextRequest) {
 
     if (!usuario && identifier) {
       const termo = String(identifier).trim();
+      const termoEmail = termo.toLowerCase();
+      const termoUsername = termo.replace(/^@/, '').toUpperCase();
       usuario = await prisma.usuario.findFirst({
         where: {
           OR: [
-            { email: termo.toLowerCase() },
-            { username: termo.toUpperCase() },
+            { email: termoEmail },
+            { username: termoUsername },
+            { nome: termo },
           ],
         },
       });
