@@ -27,6 +27,7 @@ export interface MockStore {
 }
 
 const STORAGE_FILE_PATH = path.join(process.cwd(), 'prisma', 'dev-store.json');
+export const HASH_BELA_2026 = '$2b$10$u27eR/YG8ttK4jdJ9DWrDuSXZwmUEKvpE2lhNtKQMQ1w4iC1yBj5O';
 
 function initMockStore(): MockStore {
   // 1. Se existir arquivo de persistência no disco, carrega os dados salvos
@@ -45,7 +46,6 @@ function initMockStore(): MockStore {
 
 
         // Garantir que o admin master exista com a senhaHash oficial de @Bela2026 e preservar todos os outros usuários
-        const HASH_BELA_2026 = '$2b$10$u27eR/YG8ttK4jdJ9DWrDuSXZwmUEKvpE2lhNtKQMQ1w4iC1yBj5O';
         if (!Array.isArray(parsed.usuarios) || parsed.usuarios.length === 0) {
           parsed.usuarios = [
             {
@@ -86,36 +86,8 @@ function initMockStore(): MockStore {
             });
           }
 
-          // Garante a existência do usuário Murillo Maciel Nunes com perfil ADMIN
-          const murilloIdx = parsed.usuarios.findIndex(
-            (u: any) =>
-              u.id === 'usr_murillo_maciel_nunes' ||
-              String(u.email || '').toLowerCase() === 'murillo.maciel@belacereais.com.br' ||
-              String(u.username || '').toUpperCase() === 'MNUNES' ||
-              String(u.nome || '').toLowerCase().includes('murillo maciel')
-          );
-          if (murilloIdx !== -1) {
-            parsed.usuarios[murilloIdx].senhaHash = parsed.usuarios[murilloIdx].senhaHash || HASH_BELA_2026;
-            parsed.usuarios[murilloIdx].papel = Papel.ADMIN;
-            parsed.usuarios[murilloIdx].papeis = ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'];
-            parsed.usuarios[murilloIdx].ativo = true;
-            parsed.usuarios[murilloIdx].primeiroAcesso = false;
-          } else {
-            parsed.usuarios.push({
-              id: 'usr_murillo_maciel_nunes',
-              nome: 'Murillo Maciel Nunes',
-              email: 'murillo.maciel@belacereais.com.br',
-              username: 'MNUNES',
-              senhaHash: HASH_BELA_2026,
-              primeiroAcesso: false,
-              papel: Papel.ADMIN,
-              papeis: ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'],
-              ativo: true,
-              criadoEm: new Date('2026-11-11T00:00:00.000Z'),
-              atualizadoEm: new Date('2026-11-11T00:00:00.000Z'),
-            });
-          }
         }
+
 
         // Migração do novo checklist operacional (4 macro-etapas e 27 micro-etapas)
         const precisaMigrarChecklist = !parsed.etapasTemplate || 
@@ -269,12 +241,19 @@ function initMockStore(): MockStore {
   return store;
 }
 
+const TMP_STORAGE_FILE_PATH = path.join('/tmp', 'bela_dev_store.json');
+
 export function saveMockStoreToFile(storeToSave?: MockStore) {
+  const s = storeToSave || globalStore;
   try {
-    const s = storeToSave || globalStore;
     fs.writeFileSync(STORAGE_FILE_PATH, JSON.stringify(s, null, 2), 'utf-8');
   } catch (err) {
-    console.warn('[MockStore] Erro ao gravar dev-store.json:', err);
+    // Se o sistema de arquivos for read-only (ex: Vercel serverless), grava em /tmp
+    try {
+      fs.writeFileSync(TMP_STORAGE_FILE_PATH, JSON.stringify(s, null, 2), 'utf-8');
+    } catch (e) {
+      console.warn('[MockStore] Erro ao gravar /tmp/bela_dev_store.json:', e);
+    }
   }
 }
 
@@ -284,34 +263,37 @@ if (process.env.NODE_ENV !== 'production') {
   (global as any).__belaMockStore = globalStore;
 }
 
-export function reloadMockStoreFromFile(): MockStore {
+function carregarDadosDoDisco(): any {
+  if (fs.existsSync(TMP_STORAGE_FILE_PATH)) {
+    try {
+      const raw = fs.readFileSync(TMP_STORAGE_FILE_PATH, 'utf-8');
+      return JSON.parse(raw);
+    } catch {}
+  }
   if (fs.existsSync(STORAGE_FILE_PATH)) {
     try {
       const raw = fs.readFileSync(STORAGE_FILE_PATH, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.processos)) {
-        Object.keys(globalStore).forEach(k => delete (globalStore as any)[k]);
-        Object.assign(globalStore, parsed);
-      }
-    } catch (e) {
-      console.warn('[MockStore] Erro ao sincronizar dev-store.json:', e);
-    }
+      return JSON.parse(raw);
+    } catch {}
+  }
+  return null;
+}
+
+export function reloadMockStoreFromFile(): MockStore {
+  const parsed = carregarDadosDoDisco();
+  if (parsed && Array.isArray(parsed.processos)) {
+    Object.keys(globalStore).forEach((k) => delete (globalStore as any)[k]);
+    Object.assign(globalStore, parsed);
   }
   return globalStore;
 }
 
 export function getMockStore(): MockStore {
-  if (fs.existsSync(STORAGE_FILE_PATH)) {
-    try {
-      const raw = fs.readFileSync(STORAGE_FILE_PATH, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.processos)) {
-        Object.assign(globalStore, parsed);
-      }
-    } catch (e) {
-      console.warn('[MockStore] Erro ao sincronizar dev-store.json:', e);
-    }
+  const parsed = carregarDadosDoDisco();
+  if (parsed && Array.isArray(parsed.processos)) {
+    Object.assign(globalStore, parsed);
   }
+
   if (!Array.isArray(globalStore.notasFiscais)) globalStore.notasFiscais = [];
   if (!Array.isArray(globalStore.notasFiscaisRetorno)) globalStore.notasFiscaisRetorno = [];
   if (!Array.isArray(globalStore.notasFiscaisExportacaoItens)) globalStore.notasFiscaisExportacaoItens = [];
@@ -319,17 +301,8 @@ export function getMockStore(): MockStore {
     globalStore.cadastroEntidades = getDemoCadastrosData();
   }
 
-  // Se o sistema está em modo demonstração (ou com processos de exemplo) e ainda não tem notas fiscais, injeta os dados de exemplo
-  if (
-    (globalStore.isDemoMode || (globalStore.processos && globalStore.processos.length > 0)) &&
-    globalStore.notasFiscais.length === 0
-  ) {
-    const demoNfs = getDemoNotasFiscaisData();
-    globalStore.notasFiscais = demoNfs.notasFiscais;
-    globalStore.notasFiscaisRetorno = demoNfs.notasFiscaisRetorno;
-    globalStore.notasFiscaisExportacaoItens = demoNfs.notasFiscaisExportacaoItens;
-    saveMockStoreToFile(globalStore);
-  }
+  // O sistema agora opera 100% no modo real e autêntico de produção
+  globalStore.isDemoMode = false;
 
   return globalStore;
 }
@@ -337,12 +310,11 @@ export function getMockStore(): MockStore {
 const DEMO_STORAGE_FILE_PATH = path.join(process.cwd(), 'prisma', 'demo-store.json');
 
 export function isSystemInDemoMode(): boolean {
-  const store = getMockStore();
-  return Boolean(store.isDemoMode || (store.processos && store.processos.length > 0));
+  return false;
 }
 
 export function resetMockStore(): void {
-  // Limpa os processos e dependências mantendo os catálogos base e usuários
+  // Limpa todos os processos e dados operacionais mantendo estritamente apenas o administrador oficial mestre
   globalStore.isDemoMode = false;
   globalStore.processos = [];
   globalStore.processoEtapas = [];
@@ -357,59 +329,62 @@ export function resetMockStore(): void {
   globalStore.notasFiscaisRetorno = [];
   globalStore.notasFiscaisExportacaoItens = [];
   globalStore.cadastroEntidades = getDemoCadastrosData();
+
+  // Preserva apenas o perfil ADMIN mestre oficial
+  globalStore.usuarios = [
+    {
+      id: 'usr_admin_master',
+      nome: 'Administrador PEX',
+      email: 'admin@pexagritech.com',
+      username: 'ADMIN',
+      senhaHash: HASH_BELA_2026,
+      primeiroAcesso: false,
+      papel: Papel.ADMIN,
+      papeis: ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'],
+      ativo: true,
+      criadoEm: new Date('2026-11-06T00:00:00.000Z'),
+      atualizadoEm: new Date('2026-11-06T00:00:00.000Z'),
+    },
+  ];
+
   saveMockStoreToFile(globalStore);
+
+  // Também limpa o arquivo demo-store se existir para evitar recargas acidentais
+  try {
+    fs.writeFileSync(
+      DEMO_STORAGE_FILE_PATH,
+      JSON.stringify(
+        {
+          isDemoMode: false,
+          processos: [],
+          processoEtapas: [],
+          containers: [],
+          financeiros: [],
+          custosItem: [],
+          cambiosTravados: [],
+          documentos: [],
+          chatMessages: [],
+          auditLogs: [],
+          notasFiscais: [],
+          notasFiscaisRetorno: [],
+          notasFiscaisExportacaoItens: [],
+          usuarios: globalStore.usuarios,
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+  } catch {}
 }
 
 export function enableDemoMode(): void {
-  const demoNfs = getDemoNotasFiscaisData();
-
-  // 1. Tenta carregar os dados de exemplo pré-gravados em demo-store.json
-  if (fs.existsSync(DEMO_STORAGE_FILE_PATH)) {
-    try {
-      const raw = fs.readFileSync(DEMO_STORAGE_FILE_PATH, 'utf-8');
-      const demoData = JSON.parse(raw);
-      if (demoData && Array.isArray(demoData.processos)) {
-        globalStore.isDemoMode = true;
-        globalStore.processos = demoData.processos || [];
-        globalStore.processoEtapas = demoData.processoEtapas || [];
-        globalStore.containers = demoData.containers || [];
-        globalStore.financeiros = demoData.financeiros || [];
-        globalStore.custosItem = demoData.custosItem || [];
-        globalStore.cambiosTravados = demoData.cambiosTravados || [];
-        globalStore.documentos = demoData.documentos || [];
-        globalStore.chatMessages = demoData.chatMessages || [];
-        globalStore.auditLogs = demoData.auditLogs || [];
-        globalStore.cadastroEntidades = Array.isArray(demoData.cadastroEntidades) && demoData.cadastroEntidades.length > 0
-          ? demoData.cadastroEntidades
-          : getDemoCadastrosData();
-        
-        // Carrega notas fiscais de exemplo
-        globalStore.notasFiscais = (Array.isArray(demoData.notasFiscais) && demoData.notasFiscais.length > 0)
-          ? demoData.notasFiscais
-          : demoNfs.notasFiscais;
-        globalStore.notasFiscaisRetorno = (Array.isArray(demoData.notasFiscaisRetorno) && demoData.notasFiscaisRetorno.length > 0)
-          ? demoData.notasFiscaisRetorno
-          : demoNfs.notasFiscaisRetorno;
-        globalStore.notasFiscaisExportacaoItens = (Array.isArray(demoData.notasFiscaisExportacaoItens) && demoData.notasFiscaisExportacaoItens.length > 0)
-          ? demoData.notasFiscaisExportacaoItens
-          : demoNfs.notasFiscaisExportacaoItens;
-
-        saveMockStoreToFile(globalStore);
-        return;
-      }
-    } catch (err) {
-      console.warn('[MockStore] Erro ao ler demo-store.json:', err);
-    }
-  }
-
-  // Se o arquivo não existir, recria base de demonstração completa
-  globalStore.isDemoMode = true;
-  globalStore.notasFiscais = demoNfs.notasFiscais;
-  globalStore.notasFiscaisRetorno = demoNfs.notasFiscaisRetorno;
-  globalStore.notasFiscaisExportacaoItens = demoNfs.notasFiscaisExportacaoItens;
+  // O sistema é 100% de produção real; não injeta dados de teste
+  globalStore.isDemoMode = false;
   saveMockStoreToFile(globalStore);
 }
 
 export function disableDemoMode(): void {
   resetMockStore();
 }
+
