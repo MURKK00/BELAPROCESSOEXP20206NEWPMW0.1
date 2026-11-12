@@ -1,6 +1,8 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { prisma } from '@/lib/prisma';
+
+// Reexporta authOptions para que qualquer arquivo possa importar de '@/lib/auth'
+export { authOptions };
 
 export interface SessionUser {
   id: string;
@@ -11,8 +13,8 @@ export interface SessionUser {
 }
 
 /**
- * Obtém o usuário atualmente autenticado via sessão do NextAuth.
- * Retorna null se não houver sessão ativa.
+ * Obtém o usuário atualmente autenticado via sessão real do NextAuth.
+ * Retorna null se não houver sessão ativa (sem fallback de login automático em produção!).
  */
 export async function getSessionUser(_req?: any): Promise<SessionUser | null> {
   try {
@@ -24,11 +26,13 @@ export async function getSessionUser(_req?: any): Promise<SessionUser | null> {
         ? u.papeis
         : u.papel
         ? String(u.papel).split(',')
-        : ['ADMIN'];
+        : u.perfil
+        ? [String(u.perfil)]
+        : ['VISUALIZADOR'];
 
       return {
         id: u.id,
-        papel: u.papel || papeis[0] || 'ADMIN',
+        papel: u.papel || u.perfil || papeis[0] || 'VISUALIZADOR',
         papeis,
         nome: session.user.name,
         email: session.user.email,
@@ -36,25 +40,6 @@ export async function getSessionUser(_req?: any): Promise<SessionUser | null> {
     }
   } catch (error) {
     console.error('[Auth] Erro ao obter sessão do NextAuth:', error);
-  }
-
-  // Fallback de desenvolvimento caso nenhuma sessão exista ainda
-  const adminUser = await prisma.usuario.findFirst({
-    where: { ativo: true },
-  });
-
-  if (adminUser) {
-    const papeis = Array.isArray((adminUser as any).papeis)
-      ? (adminUser as any).papeis
-      : [adminUser.papel || 'ADMIN'];
-
-    return {
-      id: adminUser.id,
-      papel: adminUser.papel,
-      papeis,
-      nome: adminUser.nome,
-      email: adminUser.email,
-    };
   }
 
   return null;
