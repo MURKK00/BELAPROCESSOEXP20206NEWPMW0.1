@@ -221,7 +221,11 @@ export async function extrairSnapshotBanco() {
     notasFiscais = store.notasFiscais || [];
   }
 
-  entidades = store.cadastroEntidades || [];
+  try {
+    entidades = await (prisma.cadastroEntidade as any)?.findMany().catch(() => store.cadastroEntidades || []);
+  } catch {
+    entidades = store.cadastroEntidades || [];
+  }
   etapasTemplate = store.etapasTemplate || [];
 
   return {

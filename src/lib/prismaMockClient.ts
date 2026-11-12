@@ -949,6 +949,17 @@ export function createMockPrismaClient() {
         }
         return {};
       },
+      deleteMany: async ({ where }: any = {}) => {
+        const initialLen = (store.cadastroEntidades || []).length;
+        if (!where || Object.keys(where).length === 0) {
+          store.cadastroEntidades = [];
+          saveMockStoreToFile(store);
+          return { count: initialLen };
+        }
+        store.cadastroEntidades = (store.cadastroEntidades || []).filter((e: any) => !matchesWhere(e, where));
+        saveMockStoreToFile(store);
+        return { count: initialLen - store.cadastroEntidades.length };
+      },
       count: async (args: any = {}) => (store.cadastroEntidades || []).filter((e: any) => matchesWhere(e, args.where)).length,
     },
 

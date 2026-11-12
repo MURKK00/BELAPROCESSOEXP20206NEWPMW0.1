@@ -3,7 +3,6 @@ import path from 'path';
 import { Fase, TipoParceiro, CategoriaDocumento, Papel, CategoriaCusto, StatusNegociacao } from '@prisma/client';
 import { CHECKLIST_ETAPAS, TIPOS_DOCUMENTO_CHECKLIST } from '../../prisma/checklistData';
 import { getDemoNotasFiscaisData } from './demoNotasFiscaisData';
-import { getDemoCadastrosData } from './demoCadastrosData';
 
 export interface MockStore {
   isDemoMode?: boolean;
@@ -37,11 +36,8 @@ function initMockStore(): MockStore {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.processos)) {
         // Garantir inicialização de cadastroEntidades caso ausente no json salvo
-        if (!Array.isArray(parsed.cadastroEntidades) || parsed.cadastroEntidades.length === 0) {
-          parsed.cadastroEntidades = getDemoCadastrosData();
-          try {
-            fs.writeFileSync(STORAGE_FILE_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
-          } catch {}
+        if (!Array.isArray(parsed.cadastroEntidades)) {
+          parsed.cadastroEntidades = [];
         }
 
 
@@ -181,7 +177,7 @@ function initMockStore(): MockStore {
     notasFiscais: [],
     notasFiscaisRetorno: [],
     notasFiscaisExportacaoItens: [],
-    cadastroEntidades: getDemoCadastrosData(),
+    cadastroEntidades: [],
   };
 
   // Tipos de documento base
@@ -290,8 +286,8 @@ export function getMockStore(): MockStore {
   if (!Array.isArray(globalStore.notasFiscais)) globalStore.notasFiscais = [];
   if (!Array.isArray(globalStore.notasFiscaisRetorno)) globalStore.notasFiscaisRetorno = [];
   if (!Array.isArray(globalStore.notasFiscaisExportacaoItens)) globalStore.notasFiscaisExportacaoItens = [];
-  if (!Array.isArray(globalStore.cadastroEntidades) || globalStore.cadastroEntidades.length === 0) {
-    globalStore.cadastroEntidades = getDemoCadastrosData();
+  if (!Array.isArray(globalStore.cadastroEntidades)) {
+    globalStore.cadastroEntidades = [];
   }
 
   // O sistema agora opera 100% no modo real e autêntico de produção
@@ -321,7 +317,7 @@ export function resetMockStore(): void {
   globalStore.notasFiscais = [];
   globalStore.notasFiscaisRetorno = [];
   globalStore.notasFiscaisExportacaoItens = [];
-  globalStore.cadastroEntidades = getDemoCadastrosData();
+  globalStore.cadastroEntidades = [];
 
   // Preserva apenas o perfil ADMIN mestre oficial
   globalStore.usuarios = [

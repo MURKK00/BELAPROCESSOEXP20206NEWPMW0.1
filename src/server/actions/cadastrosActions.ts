@@ -202,6 +202,31 @@ export async function excluirCadastroEntidadeAction(id: string) {
   }
 }
 
+export async function limparTodosCadastrosAction() {
+  try {
+    try {
+      await (prisma.cadastroEntidade as any).deleteMany({});
+    } catch (dbErr) {
+      console.warn('[limparTodosCadastrosAction] Prisma deleteMany aviso:', dbErr);
+    }
+
+    const { getMockStore, saveMockStoreToFile } = await import('@/lib/mockStore');
+    const store = getMockStore();
+    store.cadastroEntidades = [];
+    saveMockStoreToFile(store);
+
+    revalidatePath('/');
+    revalidatePath('/cadastros');
+    revalidatePath('/negociacoes');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('[limparTodosCadastrosAction] Erro:', error);
+    return { success: false, error: error?.message || 'Falha ao limpar cadastros.' };
+  }
+}
+
+
 export async function toggleAtivarCadastroEntidadeAction(id: string, ativo: boolean) {
   try {
     const updated = await prisma.cadastroEntidade.update({

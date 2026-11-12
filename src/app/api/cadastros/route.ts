@@ -56,3 +56,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE() {
+  try {
+    try {
+      await (prisma.cadastroEntidade as any).deleteMany({});
+    } catch (dbErr) {
+      console.warn('[DELETE /api/cadastros] Prisma deleteMany aviso:', dbErr);
+    }
+
+    const { getMockStore, saveMockStoreToFile } = await import('@/lib/mockStore');
+    const store = getMockStore();
+    store.cadastroEntidades = [];
+    saveMockStoreToFile(store);
+
+    return NextResponse.json({ success: true, message: 'Todos os cadastros foram apagados com sucesso.', total: 0 });
+  } catch (error: any) {
+    console.error('Error deleting cadastros:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
