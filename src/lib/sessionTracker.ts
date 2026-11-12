@@ -1,8 +1,5 @@
-import fs from 'fs';
-import path from 'path';
-
 export interface UserSessionRecord {
-  id: string; // ID único da sessão (ex: sess_xxxx)
+  id: string;
   userId: string;
   userName: string;
   userEmail: string;
@@ -14,9 +11,9 @@ export interface UserSessionRecord {
   device: 'Desktop' | 'Mobile' | 'Tablet';
   browser: string;
   os: string;
-  startedAt: string; // ISO
-  lastActiveAt: string; // ISO
-  expiresAt: string; // ISO (12h após startedAt)
+  startedAt: string;
+  lastActiveAt: string;
+  expiresAt: string;
   status: 'ACTIVE' | 'IDLE' | 'REVOKED' | 'EXPIRED';
   revokedAt?: string | null;
   revokedBy?: string | null;
@@ -25,18 +22,37 @@ export interface UserSessionRecord {
 
 export interface SessionStats {
   totalActive: number;
-  onlineNow: number; // ativo nos últimos 5 min
-  idleCount: number; // sem atividade entre 5 e 10 min
+  onlineNow: number;
+  idleCount: number;
   totalRevokedToday: number;
   avgDurationMinutes: number;
   devices: { desktop: number; mobile: number; tablet: number };
   browsers: Record<string, number>;
 }
 
-const SESSIONS_FILE = path.join(process.cwd(), 'prisma', 'sessions-store.json');
 const ABSOLUTE_TIMEOUT_MS = 12 * 60 * 60 * 1000; // 12 horas
 
-export function parseUserAgent(uaString: string): { device: 'Desktop' | 'Mobile' | 'Tablet'; browser: string; os: string } {
+// Armazenamento em memória global para evitar escrita em disco Read-Only na Vercel
+const globalForSessions = globalThis as unknown as {
+  activeUserSessions?: UserSessionRecord[];
+};
+
+function loadSessionsStore(): UserSessionRecord[] {
+  if (!globalForSessions.activeUserSessions) {
+    globalForSessions.activeUserSessions = [];
+  }
+  return globalForSessions.activeUserSessions;
+}
+
+function saveSessionsStore(sessions: UserSessionRecord[]) {
+  globalForSessions.activeUserSessions = sessions;
+}
+
+export function parseUserAgent(uaString: string): {
+  device: 'Desktop' | 'Mobile' | 'Tablet';
+  browser: string;
+  os: string;
+} {
   const ua = uaString || '';
   let device: 'Desktop' | 'Mobile' | 'Tablet' = 'Desktop';
   if (/iPad|Tablet/i.test(ua)) device = 'Tablet';
@@ -58,42 +74,6 @@ export function parseUserAgent(uaString: string): { device: 'Desktop' | 'Mobile'
   return { device, browser, os };
 }
 
-function getDefaultSessions(): UserSessionRecord[] {
-  return [];
-}
-
-function loadSessionsStore(): UserSessionRecord[] {
-  try {
-    if (fs.existsSync(SESSIONS_FILE)) {
-      const raw = fs.readFileSync(SESSIONS_FILE, 'utf8');
-      const data = JSON.parse(raw);
-      if (Array.isArray(data)) {
-        // Expurgar sessões fictícias de demonstração antigas
-        const fakeIds = new Set(['sess_admin_master_1', 'sess_comercial_1', 'sess_financeiro_1', 'sess_operacional_mobile']);
-        return data.filter(s => s && s.id && !fakeIds.has(s.id));
-      }
-    }
-  } catch (err) {
-    console.error('[sessionTracker] Erro ao ler sessions-store.json:', err);
-  }
-  return [];
-}
-
-function saveSessionsStore(sessions: UserSessionRecord[]) {
-  try {
-    const dir = path.dirname(SESSIONS_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
-  } catch (err) {
-    console.error('[sessionTracker] Erro ao salvar sessions-store.json:', err);
-  }
-}
-
-/**
- * Registra ou atualiza sessão no momento do login
- */
 export function registerLoginSession(params: {
   sessionId: string;
   userId: string;
@@ -108,14 +88,14 @@ export function registerLoginSession(params: {
   const now = new Date();
   const parsed = parseUserAgent(params.userAgent);
 
-  // Formata localização aproximada amigável para IPs locais/redes
-  let location = 'Paraná • Brasil (Sede Bela Cereais)';
-  if (params.ip === '127.0.0.1' || params.ip === '::1' || params.ip.startsWith('192.168.') || params.ip.startsWith('10.')) {
+  let location = 'Brasil • Acesso Seguro PEX';
+  if (
+    params.ip === '127.0.0.1' ||
+    params.ip === '::1' ||
+    params.ip.startsWith('192.168.') ||
+    params.ip.startsWith('10.')
+  ) {
     location = 'Rede Corporativa PEX (Local)';
-  } else if (params.ip.startsWith('177.')) {
-    location = 'Maringá, PR • Brasil';
-  } else if (params.ip.startsWith('189.')) {
-    location = 'Curitiba, PR • Brasil';
   }
 
   const newSession: UserSessionRecord = {
@@ -139,24 +119,17 @@ export function registerLoginSession(params: {
     revokedBy: null,
   };
 
-  // Remove registro anterior com mesmo ID se existir, e coloca o novo no topo
-  const filtered = sessions.filter(s => s.id !== params.sessionId);
+  const filtered = sessions.filter((s) => s.id !== params.sessionId);
   filtered.unshift(newSession);
 
-  // Mantém no máximo 100 registros históricos
-  const trimmed = filtered.slice(0, 100);
-  saveSessionsStore(trimmed);
-
+  saveSessionsStore(filtered.slice(0, 100));
   return newSession;
 }
 
-/**
- * Atualiza heartbeat de atividade da sessão
- */
 export function touchSession(sessionId: string): boolean {
   if (!sessionId) return false;
   const sessions = loadSessionsStore();
-  const index = sessions.findIndex(s => s.id === sessionId);
+  const index = sessions.findIndex((s) => s.id === sessionId);
   if (index === -1) return false;
 
   const session = sessions[index];
@@ -176,23 +149,17 @@ export function touchSession(sessionId: string): boolean {
   return true;
 }
 
-/**
- * Verifica se a sessão foi revogada remotamente por um administrador
- */
 export function isSessionRevoked(sessionId: string): boolean {
   if (!sessionId) return false;
   const sessions = loadSessionsStore();
-  const session = sessions.find(s => s.id === sessionId);
+  const session = sessions.find((s) => s.id === sessionId);
   if (!session) return false;
   return session.status === 'REVOKED';
 }
 
-/**
- * Revoga uma sessão específica (Logoff remoto)
- */
 export function revokeSession(sessionId: string, adminIdentifier: string = 'ADMIN'): boolean {
   const sessions = loadSessionsStore();
-  const session = sessions.find(s => s.id === sessionId);
+  const session = sessions.find((s) => s.id === sessionId);
   if (!session) return false;
 
   session.status = 'REVOKED';
@@ -203,15 +170,15 @@ export function revokeSession(sessionId: string, adminIdentifier: string = 'ADMI
   return true;
 }
 
-/**
- * Revoga todas as sessões exceto a atual (Derrubar todos)
- */
-export function revokeAllSessionsExcept(currentSessionId: string | null, adminIdentifier: string = 'ADMIN'): number {
+export function revokeAllSessionsExcept(
+  currentSessionId: string | null,
+  adminIdentifier: string = 'ADMIN'
+): number {
   const sessions = loadSessionsStore();
   let count = 0;
   const nowIso = new Date().toISOString();
 
-  sessions.forEach(sess => {
+  sessions.forEach((sess) => {
     if (sess.id !== currentSessionId && sess.status !== 'REVOKED' && sess.status !== 'EXPIRED') {
       sess.status = 'REVOKED';
       sess.revokedAt = nowIso;
@@ -226,23 +193,16 @@ export function revokeAllSessionsExcept(currentSessionId: string | null, adminId
   return count;
 }
 
-/**
- * Lista as sessões com status sincronizado com o tempo decorrido
- */
 export function listUserSessions(): UserSessionRecord[] {
   const sessions = loadSessionsStore();
   const now = Date.now();
 
-  let modified = false;
-  sessions.forEach(s => {
+  sessions.forEach((s) => {
     if (s.status === 'REVOKED') return;
 
     const expiresAtMs = new Date(s.expiresAt).getTime();
     if (now >= expiresAtMs) {
-      if (s.status !== 'EXPIRED') {
-        s.status = 'EXPIRED';
-        modified = true;
-      }
+      s.status = 'EXPIRED';
       return;
     }
 
@@ -250,28 +210,15 @@ export function listUserSessions(): UserSessionRecord[] {
     const diffMinutes = (now - lastActiveMs) / (60 * 1000);
 
     if (diffMinutes >= 5 && diffMinutes < 10) {
-      if (s.status !== 'IDLE') {
-        s.status = 'IDLE';
-        modified = true;
-      }
+      s.status = 'IDLE';
     } else if (diffMinutes < 5) {
-      if (s.status !== 'ACTIVE') {
-        s.status = 'ACTIVE';
-        modified = true;
-      }
+      s.status = 'ACTIVE';
     }
   });
-
-  if (modified) {
-    saveSessionsStore(sessions);
-  }
 
   return sessions;
 }
 
-/**
- * Calcula estatísticas consolidadas para os KPIs administrativos
- */
 export function calculateSessionStats(sessions: UserSessionRecord[]): SessionStats {
   const now = Date.now();
   let totalActive = 0;
@@ -286,7 +233,7 @@ export function calculateSessionStats(sessions: UserSessionRecord[]): SessionSta
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  sessions.forEach(s => {
+  sessions.forEach((s) => {
     if (s.device === 'Desktop') devices.desktop++;
     else if (s.device === 'Mobile') devices.mobile++;
     else if (s.device === 'Tablet') devices.tablet++;
@@ -321,7 +268,8 @@ export function calculateSessionStats(sessions: UserSessionRecord[]): SessionSta
     }
   });
 
-  const avgDurationMinutes = activeForAvgCount > 0 ? Math.round(totalDurationMinutes / activeForAvgCount) : 0;
+  const avgDurationMinutes =
+    activeForAvgCount > 0 ? Math.round(totalDurationMinutes / activeForAvgCount) : 0;
 
   return {
     totalActive,
