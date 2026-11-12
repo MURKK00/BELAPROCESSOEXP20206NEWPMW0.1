@@ -10,14 +10,11 @@ function createPrismaClient(): PrismaClient {
   });
 }
 
-const prismaInstance = globalForPrisma.prisma ?? createPrismaClient();
+export const prisma: PrismaClient = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prismaInstance;
+  globalForPrisma.prisma = prisma;
 }
-
-// Exporta como any para manter 100% de compatibilidade com os tipos dinâmicos já usados nas páginas do projeto
-export const prisma: any = prismaInstance;
 
 export async function ensureDatabaseSchema(_client?: any): Promise<void> {
   return;
