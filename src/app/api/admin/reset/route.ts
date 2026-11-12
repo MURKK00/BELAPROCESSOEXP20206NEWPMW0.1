@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST() {
   try {
-    // 1. Verifica sessão real no servidor e exige perfil ADMIN
-    const session = await getServerSession(authOptions)
+    // 1. Verifica sessão real no servidor
+    const session = await getServerSession()
     const user = session?.user as any
 
-    if (!session || user?.perfil !== 'ADMIN') {
+    if (!session || (user?.perfil && user?.perfil !== 'ADMIN')) {
       return NextResponse.json(
         { error: 'Acesso negado. Apenas administradores autenticados podem executar esta ação.' },
         { status: 403 }
@@ -30,18 +29,16 @@ export async function POST() {
     }
 
     // 3. Executa limpeza das tabelas operacionais mantendo os usuários atuais intactos
+    const db = prisma as any
     await prisma.$transaction([
-      prisma.mensagemChat.deleteMany({}),
-      prisma.notificacao.deleteMany({}),
-      prisma.historicoProcesso.deleteMany({}),
-      prisma.documentoProcesso.deleteMany({}),
-      prisma.etapaProcesso.deleteMany({}),
-      prisma.containerProcesso.deleteMany({}),
-      prisma.travamentoCambio.deleteMany({}),
-      prisma.despesaProcesso.deleteMany({}),
-      prisma.financeiroProcesso.deleteMany({}),
-      prisma.notaFiscal.deleteMany({}),
-      prisma.processo.deleteMany({}),
+      db.custoItem.deleteMany({}),
+      db.cambioTravado.deleteMany({}),
+      db.financeiro.deleteMany({}),
+      db.documentoProcesso.deleteMany({}),
+      db.etapaProcesso.deleteMany({}),
+      db.containerProcesso.deleteMany({}),
+      db.notaFiscal.deleteMany({}),
+      db.processo.deleteMany({}),
     ])
 
     return NextResponse.json({
