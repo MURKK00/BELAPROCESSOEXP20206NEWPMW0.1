@@ -1,11 +1,33 @@
 "use server";
 
 import { revalidatePath } from 'next/cache';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import type { TipoEntidadeComercial } from '@prisma/client';
 import type { FazendaItem } from '@/lib/demoCadastrosData';
 
 export type { FazendaItem };
+
+// --- BLOCO DE SEGURANÇA DE SESSÃO ---
+async function requireSession(options?: { onlyAdmin?: boolean; blockViewer?: boolean }) {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as any;
+
+  if (!session || !user) {
+    throw new Error('Sessão expirada ou usuário não autenticado. Faça login novamente.');
+  }
+
+  if (options?.onlyAdmin && user.perfil !== 'ADMIN') {
+    throw new Error('Acesso negado. Apenas administradores podem realizar esta operação.');
+  }
+
+  if (options?.blockViewer && user.perfil === 'VISUALIZADOR') {
+    throw new Error('Acesso negado. Perfil de visualizador não possui permissão de escrita.');
+  }
+
+  return user;
+}
 
 export interface CadastroEntidadeInput {
   id?: string;
@@ -53,6 +75,8 @@ export interface CadastroEntidadeInput {
 
 export async function salvarCadastroEntidadeAction(data: CadastroEntidadeInput) {
   try {
+    await requireSession({ blockViewer: true });
+
     if (!data.razaoSocial || data.razaoSocial.trim() === '') {
       return { success: false, error: 'Razão Social / Nome Comercial é obrigatório.' };
     }
@@ -94,13 +118,22 @@ export async function salvarCadastroEntidadeAction(data: CadastroEntidadeInput) 
         data.municipio = fazendaPrincipal.municipio;
         data.uf = fazendaPrincipal.uf;
         data.coordenadasGps = fazendaPrincipal.coordenadasGps;
-        data.areaTotalHectares = fazendaPrincipal.areaTotalHectares !== undefined && fazendaPrincipal.areaTotalHectares !== null ? Number(fazendaPrincipal.areaTotalHectares) : null;
+        data.areaTotalHectares =
+          fazendaPrincipal.areaTotalHectares !== undefined && fazendaPrincipal.areaTotalHectares !== null
+            ? Number(fazendaPrincipal.areaTotalHectares)
+            : null;
         data.certificacoes = fazendaPrincipal.certificacoes;
-        data.conformidadeSocioambiental = fazendaPrincipal.conformidadeSocioambiental !== undefined ? Boolean(fazendaPrincipal.conformidadeSocioambiental) : true;
+        data.conformidadeSocioambiental =
+          fazendaPrincipal.conformidadeSocioambiental !== undefined
+            ? Boolean(fazendaPrincipal.conformidadeSocioambiental)
+            : true;
       } else {
         // Modo legado sem array de fazendas
         if (!data.carNumero || data.carNumero.trim() === '') {
-          return { success: false, error: 'O CAR (Cadastro Ambiental Rural) é obrigatório para cadastro de Produtor Rural e rastreabilidade do grão.' };
+          return {
+            success: false,
+            error: 'O CAR (Cadastro Ambiental Rural) é obrigatório para cadastro de Produtor Rural e rastreabilidade do grão.',
+          };
         }
         if (!data.inscricaoEstadual || data.inscricaoEstadual.trim() === '') {
           return { success: false, error: 'A Inscrição Estadual (IE) é obrigatória para o produtor rural.' };
@@ -115,9 +148,13 @@ export async function salvarCadastroEntidadeAction(data: CadastroEntidadeInput) 
             municipio: data.municipio?.trim() || null,
             uf: data.uf?.trim() || 'MT',
             coordenadasGps: data.coordenadasGps?.trim() || null,
-            areaTotalHectares: data.areaTotalHectares !== undefined && data.areaTotalHectares !== null ? Number(data.areaTotalHectares) : null,
+            areaTotalHectares:
+              data.areaTotalHectares !== undefined && data.areaTotalHectares !== null
+                ? Number(data.areaTotalHectares)
+                : null,
             certificacoes: data.certificacoes?.trim() || null,
-            conformidadeSocioambiental: data.conformidadeSocioambiental !== undefined ? Boolean(data.conformidadeSocioambiental) : true,
+            conformidadeSocioambiental:
+              data.conformidadeSocioambiental !== undefined ? Boolean(data.conformidadeSocioambiental) : true,
             padrao: true,
           },
         ];
@@ -136,9 +173,13 @@ export async function salvarCadastroEntidadeAction(data: CadastroEntidadeInput) 
       municipio: data.municipio?.trim() || null,
       uf: data.uf?.trim() || null,
       coordenadasGps: data.coordenadasGps?.trim() || null,
-      areaTotalHectares: data.areaTotalHectares !== undefined && data.areaTotalHectares !== null ? Number(data.areaTotalHectares) : null,
+      areaTotalHectares:
+        data.areaTotalHectares !== undefined && data.areaTotalHectares !== null
+          ? Number(data.areaTotalHectares)
+          : null,
       certificacoes: data.certificacoes?.trim() || null,
-      conformidadeSocioambiental: data.conformidadeSocioambiental !== undefined ? Boolean(data.conformidadeSocioambiental) : true,
+      conformidadeSocioambiental:
+        data.conformidadeSocioambiental !== undefined ? Boolean(data.conformidadeSocioambiental) : true,
       fazendas: data.fazendas || null,
 
       pais: data.pais?.trim() || 'Brasil',
@@ -188,6 +229,8 @@ export async function salvarCadastroEntidadeAction(data: CadastroEntidadeInput) 
 
 export async function excluirCadastroEntidadeAction(id: string) {
   try {
+    await requireSession({ blockViewer: true });
+
     await prisma.cadastroEntidade.delete({
       where: { id },
     });
@@ -204,16 +247,10 @@ export async function excluirCadastroEntidadeAction(id: string) {
 
 export async function limparTodosCadastrosAction() {
   try {
-    try {
-      await (prisma.cadastroEntidade as any).deleteMany({});
-    } catch (dbErr) {
-      console.warn('[limparTodosCadastrosAction] Prisma deleteMany aviso:', dbErr);
-    }
+    // Ação destrutiva em massa: exige perfil ADMIN obrigatoriamente
+    await requireSession({ onlyAdmin: true });
 
-    const { getMockStore, saveMockStoreToFile } = await import('@/lib/mockStore');
-    const store = getMockStore();
-    store.cadastroEntidades = [];
-    saveMockStoreToFile(store);
+    await prisma.cadastroEntidade.deleteMany({});
 
     revalidatePath('/');
     revalidatePath('/cadastros');
@@ -226,9 +263,10 @@ export async function limparTodosCadastrosAction() {
   }
 }
 
-
 export async function toggleAtivarCadastroEntidadeAction(id: string, ativo: boolean) {
   try {
+    await requireSession({ blockViewer: true });
+
     const updated = await prisma.cadastroEntidade.update({
       where: { id },
       data: { ativo },
@@ -244,8 +282,13 @@ export async function toggleAtivarCadastroEntidadeAction(id: string, ativo: bool
   }
 }
 
-export async function buscarCadastrosAction(tipo?: 'PRODUTOR' | 'IMPORTADOR' | 'BUYER' | 'ARMAZEM' | 'ALL', termo?: string) {
+export async function buscarCadastrosAction(
+  tipo?: 'PRODUTOR' | 'IMPORTADOR' | 'BUYER' | 'ARMAZEM' | 'ALL',
+  termo?: string
+) {
   try {
+    await requireSession();
+
     const where: any = {};
     if (tipo && tipo !== 'ALL') {
       where.tipo = tipo as TipoEntidadeComercial;
@@ -299,6 +342,8 @@ export async function vincularProdutorTrajetoAction(
   }
 ) {
   try {
+    await requireSession({ blockViewer: true });
+
     let produtorInfo: any = null;
     let fazendaEscolhida: any = null;
 
@@ -367,6 +412,8 @@ export async function vincularProdutorTrajetoAction(
 
 export async function vincularImportadorProcessoAction(processoId: string, importadorId: string) {
   try {
+    await requireSession({ blockViewer: true });
+
     const importador = await prisma.cadastroEntidade.findUnique({
       where: { id: importadorId },
     });
@@ -379,14 +426,7 @@ export async function vincularImportadorProcessoAction(processoId: string, impor
     let novoComplemento = '';
     const linhas = [];
     if (importador.tipo === 'BUYER') {
-      linhas.push('--- COMPRADOR / BUYER (DIFERENTE DO IMPORTADOR) ---');
-      linhas.push(`NOME: ${importador.razaoSocial}`);
-      if (importador.endereco) linhas.push(`ENDERECO: ${importador.endereco}`);
-      if (importador.cidade) linhas.push(`CIDADE: ${importador.cidade}`);
-      if (importador.pais) linhas.push(`PAIS: ${importador.pais}`);
-      if (importador.iecTaxId) linhas.push(`TAX_ID: ${importador.iecTaxId}`);
-      if (importador.email) linhas.push(`EMAIL: ${importador.email}`);
-      if (importador.telefone) linhas.push(`TELEFONE: ${importador.telefone}`);
+      linhsPush(linhas, importador);
     }
 
     if (importador.bancoNome || importador.bancoSwift) {
@@ -430,4 +470,15 @@ export async function vincularImportadorProcessoAction(processoId: string, impor
     console.error('[vincularImportadorProcessoAction] Erro:', error);
     return { success: false, error: error?.message || 'Falha ao vincular importador à negociação.' };
   }
+}
+
+function linhsPush(linhas: string[], importador: any) {
+  linhas.push('--- COMPRADOR / BUYER (DIFERENTE DO IMPORTADOR) ---');
+  linhas.push(`NOME: ${importador.razaoSocial}`);
+  if (importador.endereco) linhas.push(`ENDERECO: ${importador.endereco}`);
+  if (importador.cidade) linhas.push(`CIDADE: ${importador.cidade}`);
+  if (importador.pais) linhas.push(`PAIS: ${importador.pais}`);
+  if (importador.iecTaxId) linhas.push(`TAX_ID: ${importador.iecTaxId}`);
+  if (importador.email) linhas.push(`EMAIL: ${importador.email}`);
+  if (importador.telefone) linhas.push(`TELEFONE: ${importador.telefone}`);
 }
