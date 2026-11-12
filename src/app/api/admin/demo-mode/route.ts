@@ -1,50 +1,46 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { isSystemInDemoMode, enableDemoMode, disableDemoMode, getMockStore } from '@/lib/mockStore';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { isDemoModeServer, setDemoModeServer } from '@/lib/demoMode'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  try {
-    const isDemo = isSystemInDemoMode();
-    const store = getMockStore();
-    const countProcessos = store.processos?.length || 0;
-    const countUsuarios = store.usuarios?.length || 0;
-
-    return NextResponse.json({
-      success: true,
-      isDemoMode: isDemo,
-      countProcessos,
-      countUsuarios,
-    });
-  } catch (error: any) {
-    console.error('[API Demo Mode GET] Erro:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  const session = await getServerSession(authOptions)
+  if (!session) {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
+
+  return NextResponse.json({ demoMode: isDemoModeServer() })
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { enableDemo } = body;
+    // Exige sessão ativa e perfil ADMIN para ativar/desativar modo demo
+    const session = await getServerSession(authOptions)
+    const user = session?.user as any
 
-    if (enableDemo) {
-      enableDemoMode();
-    } else {
-      disableDemoMode();
+    if (!session || user?.perfil !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Acesso negado. Apenas ADMIN pode alterar o Modo Demo.' },
+        { status: 403 }
+      )
     }
 
-    const isDemo = isSystemInDemoMode();
-    const store = getMockStore();
+    const body = await req.json()
+    const enabled = Boolean(body?.enabled ?? body?.demoMode)
+
+    setDemoModeServer(enabled)
 
     return NextResponse.json({
       success: true,
-      isDemoMode: isDemo,
-      countProcessos: store.processos?.length || 0,
-      message: enableDemo
-        ? 'Modo de Demonstração ativado com sucesso! Dados de exemplo carregados.'
-        : 'Modo de Demonstração desativado! Sistema zerado para lançamentos reais.',
-    });
+      demoMode: isDemoModeServer(),
+      message: enabled ? 'Modo Demonstração ativado.' : 'Modo Produção (Supabase) ativado.',
+    })
   } catch (error: any) {
-    console.error('[API Demo Mode POST] Erro:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Erro ao alterar modo de demonstração.', details: error?.message },
+      { status: 500 }
+    )
   }
 }
