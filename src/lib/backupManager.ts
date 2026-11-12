@@ -134,27 +134,20 @@ export function saveBackupLogs(logs: BackupLogItem[]) {
 }
 
 export async function extrairSnapshotBanco() {
-  const [usuarios, processos, containers, notasFiscais, entidades] = await Promise.all([
-    prisma.usuario
-      .findMany({
-        select: {
-          id: true,
-          nome: true,
-          email: true,
-          username: true,
-          perfil: true,
-          papeis: true,
-          ativo: true,
-          criadoEm: true,
-          // NUNCA inclui senhaHash no snapshot de backup por segurança
-        },
-      })
-      .catch(() => []),
-    prisma.processo.findMany().catch(() => []),
-    (prisma.container ?? prisma.containerProcesso)?.findMany().catch(() => []) ?? [],
-    prisma.notaFiscal?.findMany().catch(() => []) ?? [],
-    prisma.cadastroEntidade?.findMany().catch(() => []) ?? [],
+  const db = prisma as any;
+
+  const [rawUsuarios, processos, containers, notasFiscais, entidades] = await Promise.all([
+    db.usuario?.findMany().catch(() => []) ?? [],
+    db.processo?.findMany().catch(() => []) ?? [],
+    (db.container ?? db.containerProcesso)?.findMany().catch(() => []) ?? [],
+    db.notaFiscal?.findMany().catch(() => []) ?? [],
+    db.cadastroEntidade?.findMany().catch(() => []) ?? [],
   ]);
+
+  // Remove senhaHash de qualquer usuário antes de gerar o snapshot de backup
+  const usuarios = Array.isArray(rawUsuarios)
+    ? rawUsuarios.map(({ senhaHash, ...safeUser }: any) => safeUser)
+    : [];
 
   return {
     metadata: {
@@ -295,7 +288,6 @@ export async function verificarEExecutarAgendamentoSeVencido() {
   return null;
 }
 
-// Funções auxiliares de compatibilidade para a rota /api/admin/backup
 export async function listBackups() {
   return getBackupLogs();
 }
