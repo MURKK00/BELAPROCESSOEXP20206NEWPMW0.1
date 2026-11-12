@@ -1,115 +1,127 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import {
-  listBackups,
-  createBackup,
-  restoreBackup,
-  deleteBackup,
   getBackupConfig,
   saveBackupConfig,
   getBackupLogs,
-} from '@/lib/backupManager'
+  executarBackup,
+  extrairSnapshotBanco,
+  verificarEExecutarAgendamentoSeVencido,
+  deleteBackup,
+} from '@/lib/backupManager';
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
-// Função auxiliar para garantir que apenas ADMIN acesse qualquer método desta rota
 async function checkAdminAuth() {
-  const session = await getServerSession(authOptions)
-  const user = session?.user as any
+  const session = await getServerSession(authOptions);
+  const user = session?.user as any;
   if (!session || user?.perfil !== 'ADMIN') {
-    return null
+    return null;
   }
-  return user
+  return user;
 }
 
-export async function GET() {
-  const admin = await checkAdminAuth()
+export async function GET(req: NextRequest) {
+  const admin = await checkAdminAuth();
   if (!admin) {
-    return NextResponse.json({ error: 'Acesso restrito a administradores.' }, { status: 403 })
+    return NextResponse.json({ error: 'Acesso restrito a administradores.' }, { status: 403 });
   }
 
   try {
-    const [backups, config, logs] = await Promise.all([
-      listBackups(),
-      getBackupConfig(),
-      getBackupLogs(),
-    ])
-    return NextResponse.json({ backups, config, logs })
+    const { searchParams } = new URL(req.url);
+    const download = searchParams.get('download');
+
+    // Se o admin pediu para baixar o JSON do snapshot na hora
+    if (download === '1' || download === 'true') {
+      const snapshot = await extrairSnapshotBanco();
+      const jsonStr = JSON.stringify(snapshot, null, 2);
+      const fileDate = new Date().toISOString().replace(/[:.]/g, '-');
+      return new NextResponse(jsonStr, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Disposition': `attachment; filename="backup_supabase_${fileDate}.json"`,
+        },
+      });
+    }
+
+    await verificarEExecutarAgendamentoSeVencido();
+    const config = getBackupConfig();
+    const logs = getBackupLogs();
+
+    return NextResponse.json({ config, logs, backups: logs });
   } catch (error: any) {
     return NextResponse.json(
       { error: 'Erro ao carregar informações de backup.', details: error?.message },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await checkAdminAuth()
+  const admin = await checkAdminAuth();
   if (!admin) {
-    return NextResponse.json({ error: 'Acesso restrito a administradores.' }, { status: 403 })
+    return NextResponse.json({ error: 'Acesso restrito a administradores.' }, { status: 403 });
   }
 
   try {
-    const body = await req.json().catch(() => ({}))
-    const action = body?.action || 'create'
+    const body = await req.json().catch(() => ({}));
+    const iniciadoPor = body?.iniciadoPor || admin.nome || admin.email || 'ADMIN';
+    const log = await executarBackup('MANUAL', iniciadoPor);
 
-    if (action === 'restore') {
-      if (!body?.filename) {
-        return NextResponse.json({ error: 'Nome do arquivo de backup é obrigatório.' }, { status: 400 })
-      }
-      const result = await restoreBackup(body.filename)
-      return NextResponse.json(result)
-    }
-
-    const backup = await createBackup(body?.label || `Manual (${admin.nome || 'ADMIN'})`)
-    return NextResponse.json({ success: true, backup })
+    return NextResponse.json({
+      success: log.status === 'SUCESSO',
+      log,
+      backup: log,
+      config: getBackupConfig(),
+      logs: getBackupLogs(),
+    });
   } catch (error: any) {
     return NextResponse.json(
-      { error: 'Erro ao processar operação de backup.', details: error?.message },
+      { error: 'Erro ao executar backup.', details: error?.message },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function PATCH(req: NextRequest) {
-  const admin = await checkAdminAuth()
+  const admin = await checkAdminAuth();
   if (!admin) {
-    return NextResponse.json({ error: 'Acesso restrito a administradores.' }, { status: 403 })
+    return NextResponse.json({ error: 'Acesso restrito a administradores.' }, { status: 403 });
   }
 
   try {
-    const body = await req.json()
-    const updatedConfig = await saveBackupConfig(body)
-    return NextResponse.json({ success: true, config: updatedConfig })
+    const body = await req.json();
+    const current = getBackupConfig();
+    const updated = saveBackupConfig({ ...current, ...body });
+
+    return NextResponse.json({ success: true, config: updated });
   } catch (error: any) {
     return NextResponse.json(
       { error: 'Erro ao atualizar configurações de backup.', details: error?.message },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function DELETE(req: NextRequest) {
-  const admin = await checkAdminAuth()
+  const admin = await checkAdminAuth();
   if (!admin) {
-    return NextResponse.json({ error: 'Acesso restrito a administradores.' }, { status: 403 })
+    return NextResponse.json({ error: 'Acesso restrito a administradores.' }, { status: 403 });
   }
 
   try {
-    const { searchParams } = new URL(req.url)
-    const filename = searchParams.get('filename') || searchParams.get('file')
-
-    if (!filename) {
-      return NextResponse.json({ error: 'Arquivo não informado.' }, { status: 400 })
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id') || searchParams.get('filename');
+    if (id) {
+      await deleteBackup(id);
     }
-
-    await deleteBackup(filename)
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, logs: getBackupLogs() });
   } catch (error: any) {
     return NextResponse.json(
-      { error: 'Erro ao excluir arquivo de backup.', details: error?.message },
+      { error: 'Erro ao remover registro de backup.', details: error?.message },
       { status: 500 }
-    )
+    );
   }
 }
