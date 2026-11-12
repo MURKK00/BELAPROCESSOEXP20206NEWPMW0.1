@@ -1,8 +1,5 @@
-import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
 import { prisma } from './prisma';
-import { getMockStore } from './mockStore';
 
 export interface BackupScheduleConfig {
   ativo: boolean;
@@ -40,10 +37,6 @@ export interface BackupLogItem {
   iniciadoPor: string;
 }
 
-const CONFIG_FILE_PATH = path.join(process.cwd(), 'prisma', 'dev-backup-config.json');
-const LOGS_FILE_PATH = path.join(process.cwd(), 'prisma', 'dev-backup-logs.json');
-const BACKUPS_DIR_PATH = path.join(process.cwd(), 'prisma', 'backups');
-
 const DEFAULT_CONFIG: BackupScheduleConfig = {
   ativo: true,
   frequencia: 'DIARIO',
@@ -54,19 +47,11 @@ const DEFAULT_CONFIG: BackupScheduleConfig = {
   emailDestino: 'bela@belacereais.com.br',
 };
 
-// Memória em cache para resiliência serverless
-let cachedConfig: BackupScheduleConfig | null = null;
-let cachedLogs: BackupLogItem[] | null = null;
-
-function ensureBackupsDir() {
-  try {
-    if (!fs.existsSync(BACKUPS_DIR_PATH)) {
-      fs.mkdirSync(BACKUPS_DIR_PATH, { recursive: true });
-    }
-  } catch (err) {
-    console.warn('[BackupManager] Erro ao criar diretório de backups:', err);
-  }
-}
+// Estado em memória global (compatível com Vercel Serverless Read-Only FileSystem)
+const globalForBackup = globalThis as unknown as {
+  backupConfig?: BackupScheduleConfig;
+  backupLogs?: BackupLogItem[];
+};
 
 export function formatBytes(bytes: number, decimals = 1): string {
   if (bytes === 0) return '0 B';
@@ -116,29 +101,15 @@ export function calcularProximaExecucao(config: BackupScheduleConfig): string {
 }
 
 export function getBackupConfig(): BackupScheduleConfig {
-  if (cachedConfig) return cachedConfig;
-
-  try {
-    if (fs.existsSync(CONFIG_FILE_PATH)) {
-      const raw = fs.readFileSync(CONFIG_FILE_PATH, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed.ativo === 'boolean') {
-        if (!parsed.proximaExecucao) {
-          parsed.proximaExecucao = calcularProximaExecucao(parsed);
-        }
-        cachedConfig = parsed;
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn('[BackupManager] Erro ao ler config de backup do disco:', err);
+  if (globalForBackup.backupConfig) {
+    return globalForBackup.backupConfig;
   }
 
-  const initialConfig = {
+  const initialConfig: BackupScheduleConfig = {
     ...DEFAULT_CONFIG,
     proximaExecucao: calcularProximaExecucao(DEFAULT_CONFIG),
   };
-  saveBackupConfig(initialConfig);
+  globalForBackup.backupConfig = initialConfig;
   return initialConfig;
 }
 
@@ -147,86 +118,43 @@ export function saveBackupConfig(newConfig: BackupScheduleConfig): BackupSchedul
     ...newConfig,
     proximaExecucao: calcularProximaExecucao(newConfig),
   };
-  cachedConfig = updated;
-
-  try {
-    fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(updated, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('[BackupManager] Não foi possível persistir dev-backup-config.json:', err);
-  }
-
+  globalForBackup.backupConfig = updated;
   return updated;
 }
 
 export function getBackupLogs(): BackupLogItem[] {
-  if (cachedLogs) return cachedLogs;
-
-  try {
-    if (fs.existsSync(LOGS_FILE_PATH)) {
-      const raw = fs.readFileSync(LOGS_FILE_PATH, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        cachedLogs = parsed;
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn('[BackupManager] Erro ao ler logs de backup do disco:', err);
+  if (!globalForBackup.backupLogs) {
+    globalForBackup.backupLogs = [];
   }
-
-  cachedLogs = [];
-  return [];
+  return globalForBackup.backupLogs;
 }
 
 export function saveBackupLogs(logs: BackupLogItem[]) {
-  cachedLogs = logs;
-  try {
-    fs.writeFileSync(LOGS_FILE_PATH, JSON.stringify(logs, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('[BackupManager] Não foi possível persistir dev-backup-logs.json:', err);
-  }
+  globalForBackup.backupLogs = logs;
 }
 
 export async function extrairSnapshotBanco() {
-  const store = getMockStore();
-
-  let usuarios: any[] = [];
-  let processos: any[] = [];
-  let containers: any[] = [];
-  let notasFiscais: any[] = [];
-  let entidades: any[] = [];
-  let etapasTemplate: any[] = [];
-
-  try {
-    usuarios = await (prisma.usuario as any).findMany().catch(() => store.usuarios || []);
-  } catch {
-    usuarios = store.usuarios || [];
-  }
-
-  try {
-    processos = await (prisma.processo as any).findMany().catch(() => store.processos || []);
-  } catch {
-    processos = store.processos || [];
-  }
-
-  try {
-    containers = await (prisma.container as any).findMany().catch(() => store.containers || []);
-  } catch {
-    containers = store.containers || [];
-  }
-
-  try {
-    notasFiscais = await (prisma as any).notaFiscal?.findMany().catch(() => store.notasFiscais || []);
-  } catch {
-    notasFiscais = store.notasFiscais || [];
-  }
-
-  try {
-    entidades = await (prisma.cadastroEntidade as any)?.findMany().catch(() => store.cadastroEntidades || []);
-  } catch {
-    entidades = store.cadastroEntidades || [];
-  }
-  etapasTemplate = store.etapasTemplate || [];
+  const [usuarios, processos, containers, notasFiscais, entidades] = await Promise.all([
+    prisma.usuario
+      .findMany({
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          username: true,
+          perfil: true,
+          papeis: true,
+          ativo: true,
+          criadoEm: true,
+          // NUNCA inclui senhaHash no snapshot de backup por segurança
+        },
+      })
+      .catch(() => []),
+    prisma.processo.findMany().catch(() => []),
+    (prisma.container ?? prisma.containerProcesso)?.findMany().catch(() => []) ?? [],
+    prisma.notaFiscal?.findMany().catch(() => []) ?? [],
+    prisma.cadastroEntidade?.findMany().catch(() => []) ?? [],
+  ]);
 
   return {
     metadata: {
@@ -242,9 +170,9 @@ export async function extrairSnapshotBanco() {
       containers,
       notasFiscais,
       cadastroEntidades: entidades,
-      etapasTemplate,
-      parceiros: store.parceiros || [],
-      tiposDocumento: store.tiposDocumento || [],
+      etapasTemplate: [],
+      parceiros: [],
+      tiposDocumento: [],
     },
   };
 }
@@ -254,12 +182,9 @@ export async function executarBackup(
   iniciadoPor = 'ADMIN'
 ): Promise<BackupLogItem> {
   const startTime = Date.now();
-  ensureBackupsDir();
-
   const timestampIso = new Date().toISOString();
   const fileDateStr = timestampIso.replace(/[:.]/g, '-');
   const arquivoNome = `backup_supabase_${fileDateStr}.json`;
-  const arquivoPath = path.join(BACKUPS_DIR_PATH, arquivoNome);
 
   try {
     const snapshot = await extrairSnapshotBanco();
@@ -270,27 +195,19 @@ export async function executarBackup(
 
     const checksumSha256 = crypto.createHash('sha256').update(buffer).digest('hex');
 
-    // Tenta salvar o arquivo snapshot físico
-    try {
-      fs.writeFileSync(arquivoPath, jsonStr, 'utf-8');
-    } catch (fsErr) {
-      console.warn('[BackupManager] Aviso ao salvar arquivo físico de backup:', fsErr);
-    }
-
     const resumoTabelas = {
       usuarios: snapshot.dados.usuarios.length,
       processos: snapshot.dados.processos.length,
       containers: snapshot.dados.containers.length,
       notasFiscais: snapshot.dados.notasFiscais.length,
       entidades: snapshot.dados.cadastroEntidades.length,
-      templates: snapshot.dados.etapasTemplate.length,
+      templates: 0,
       totalRegistros:
         snapshot.dados.usuarios.length +
         snapshot.dados.processos.length +
         snapshot.dados.containers.length +
         snapshot.dados.notasFiscais.length +
-        snapshot.dados.cadastroEntidades.length +
-        snapshot.dados.etapasTemplate.length,
+        snapshot.dados.cadastroEntidades.length,
     };
 
     const novoLog: BackupLogItem = {
@@ -304,24 +221,24 @@ export async function executarBackup(
       checksumSha256,
       resumoTabelas,
       arquivoNome,
-      mensagem: `Backup do Supabase concluído com sucesso. ${resumoTabelas.totalRegistros} registros catalogados em ${duracaoMs}ms.`,
+      mensagem: `Snapshot do Supabase verificado com sucesso (${resumoTabelas.totalRegistros} registros em ${duracaoMs}ms).`,
       iniciadoPor,
     };
 
-    // Atualiza lista de logs com retenção
     const config = getBackupConfig();
     const logsAtuais = getBackupLogs();
     const limiteMs = config.retencaoDias * 24 * 60 * 60 * 1000;
     const agoraMs = Date.now();
 
-    const logsFiltrados = [novoLog, ...logsAtuais].filter((log) => {
-      const logTime = new Date(log.dataConclusao).getTime();
-      return agoraMs - logTime <= limiteMs;
-    });
+    const logsFiltrados = [novoLog, ...logsAtuais]
+      .filter((log) => {
+        const logTime = new Date(log.dataConclusao).getTime();
+        return agoraMs - logTime <= limiteMs;
+      })
+      .slice(0, 50);
 
     saveBackupLogs(logsFiltrados);
 
-    // Atualiza status na config
     config.ultimoBackupEm = timestampIso;
     config.ultimoStatus = 'SUCESSO';
     config.proximaExecucao = calcularProximaExecucao(config);
@@ -354,7 +271,7 @@ export async function executarBackup(
     };
 
     const logsAtuais = getBackupLogs();
-    saveBackupLogs([novoLogErro, ...logsAtuais]);
+    saveBackupLogs([novoLogErro, ...logsAtuais].slice(0, 50));
 
     const config = getBackupConfig();
     config.ultimoStatus = 'FALHA';
@@ -364,7 +281,6 @@ export async function executarBackup(
   }
 }
 
-// Checagem automática do agendamento programado
 export async function verificarEExecutarAgendamentoSeVencido() {
   const config = getBackupConfig();
   if (!config.ativo || !config.proximaExecucao) return null;
@@ -373,9 +289,27 @@ export async function verificarEExecutarAgendamentoSeVencido() {
   const dataProgramada = new Date(config.proximaExecucao);
 
   if (agora >= dataProgramada) {
-    console.log('[BackupManager] Disparando backup agendado automático...');
     return await executarBackup('AGENDADO', 'Agendador do Sistema');
   }
 
   return null;
+}
+
+// Funções auxiliares de compatibilidade para a rota /api/admin/backup
+export async function listBackups() {
+  return getBackupLogs();
+}
+
+export async function createBackup(iniciadoPor = 'ADMIN') {
+  return await executarBackup('MANUAL', iniciadoPor);
+}
+
+export async function restoreBackup(_filename: string) {
+  throw new Error('A restauração deve ser feita diretamente pelo painel nativo do Supabase PITR/Backups.');
+}
+
+export async function deleteBackup(idOrFilename: string) {
+  const logs = getBackupLogs();
+  saveBackupLogs(logs.filter((l) => l.id !== idOrFilename && l.arquivoNome !== idOrFilename));
+  return true;
 }
