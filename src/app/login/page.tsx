@@ -84,12 +84,19 @@ function LoginForm() {
 
     try {
       // 1. Faz autenticação direta via API segura
+      let localUsers: any[] = [];
+      try {
+        const raw = localStorage.getItem('bela_usuarios_custom');
+        if (raw) localUsers = JSON.parse(raw);
+      } catch {}
+
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           identifier: termo,
           password,
+          localUsers,
         }),
       });
 

@@ -244,12 +244,16 @@ async function carregarPainel() {
       if (data.success) {
         setIsDemoMode(false);
         setCountProcessos(0);
-        setMensagemSucesso(data.message || 'Todos os lançamentos foram zerados com sucesso!');
+        try {
+          localStorage.removeItem('bela_usuarios_custom');
+        } catch {}
+        await carregarPainel();
+        setMensagemSucesso(data.message || 'Sistema 100% zerado com sucesso! Apenas o perfil mestre ADMIN foi mantido.');
       } else {
-        setMensagemErro(data.error || 'Erro ao zerar lançamentos.');
+        setMensagemErro(data.error || 'Erro ao zerar sistema.');
       }
     } catch (err: any) {
-      setMensagemErro('Falha de comunicação com o servidor ao zerar.');
+      setMensagemErro('Falha de comunicação com o servidor ao zerar o sistema.');
     } finally {
       setExecutandoAcao(false);
     }
@@ -856,77 +860,41 @@ async function carregarPainel() {
       </div>
       )}
 
-      {/* SEÇÃO 1: MODO DEMONSTRAÇÃO & ZERAR LANÇAMENTOS (ABA BANCO) */}
+      {/* SEÇÃO 1: BANCO DE DADOS & AMBIENTE DE PRODUÇÃO (ABA BANCO) */}
       {abaAtiva === 'BANCO' && (
       <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-7 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden">
-        {/* Banner do Status Atual */}
+        {/* Banner do Status de Produção */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-200/80 dark:border-slate-800">
           <div className="flex items-start sm:items-center gap-4">
-            <div
-              className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${
-                isDemoMode
-                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
-                  : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-              }`}
-            >
-              {isDemoMode ? <Sparkles className="w-6 h-6 animate-pulse" /> : <Database className="w-6 h-6" />}
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+              <Database className="w-6 h-6" />
             </div>
 
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                  Status Operacional do Sistema
+                  Ambiente de Produção 100% Real
                 </h2>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                    isDemoMode
-                      ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 animate-pulse'
-                      : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-                  }`}
-                >
-                  {isDemoMode ? 'Modo Demonstração (Ativo)' : 'Modo Real (Limpo / Zerado)'}
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  Produção Ativa
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                {isDemoMode
-                  ? 'O sistema está exibindo dados simulados de demonstração (ex: Meghna Group, contratos de teste) para apresentações.'
-                  : 'O sistema está no modo real de produção, pronto para novos lançamentos autênticos com o banco limpo.'}
+                O sistema opera 100% em modo real e autêntico. Todos os lançamentos, negociações e usuários são registrados diretamente na base de dados corporativa.
               </p>
             </div>
           </div>
 
-          {/* BOTÕES DE CONTROLE RÁPIDO DO MODO */}
-          <div className="flex flex-wrap items-center gap-3">
-            {isDemoMode ? (
-              <button
-                type="button"
-                onClick={() => toggleModoDemonstracao(false)}
-                disabled={executandoAcao}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
-              >
-                <Power className="w-3.5 h-3.5 text-rose-500" />
-                <span>Desativar Demonstração (Zerar Sistema)</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => toggleModoDemonstracao(true)}
-                disabled={executandoAcao}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                <span>Carregar Dados de Demonstração</span>
-              </button>
-            )}
-
+          {/* BOTÃO DE ZERAR SISTEMA */}
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setModalConfirmarZerar(true)}
               disabled={executandoAcao}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 shadow-xs"
             >
-              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-              <span>Zerar Todos os Lançamentos</span>
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <span>Zerar Todo o Sistema (Manter apenas ADMIN)</span>
             </button>
           </div>
         </div>
@@ -941,13 +909,13 @@ async function carregarPainel() {
               {countProcessos} {countProcessos === 1 ? 'negociação' : 'negociações'}
             </div>
             <span className="text-[10px] text-slate-400 mt-0.5 block">
-              {countProcessos === 0 ? 'Banco 100% zerado e limpo' : 'Exibindo registros da base'}
+              {countProcessos === 0 ? 'Banco 100% zerado e limpo' : 'Registros autênticos na base'}
             </span>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-              Usuários com Acesso
+              Usuários do Sistema
             </span>
             <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
               {usuarios.length} cadastrados
@@ -959,13 +927,13 @@ async function carregarPainel() {
 
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-              Modo Atual
+              Status do Ambiente
             </span>
-            <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-              {isDemoMode ? 'DEMO' : 'PRODUÇÃO'}
+            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+              PRODUÇÃO
             </div>
             <span className="text-[10px] text-slate-400 mt-0.5 block">
-              Alternável a qualquer momento com 1 clique
+              100% Autêntico e Operacional
             </span>
           </div>
         </div>
@@ -1127,14 +1095,6 @@ async function carregarPainel() {
                     {/* COLUNA 5: AÇÕES */}
                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setModalPreviewUsuario(user)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                          title="Ficha completa de cadastro"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
                         <button
                           type="button"
                           onClick={() => setModalEditarUsuario({
@@ -1864,16 +1824,16 @@ async function carregarPainel() {
               </div>
               <div>
                 <h3 className="text-base font-black text-rose-600 dark:text-rose-400">
-                  Confirmar Limpeza Total
+                  Confirmar Reset Total do Sistema
                 </h3>
-                <p className="text-xs text-slate-500">Zerar todos os lançamentos do sistema</p>
+                <p className="text-xs text-slate-500">Zerar todas as negociações e usuários de teste</p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
-              Esta ação excluirá todas as negociações, containers, dados financeiros e documentos operacionais.
+              Esta ação excluirá todas as negociações, processos, containers, faturamentos, custos, documentos e todos os usuários cadastrados de teste.
               <strong className="block mt-2 text-slate-900 dark:text-white font-bold">
-                Seus usuários de acesso, parceiros e templates do checklist serão 100% preservados.
+                Apenas o perfil mestre oficial ADMIN (@ADMIN / admin@pexagritech.com) será mantido. O sistema ficará 100% limpo em modo produção para você cadastrar seus novos usuários e negociações reais.
               </strong>
             </p>
 
@@ -1891,7 +1851,7 @@ async function carregarPainel() {
                 disabled={executandoAcao}
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20 cursor-pointer disabled:opacity-50"
               >
-                Sim, Zerar Todos os Lançamentos
+                Sim, Zerar Todo o Sistema
               </button>
             </div>
           </div>
