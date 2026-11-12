@@ -10,17 +10,15 @@ function createPrismaClient(): PrismaClient {
   });
 }
 
-// Reutiliza a instância existente para não esgotar conexões em ambiente Serverless (Vercel)
-export const prisma: PrismaClient = globalForPrisma.prisma ?? createPrismaClient();
+const prismaInstance = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+  globalForPrisma.prisma = prismaInstance;
 }
 
-/**
- * Mantida apenas como no-op (vazia) para não quebrar imports existentes em outros arquivos.
- * As migrações de banco devem rodar via `prisma migrate deploy` no build, nunca em cold start.
- */
+// Exporta como any para manter 100% de compatibilidade com os tipos dinâmicos já usados nas páginas do projeto
+export const prisma: any = prismaInstance;
+
 export async function ensureDatabaseSchema(_client?: any): Promise<void> {
   return;
 }
