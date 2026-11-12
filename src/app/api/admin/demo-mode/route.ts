@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { isDemoModeServer, setDemoModeServer } from '@/lib/demoMode'
 
 export const dynamic = 'force-dynamic'
+
+// Estado em memória para ambiente de desenvolvimento/demonstração
+let demoModeState = false
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -11,7 +13,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 
-  return NextResponse.json({ demoMode: isDemoModeServer() })
+  return NextResponse.json({ demoMode: demoModeState, enabled: demoModeState })
 }
 
 export async function POST(req: NextRequest) {
@@ -27,15 +29,27 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const body = await req.json()
-    const enabled = Boolean(body?.enabled ?? body?.demoMode)
+    // Em produção na Vercel, bloqueia ativação do modo demo para sempre usar o Supabase real
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        {
+          success: false,
+          demoMode: false,
+          enabled: false,
+          error: 'Modo Demonstração está desativado em produção para garantir gravação real no Supabase.',
+        },
+        { status: 403 }
+      )
+    }
 
-    setDemoModeServer(enabled)
+    const body = await req.json().catch(() => ({}))
+    demoModeState = Boolean(body?.enabled ?? body?.demoMode)
 
     return NextResponse.json({
       success: true,
-      demoMode: isDemoModeServer(),
-      message: enabled ? 'Modo Demonstração ativado.' : 'Modo Produção (Supabase) ativado.',
+      demoMode: demoModeState,
+      enabled: demoModeState,
+      message: demoModeState ? 'Modo Demonstração ativado.' : 'Modo Produção (Supabase) ativado.',
     })
   } catch (error: any) {
     return NextResponse.json(
