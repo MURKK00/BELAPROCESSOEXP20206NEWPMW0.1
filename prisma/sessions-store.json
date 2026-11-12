@@ -1,5 +1,57 @@
 [
   {
+    "id": "sess_usr_admin_master_1794487208033",
+    "userId": "usr_admin_master",
+    "userName": "Administrador PEX",
+    "userEmail": "admin@pexagritech.com",
+    "userRole": "ADMIN",
+    "userPapeis": [
+      "ADMIN",
+      "DIRETORIA",
+      "COMERCIAL",
+      "FINANCEIRO",
+      "ADMINISTRATIVO"
+    ],
+    "ip": "127.0.0.1",
+    "location": "Rede Corporativa PEX (Local)",
+    "userAgent": "curl/7.88.1",
+    "device": "Desktop",
+    "browser": "Google Chrome",
+    "os": "Windows 11",
+    "startedAt": "2026-11-12T12:40:08.033Z",
+    "lastActiveAt": "2026-11-12T12:40:08.033Z",
+    "expiresAt": "2026-11-13T00:40:08.033Z",
+    "status": "ACTIVE",
+    "revokedAt": null,
+    "revokedBy": null
+  },
+  {
+    "id": "sess_usr_admin_master_1794487194439",
+    "userId": "usr_admin_master",
+    "userName": "Administrador PEX",
+    "userEmail": "admin@pexagritech.com",
+    "userRole": "ADMIN",
+    "userPapeis": [
+      "ADMIN",
+      "DIRETORIA",
+      "COMERCIAL",
+      "FINANCEIRO",
+      "ADMINISTRATIVO"
+    ],
+    "ip": "127.0.0.1",
+    "location": "Rede Corporativa PEX (Local)",
+    "userAgent": "curl/7.88.1",
+    "device": "Desktop",
+    "browser": "Google Chrome",
+    "os": "Windows 11",
+    "startedAt": "2026-11-12T12:39:54.439Z",
+    "lastActiveAt": "2026-11-12T12:39:54.439Z",
+    "expiresAt": "2026-11-13T00:39:54.439Z",
+    "status": "ACTIVE",
+    "revokedAt": null,
+    "revokedBy": null
+  },
+  {
     "id": "sess_usr_1794312412864_6mi9e_1794312442720",
     "userId": "usr_1794312412864_6mi9e",
     "userName": "Lucas Ferreira",
