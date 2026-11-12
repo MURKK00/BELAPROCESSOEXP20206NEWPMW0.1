@@ -26,7 +26,7 @@ export function VisaoGeralHeaderActions() {
           className="inline-flex items-center gap-2 bg-[#f58220] hover:bg-orange-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 transition-all self-start sm:self-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Nova Negociação</span>
+          <span>Nova Negociação</span>
         </Link>
       </div>
 

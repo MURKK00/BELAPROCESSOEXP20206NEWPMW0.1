@@ -37,9 +37,10 @@ export function BackupScheduleManager() {
   const [mensagemErro, setMensagemErro] = useState<string | null>(null);
   const [copiadoHash, setCopiadoHash] = useState<string | null>(null);
 
-  // Estados de Modais
+  // Estados de Modais e Notificações de Logs
   const [modalConfig, setModalConfig] = useState<boolean>(false);
   const [modalLogDetalhe, setModalLogDetalhe] = useState<BackupLogItem | null>(null);
+  const [notificacaoRecente, setNotificacaoRecente] = useState<BackupLogItem | null>(null);
 
   // Formulário de Configuração
   const [formAtivo, setFormAtivo] = useState<boolean>(true);
@@ -48,7 +49,7 @@ export function BackupScheduleManager() {
   const [formDiaSemana, setFormDiaSemana] = useState<number>(0);
   const [formRetencao, setFormRetencao] = useState<number>(15);
   const [formNotificar, setFormNotificar] = useState<boolean>(true);
-  const [formEmail, setFormEmail] = useState<string>('admin@pexagritech.com');
+  const [formEmail, setFormEmail] = useState<string>('bela@belacereais.com.br');
 
   const carregarDadosBackup = React.useCallback(async () => {
     setCarregando(true);
@@ -69,7 +70,7 @@ export function BackupScheduleManager() {
           setFormDiaSemana(data.config.diaSemana ?? 0);
           setFormRetencao(data.config.retencaoDias || 15);
           setFormNotificar(Boolean(data.config.notificarAdminEmail));
-          setFormEmail(data.config.emailDestino || 'admin@pexagritech.com');
+          setFormEmail(data.config.emailDestino || 'bela@belacereais.com.br');
         }
       } else {
         setMensagemErro(data.error || 'Erro ao carregar status do backup.');
@@ -84,7 +85,20 @@ export function BackupScheduleManager() {
 
   useEffect(() => {
     carregarDadosBackup();
-  }, [carregarDadosBackup]);
+
+    // Rotina ativa de agendamento: verifica a cada 30 segundos se o próximo backup programado venceu
+    const intervalTimer = setInterval(() => {
+      if (config?.ativo && config?.proximaExecucao) {
+        const agora = Date.now();
+        const dataProx = new Date(config.proximaExecucao).getTime();
+        if (agora >= dataProx && !executandoBackup) {
+          executarBackupImediato('AGENDADO', 'Rotina Agendada do Sistema');
+        }
+      }
+    }, 30000);
+
+    return () => clearInterval(intervalTimer);
+  }, [carregarDadosBackup, config?.ativo, config?.proximaExecucao, executandoBackup]);
 
   async function executarBackupImediato(tipo: 'MANUAL' | 'AGENDADO' = 'MANUAL', iniciadoPor?: string) {
     setExecutandoBackup(true);
@@ -105,6 +119,7 @@ export function BackupScheduleManager() {
       if (data.success && data.log) {
         setLogs((prev) => [data.log, ...prev]);
         if (data.config) setConfig(data.config);
+        setNotificacaoRecente(data.log);
         setMensagemSucesso(
           `Backup do Supabase gerado com sucesso! ${data.log.resumoTabelas?.totalRegistros || 0} registros catalogados em ${data.log.duracaoMs}ms (${data.log.tamanhoFormatado}).`
         );
@@ -263,6 +278,65 @@ export function BackupScheduleManager() {
             >
               ✕
             </button>
+          </div>
+        )}
+
+        {/* NOTIFICAÇÃO DE CONCLUSÃO DE LOG EM TEMPO REAL PARA O PAINEL ADMINISTRATIVO */}
+        {notificacaoRecente && (
+          <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-emerald-500/10 to-orange-500/10 border border-blue-500/25 dark:border-blue-500/30 text-xs shadow-sm animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="p-2 rounded-xl bg-blue-600 text-white shrink-0 shadow-xs">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-black text-slate-900 dark:text-white">
+                      Notificação de Conclusão de Backup
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      notificacaoRecente.tipo === 'AGENDADO'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300'
+                        : 'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-300'
+                    }`}>
+                      {notificacaoRecente.tipo}
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                      {notificacaoRecente.status}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+                    Snapshot gerado com sucesso às {formatarDataHora(notificacaoRecente.dataConclusao)}: {notificacaoRecente.resumoTabelas?.totalRegistros ?? 0} registros gravados ({notificacaoRecente.tamanhoFormatado} · {notificacaoRecente.duracaoMs}ms).
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setModalLogDetalhe(notificacaoRecente)}
+                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
+                >
+                  Ver Detalhes
+                </button>
+                <a
+                  href={`/api/admin/backup?action=download&id=${notificacaoRecente.id}`}
+                  download
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Baixar .json</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setNotificacaoRecente(null)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1 cursor-pointer"
+                  title="Fechar notificação"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -623,7 +697,7 @@ export function BackupScheduleManager() {
                     type="email"
                     value={formEmail}
                     onChange={(e) => setFormEmail(e.target.value)}
-                    placeholder="admin@pexagritech.com"
+                    placeholder="bela@belacereais.com.br"
                     className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                   />
                 )}

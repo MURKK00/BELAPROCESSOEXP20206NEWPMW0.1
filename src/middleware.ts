@@ -14,7 +14,8 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/bancos') ||
     pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/api/admin/health') ||
-    pathname.startsWith('/api/admin/backup')
+    pathname.startsWith('/api/admin/backup') ||
+    pathname.startsWith('/api/admin/schema-sql')
   ) {
     return NextResponse.next();
   }

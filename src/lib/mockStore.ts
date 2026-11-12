@@ -51,7 +51,7 @@ function initMockStore(): MockStore {
             {
               id: 'usr_admin_master',
               nome: 'Administrador PEX',
-              email: 'admin@pexagritech.com',
+              email: 'bela@belacereais.com.br',
               username: 'ADMIN',
               senhaHash: HASH_BELA_2026,
               primeiroAcesso: false,
@@ -63,18 +63,12 @@ function initMockStore(): MockStore {
             },
           ];
         } else {
-          // Atualiza hash do admin master se existir na lista salva
-          const adminIdx = parsed.usuarios.findIndex(
-            (u: any) => u.id === 'usr_admin_master' || u.email === 'admin@pexagritech.com' || u.username === 'ADMIN'
-          );
-          if (adminIdx !== -1) {
-            parsed.usuarios[adminIdx].senhaHash = HASH_BELA_2026;
-            parsed.usuarios[adminIdx].papel = Papel.ADMIN;
-          } else {
-            parsed.usuarios.unshift({
+          // Garante apenas o ADMIN master ativo com email oficial bela@belacereais.com.br
+          parsed.usuarios = [
+            {
               id: 'usr_admin_master',
               nome: 'Administrador PEX',
-              email: 'admin@pexagritech.com',
+              email: 'bela@belacereais.com.br',
               username: 'ADMIN',
               senhaHash: HASH_BELA_2026,
               primeiroAcesso: false,
@@ -82,10 +76,9 @@ function initMockStore(): MockStore {
               papeis: ['ADMIN', 'DIRETORIA', 'COMERCIAL', 'FINANCEIRO', 'ADMINISTRATIVO'],
               ativo: true,
               criadoEm: new Date('2026-11-06T00:00:00.000Z'),
-              atualizadoEm: new Date('2026-11-06T00:00:00.000Z'),
-            });
-          }
-
+              atualizadoEm: new Date(),
+            },
+          ];
         }
 
 
@@ -152,7 +145,7 @@ function initMockStore(): MockStore {
       {
         id: 'usr_admin_master',
         nome: 'Administrador PEX',
-        email: 'admin@pexagritech.com',
+        email: 'bela@belacereais.com.br',
         username: 'ADMIN',
         senhaHash: '$2b$10$u27eR/YG8ttK4jdJ9DWrDuSXZwmUEKvpE2lhNtKQMQ1w4iC1yBj5O',
         primeiroAcesso: false,
@@ -335,7 +328,7 @@ export function resetMockStore(): void {
     {
       id: 'usr_admin_master',
       nome: 'Administrador PEX',
-      email: 'admin@pexagritech.com',
+      email: 'bela@belacereais.com.br',
       username: 'ADMIN',
       senhaHash: HASH_BELA_2026,
       primeiroAcesso: false,

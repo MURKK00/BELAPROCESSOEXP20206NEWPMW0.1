@@ -51,7 +51,7 @@ const DEFAULT_CONFIG: BackupScheduleConfig = {
   diaSemana: 0,
   retencaoDias: 15,
   notificarAdminEmail: true,
-  emailDestino: 'admin@pexagritech.com',
+  emailDestino: 'bela@belacereais.com.br',
 };
 
 // Memória em cache para resiliência serverless

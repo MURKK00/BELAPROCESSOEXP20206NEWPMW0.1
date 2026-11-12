@@ -29,18 +29,18 @@ export async function POST() {
       await (prisma.usuario as any).deleteMany({
         where: {
           NOT: {
-            email: 'admin@pexagritech.com',
+            email: 'bela@belacereais.com.br',
           },
         },
       }).catch(() => {});
 
       // Garante que o ADMIN oficial mestre está ativo e com a senha @Bela2026
       await (prisma.usuario as any).upsert({
-        where: { email: 'admin@pexagritech.com' },
+        where: { email: 'bela@belacereais.com.br' },
         create: {
           id: 'usr_admin_master',
           nome: 'Administrador PEX',
-          email: 'admin@pexagritech.com',
+          email: 'bela@belacereais.com.br',
           username: 'ADMIN',
           senhaHash: HASH_BELA_2026,
           papel: 'ADMIN',

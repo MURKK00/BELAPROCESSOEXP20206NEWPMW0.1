@@ -36,7 +36,9 @@ import {
   Wifi,
   Clock,
   Layers,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Copy,
+  Download
 } from 'lucide-react';
 import { PAPEIS_DISPONIVEIS, Papel, canAccessAdmin } from '@/lib/permissions';
 import { 
@@ -126,6 +128,9 @@ function AdminDashboardContent() {
   const [modalPreviewUsuario, setModalPreviewUsuario] = useState<UsuarioItem | null>(null);
   const [modalConfirmarBloqueio, setModalConfirmarBloqueio] = useState<{ user: UsuarioItem; acao: 'BLOQUEAR' | 'DESBLOQUEAR' } | null>(null);
   const [modalConfirmarExclusao, setModalConfirmarExclusao] = useState<{ id: string; nome: string } | null>(null);
+  const [modalSupabaseSQL, setModalSupabaseSQL] = useState<boolean>(false);
+  const [sqlText, setSqlText] = useState<string>('');
+  const [copiadoSQL, setCopiadoSQL] = useState<boolean>(false);
 
   const [abaAtiva, setAbaAtiva] = useState<'USUARIOS' | 'SESSOES' | 'BANCO'>('USUARIOS');
 
@@ -158,51 +163,15 @@ async function carregarPainel() {
       if (dataUsers.success) {
         const listaApi: UsuarioItem[] = dataUsers.usuarios || [];
         
-        // Recupera usuários criados localmente caso a API esteja em modo read-only/demo na Vercel
-        let listaLocal: UsuarioItem[] = [];
-        try {
-          const salvos = localStorage.getItem('bela_usuarios_custom');
-          if (salvos) listaLocal = JSON.parse(salvos);
-        } catch {}
-
-        // Sincroniza usuários do localStorage com a base real do Supabase caso haja pendências
-        const emailsApi = new Set(listaApi.map((u) => (u.email || '').toLowerCase()));
-        const pendentesSync = listaLocal.filter((u) => u.email && !emailsApi.has(u.email.toLowerCase()));
-        if (pendentesSync.length > 0) {
+        // A lista vinda da API oficial do banco é a autoridade máxima
+        if (listaApi.length > 0) {
+          setUsuarios(listaApi);
           try {
-            await fetch('/api/admin/users/sync', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ usuarios: pendentesSync }),
-            });
-            const resReload = await fetch('/api/admin/users', { cache: 'no-store' });
-            const dataReload = await resReload.json();
-            if (dataReload.success && Array.isArray(dataReload.usuarios)) {
-              setUsuarios(dataReload.usuarios);
-              try {
-                localStorage.setItem('bela_usuarios_custom', JSON.stringify(dataReload.usuarios));
-              } catch {}
-              return;
-            }
-          } catch (eSync) {
-            console.warn('Erro ao sincronizar usuários com a base real:', eSync);
-          }
+            localStorage.setItem('bela_usuarios_custom', JSON.stringify(listaApi));
+          } catch {}
+        } else {
+          setUsuarios([]);
         }
-
-        // Mescla sem duplicar por ID ou e-mail (API tem prioridade absoluta)
-        const mapa = new Map<string, UsuarioItem>();
-        [...listaApi, ...listaLocal].forEach((u) => {
-          const chave = (u.email || u.id).toLowerCase();
-          if (!mapa.has(chave)) {
-            mapa.set(chave, u);
-          }
-        });
-
-        const listaFinal = Array.from(mapa.values());
-        setUsuarios(listaFinal);
-        try {
-          localStorage.setItem('bela_usuarios_custom', JSON.stringify(listaFinal));
-        } catch {}
       }
     } catch (err: any) {
       console.error('Erro ao carregar dados do admin:', err);
@@ -226,6 +195,43 @@ async function carregarPainel() {
       console.warn('Erro ao verificar saúde do banco:', e);
     } finally {
       setTestandoConexao(false);
+    }
+  }
+
+  async function abrirModalSupabaseSQL() {
+    setModalSupabaseSQL(true);
+    if (!sqlText) {
+      try {
+        const res = await fetch('/api/admin/schema-sql');
+        const data = await res.json();
+        if (data.success && data.sql) {
+          setSqlText(data.sql);
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar SQL:', err);
+      }
+    }
+  }
+
+  async function copiarSQLCompleto() {
+    let texto = sqlText;
+    if (!texto) {
+      try {
+        const res = await fetch('/api/admin/schema-sql');
+        const data = await res.json();
+        if (data.success && data.sql) {
+          texto = data.sql;
+          setSqlText(data.sql);
+        }
+      } catch {}
+    }
+
+    if (texto) {
+      try {
+        await navigator.clipboard.writeText(texto);
+        setCopiadoSQL(true);
+        setTimeout(() => setCopiadoSQL(false), 3000);
+      } catch {}
     }
   }
 
@@ -856,8 +862,18 @@ async function carregarPainel() {
               </div>
             </div>
 
-            {/* BOTÃO DE DIAGNÓSTICO EM TEMPO REAL */}
-            <div className="flex items-center gap-3">
+            {/* BOTÕES DE DIAGNÓSTICO E CRIAR TABELAS SUPABASE */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={abrirModalSupabaseSQL}
+                className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                title="Ver e copiar script SQL pronto para criar todas as tabelas no Supabase"
+              >
+                <Database className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Criar Tabelas no Supabase (SQL)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={carregarSaudeBanco}
@@ -2235,6 +2251,112 @@ async function carregarPainel() {
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20 cursor-pointer disabled:opacity-50"
               >
                 {executandoAcao ? 'Excluindo...' : 'Sim, Excluir Usuário'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL 8: CRIAR TABELAS SUPABASE (SQL DDL SCRIPT) */}
+      {isMounted && modalSupabaseSQL && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs animate-fadeIn overflow-hidden">
+          <div className="bg-white dark:bg-[#0f172a] rounded-3xl p-6 sm:p-7 border border-slate-200 dark:border-slate-800 shadow-2xl max-w-2xl w-full max-h-[92vh] flex flex-col relative animate-scaleUp">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Criar Tabelas no Supabase (Script SQL)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Passo a passo rápido para inicializar todas as tabelas e o usuário ADMIN no Supabase
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalSupabaseSQL(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto space-y-4 py-4 pr-1 text-xs text-slate-600 dark:text-slate-300">
+              {/* GUIA EM 3 PASSOS */}
+              <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 space-y-2">
+                <span className="font-bold text-blue-900 dark:text-blue-200 block text-xs">
+                  Como criar todas as tabelas em menos de 1 minuto:
+                </span>
+                <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-blue-800 dark:text-blue-300">
+                  <li>
+                    Acesse o <strong className="text-blue-900 dark:text-white">Painel do Supabase</strong> do seu projeto.
+                  </li>
+                  <li>
+                    No menu lateral esquerdo, clique no ícone <strong className="text-blue-900 dark:text-white">SQL Editor</strong> (Query Editor).
+                  </li>
+                  <li>
+                    Clique em <strong className="text-blue-900 dark:text-white">+ New Query</strong>, cole o script SQL abaixo e clique no botão <strong className="text-blue-900 dark:text-white">RUN</strong> (ou pressione <code>Ctrl + Enter</code>).
+                  </li>
+                </ol>
+                <div className="pt-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Pronto! Todas as tabelas, tipos ENUM, chaves estrangeiras e o usuário Master ADMIN (@Bela2026) serão criados imediatamente.</span>
+                </div>
+              </div>
+
+              {/* AÇÕES DE CÓPIA E DOWNLOAD */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <span className="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                  Script SQL DDL Consolidado (PostgreSQL / Supabase):
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={copiarSQLCompleto}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                  >
+                    {copiadoSQL ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiadoSQL ? 'Copiado para Área de Transferência!' : 'Copiar Script SQL'}</span>
+                  </button>
+
+                  <a
+                    href="/api/admin/schema-sql?download=1"
+                    download="supabase-schema-pex.sql"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Baixar .sql</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* VISUALIZAÇÃO DO CÓDIGO SQL */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-900 text-slate-100 p-3.5 font-mono text-[11px] max-h-56 overflow-y-auto select-all leading-relaxed">
+                <pre className="whitespace-pre-wrap">{sqlText || 'Carregando script SQL do schema...'}</pre>
+              </div>
+
+              {/* DICA DE SINCRONIZAÇÃO AUTOMÁTICA NA VERCEL */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 text-[11px] text-slate-500 dark:text-slate-400 space-y-1">
+                <strong className="block text-slate-700 dark:text-slate-200">
+                  Sincronização Automática com Vercel:
+                </strong>
+                <p>
+                  O comando de build do sistema no <code>package.json</code> já foi atualizado para executar <code>prisma db push</code> automaticamente nos próximos deploys, desde que a variável <code>DATABASE_URL</code> do Supabase esteja configurada no painel da Vercel (Project Settings &rarr; Environment Variables).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end pt-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => setModalSupabaseSQL(false)}
+                className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer"
+              >
+                Fechar
               </button>
             </div>
           </div>

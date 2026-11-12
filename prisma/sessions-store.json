@@ -1,5 +1,57 @@
 [
   {
+    "id": "sess_usr_admin_master_1794495543986",
+    "userId": "usr_admin_master",
+    "userName": "Administrador PEX",
+    "userEmail": "bela@belacereais.com.br",
+    "userRole": "ADMIN",
+    "userPapeis": [
+      "ADMIN",
+      "DIRETORIA",
+      "COMERCIAL",
+      "FINANCEIRO",
+      "ADMINISTRATIVO"
+    ],
+    "ip": "127.0.0.1",
+    "location": "Rede Corporativa PEX (Local)",
+    "userAgent": "curl/7.88.1",
+    "device": "Desktop",
+    "browser": "Google Chrome",
+    "os": "Windows 11",
+    "startedAt": "2026-11-12T14:59:03.986Z",
+    "lastActiveAt": "2026-11-12T14:59:03.986Z",
+    "expiresAt": "2026-11-13T02:59:03.986Z",
+    "status": "ACTIVE",
+    "revokedAt": null,
+    "revokedBy": null
+  },
+  {
+    "id": "sess_usr_admin_master_1794495539698",
+    "userId": "usr_admin_master",
+    "userName": "Administrador PEX",
+    "userEmail": "bela@belacereais.com.br",
+    "userRole": "ADMIN",
+    "userPapeis": [
+      "ADMIN",
+      "DIRETORIA",
+      "COMERCIAL",
+      "FINANCEIRO",
+      "ADMINISTRATIVO"
+    ],
+    "ip": "127.0.0.1",
+    "location": "Rede Corporativa PEX (Local)",
+    "userAgent": "curl/7.88.1",
+    "device": "Desktop",
+    "browser": "Google Chrome",
+    "os": "Windows 11",
+    "startedAt": "2026-11-12T14:58:59.698Z",
+    "lastActiveAt": "2026-11-12T14:58:59.698Z",
+    "expiresAt": "2026-11-13T02:58:59.698Z",
+    "status": "ACTIVE",
+    "revokedAt": null,
+    "revokedBy": null
+  },
+  {
     "id": "sess_usr_admin_master_1794487208033",
     "userId": "usr_admin_master",
     "userName": "Administrador PEX",
