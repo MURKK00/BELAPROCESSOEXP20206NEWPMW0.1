@@ -1,106 +1,82 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
-export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
-  const secret = process.env.NEXTAUTH_SECRET || 'bela-cereais-export-secret-chaves-2026-seguro';
+// Apenas rotas realmente públicas (login, assets e autenticação do NextAuth)
+const PUBLIC_PATHS = [
+  '/login',
+  '/api/auth',
+  '/favicon.ico',
+]
 
-  // Rotas de autenticação (NextAuth), cotações ao vivo, backoffice TV, bancos e webhooks externos não devem ser bloqueados
+// Rotas que exigem obrigatoriamente perfil ADMIN já na barreira do middleware
+const ADMIN_ONLY_PATHS = [
+  '/api/admin',
+  '/schema-sql',
+]
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // 1. Libera arquivos estáticos do Next.js e imagens/assets públicos
   if (
-    pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/cotacoes') ||
-    pathname.startsWith('/api/backoffice') ||
-    pathname.startsWith('/api/bancos') ||
-    pathname.startsWith('/api/webhooks') ||
-    pathname.startsWith('/api/admin/health') ||
-    pathname.startsWith('/api/admin/backup') ||
-    pathname.startsWith('/api/admin/schema-sql')
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/assets') ||
+    PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))
   ) {
-    return NextResponse.next();
+    return NextResponse.next()
   }
 
-  // Verifica sinais de autenticação compatíveis com iframes e navegadores restritos
-  const hasAuthQuery = req.nextUrl.searchParams.get('auth') === '1';
-  const hasBelaSessionCookie = req.cookies.has('bela_session');
-  const hasNextAuthCookie =
-    req.cookies.has('next-auth.session-token') ||
-    req.cookies.has('__Secure-next-auth.session-token');
+  // 2. Verifica se a chave NEXTAUTH_SECRET está configurada no servidor (sem fallback fixo!)
+  const secret = process.env.NEXTAUTH_SECRET
+  if (!secret) {
+    console.error('[SECURITY CRITICAL] Variável NEXTAUTH_SECRET não está configurada no ambiente.')
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Erro de configuração de segurança no servidor.' },
+        { status: 500 }
+      )
+    }
+    return new NextResponse('Erro de configuração do servidor (NEXTAUTH_SECRET ausente).', {
+      status: 500,
+    })
+  }
 
-  let token = null;
+  // 3. Valida exclusivamente o token JWT assinado pelo NextAuth (sem ?auth=1 e sem cookie bela_session falso)
+  let token = null
   try {
-    token = await getToken({ req, secret });
-    if (!token) {
-      token = await getToken({ req, secret, secureCookie: true });
+    token = await getToken({ req: request, secret })
+  } catch (error) {
+    token = null
+  }
+
+  // 4. Se não estiver logado, bloqueia na hora
+  if (!token) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Não autorizado. Faça login.' }, { status: 401 })
     }
-  } catch {
-    // Ignora erro de token jwt
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('callbackUrl', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
-  // Checagem estrita de limite absoluto (12 horas)
-  const authCreatedAtCookie = req.cookies.get('bela_auth_created_at')?.value;
-  const tokenCreatedAt = (token as any)?.authCreatedAt;
-  const authCreatedAt = Number(authCreatedAtCookie || tokenCreatedAt || 0);
-
-  const ABSOLUTE_TIMEOUT_MS = 12 * 60 * 60 * 1000;
-  const isExpired12h = Boolean(authCreatedAt && (Date.now() - authCreatedAt >= ABSOLUTE_TIMEOUT_MS));
-
-  const isAuthenticated = !isExpired12h && Boolean(token || hasBelaSessionCookie || hasNextAuthCookie || hasAuthQuery);
-
-  // Se a sessão expirou pelas 12h absolutas e tenta acessar página protegida
-  if (isExpired12h && !pathname.startsWith('/login')) {
-    const expiredLoginUrl = new URL('/login', req.url);
-    expiredLoginUrl.searchParams.set('reason', 'session_expired');
-    const redirectRes = NextResponse.redirect(expiredLoginUrl);
-    redirectRes.cookies.delete('bela_session');
-    redirectRes.cookies.delete('bela_user_email');
-    redirectRes.cookies.delete('bela_auth_created_at');
-    redirectRes.cookies.delete('next-auth.session-token');
-    redirectRes.cookies.delete('__Secure-next-auth.session-token');
-    return redirectRes;
-  }
-
-  // Se o usuário já estiver logado e tentar acessar a página de login, redireciona para a home
-  if (pathname.startsWith('/login')) {
-    if (isAuthenticated) {
-      return NextResponse.redirect(new URL('/', req.url));
+  // 5. Se a rota for de administração, exige que o usuário tenha perfil ADMIN
+  const isAdminRoute = ADMIN_ONLY_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p + '/')
+  )
+  if (isAdminRoute && (token as any).perfil !== 'ADMIN') {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Acesso negado. Exclusivo para administradores.' },
+        { status: 403 }
+      )
     }
-    return NextResponse.next();
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Se não estiver logado, redireciona para a página de login com callbackUrl
-  if (!isAuthenticated) {
-    const loginUrl = new URL('/login', req.url);
-    const destination = req.nextUrl.pathname + req.nextUrl.search;
-    loginUrl.searchParams.set('callbackUrl', destination);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Se estiver autenticado e entrou com query de autorização, garante o cookie na resposta (12 horas)
-  const response = NextResponse.next();
-  if (hasAuthQuery || !hasBelaSessionCookie) {
-    response.cookies.set('bela_session', '1', {
-      path: '/',
-      maxAge: 12 * 60 * 60,
-      sameSite: 'none',
-      secure: true,
-      httpOnly: false,
-    });
-  }
-
-  return response;
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Intercepta todas as rotas internas do sistema, exceto:
-     * - api/auth (endpoints de autenticação)
-     * - _next/static (arquivos estáticos compilados)
-     * - _next/image (otimização de imagens)
-     * - favicon.ico (ícone do navegador)
-     * - arquivos de mídia/imagens públicas (*.png, *.jpg, *.svg, *.webp, *.ico)
-     */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
-  ],
-};
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+}
