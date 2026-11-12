@@ -48,6 +48,7 @@ import {
 } from '@/lib/userHelper';
 import { validarRequisitosSenha, SENHA_PADRAO_SISTEMA } from '@/lib/passwordUtils';
 import { SessionsManager } from '@/components/admin/SessionsManager';
+import { BackupScheduleManager } from '@/components/admin/BackupScheduleManager';
 
 interface UsuarioItem {
   id: string;
@@ -1040,6 +1041,9 @@ async function carregarPainel() {
             </div>
           </div>
         </div>
+
+        {/* SEÇÃO DE AGENDAMENTO DE BACKUP & LOGS DE CONCLUSÃO (SUPABASE) */}
+        <BackupScheduleManager />
       </div>
       )}
 

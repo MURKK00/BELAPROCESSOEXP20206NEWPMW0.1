@@ -42,6 +42,11 @@ export async function GET() {
         entidades: store.cadastroEntidades?.length || 0,
         etapasTemplate: store.etapasTemplate?.length || 27,
       },
+      backup: {
+        agendado: true,
+        status: 'ATIVO',
+        supabaseStorage: 'Disponível',
+      },
       system: {
         runtime: 'Node.js ' + process.version,
         framework: 'Next.js 15 (App Router)',

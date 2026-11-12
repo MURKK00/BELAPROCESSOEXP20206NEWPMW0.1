@@ -1,0 +1,24 @@
+[
+  {
+    "id": "bkp_1794489357688_uwoi0",
+    "dataConclusao": "2026-11-12T13:15:57.686Z",
+    "tipo": "MANUAL",
+    "status": "SUCESSO",
+    "duracaoMs": 1,
+    "tamanhoBytes": 33494,
+    "tamanhoFormatado": "32.7 KB",
+    "checksumSha256": "19dcfff8a25086a7dc26294ff6f75bad2981fa072c5b3329ec9355fdd1bdebae",
+    "resumoTabelas": {
+      "usuarios": 1,
+      "processos": 0,
+      "containers": 0,
+      "notasFiscais": 0,
+      "entidades": 13,
+      "templates": 27,
+      "totalRegistros": 41
+    },
+    "arquivoNome": "backup_supabase_2026-11-12T13-15-57-686Z.json",
+    "mensagem": "Backup do Supabase concluído com sucesso. 41 registros catalogados em 1ms.",
+    "iniciadoPor": "Administrador PEX"
+  }
+]
