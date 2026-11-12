@@ -18,11 +18,14 @@ async function requireSession(options?: { onlyAdmin?: boolean; blockViewer?: boo
     throw new Error('Sessão expirada ou usuário não autenticado. Faça login novamente.');
   }
 
-  if (options?.onlyAdmin && user.perfil !== 'ADMIN') {
+  const role = user.papel || user.perfil || 'COMERCIAL';
+  const papeis: string[] = Array.isArray(user.papeis) ? user.papeis : [role];
+
+  if (options?.onlyAdmin && role !== 'ADMIN' && !papeis.includes('ADMIN')) {
     throw new Error('Acesso negado. Apenas administradores podem realizar esta operação.');
   }
 
-  if (options?.blockViewer && user.perfil === 'VISUALIZADOR') {
+  if (options?.blockViewer && role === 'VISUALIZADOR' && !papeis.includes('ADMIN')) {
     throw new Error('Acesso negado. Perfil de visualizador não possui permissão de escrita.');
   }
 
@@ -424,9 +427,16 @@ export async function vincularImportadorProcessoAction(processoId: string, impor
 
     // Monta o complementoBuyer serializado compatível com o sistema existente
     let novoComplemento = '';
-    const linhas = [];
+    const linhas: string[] = [];
     if (importador.tipo === 'BUYER') {
-      linhsPush(linhas, importador);
+      linhas.push('--- COMPRADOR / BUYER (DIFERENTE DO IMPORTADOR) ---');
+      linhas.push(`NOME: ${importador.razaoSocial}`);
+      if (importador.endereco) linhas.push(`ENDERECO: ${importador.endereco}`);
+      if (importador.cidade) linhas.push(`CIDADE: ${importador.cidade}`);
+      if (importador.pais) linhas.push(`PAIS: ${importador.pais}`);
+      if (importador.iecTaxId) linhas.push(`TAX_ID: ${importador.iecTaxId}`);
+      if (importador.email) linhas.push(`EMAIL: ${importador.email}`);
+      if (importador.telefone) linhas.push(`TELEFONE: ${importador.telefone}`);
     }
 
     if (importador.bancoNome || importador.bancoSwift) {
@@ -470,15 +480,4 @@ export async function vincularImportadorProcessoAction(processoId: string, impor
     console.error('[vincularImportadorProcessoAction] Erro:', error);
     return { success: false, error: error?.message || 'Falha ao vincular importador à negociação.' };
   }
-}
-
-function linhsPush(linhas: string[], importador: any) {
-  linhas.push('--- COMPRADOR / BUYER (DIFERENTE DO IMPORTADOR) ---');
-  linhas.push(`NOME: ${importador.razaoSocial}`);
-  if (importador.endereco) linhas.push(`ENDERECO: ${importador.endereco}`);
-  if (importador.cidade) linhas.push(`CIDADE: ${importador.cidade}`);
-  if (importador.pais) linhas.push(`PAIS: ${importador.pais}`);
-  if (importador.iecTaxId) linhas.push(`TAX_ID: ${importador.iecTaxId}`);
-  if (importador.email) linhas.push(`EMAIL: ${importador.email}`);
-  if (importador.telefone) linhas.push(`TELEFONE: ${importador.telefone}`);
 }
