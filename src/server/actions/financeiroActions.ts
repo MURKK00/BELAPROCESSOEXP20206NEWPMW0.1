@@ -1,25 +1,46 @@
 "use server";
 
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { CategoriaCusto } from '@prisma/client';
 import { formatObservacaoWithTaxa } from '@/lib/travamentoHelper';
 import { parseBRLToNumber } from '@/lib/formatters';
 
+// --- BLOCO DE SEGURANÇA DE SESSÃO ---
+async function requireFinanceiroSession() {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as any;
+
+  if (!session || !user) {
+    throw new Error('Não autorizado. Faça login para alterar dados financeiros.');
+  }
+
+  if (user.perfil === 'VISUALIZADOR') {
+    throw new Error('Acesso negado. Perfil de visualizador não pode alterar dados financeiros.');
+  }
+
+  return user;
+}
+
 // Salva automaticamente o banco, o status de recebimento ou a data de recebimento ao alterar
 export async function atualizarFinanceiroConfigAction(
-  processoId: string, 
+  processoId: string,
   dados: { bancoDestino?: string; statusRecebimento?: string; dataRecebimento?: string | null }
 ) {
+  await requireFinanceiroSession();
   if (!processoId) return;
 
   const updateData: any = {};
   if (dados.bancoDestino !== undefined) updateData.bancoDestino = dados.bancoDestino;
   if (dados.statusRecebimento !== undefined) updateData.statusRecebimento = dados.statusRecebimento;
-  
+
   if (dados.dataRecebimento !== undefined) {
     if (dados.dataRecebimento) {
-      updateData.dataRecebimento = new Date(dados.dataRecebimento + (dados.dataRecebimento.includes('T') ? '' : 'T12:00:00Z'));
+      updateData.dataRecebimento = new Date(
+        dados.dataRecebimento + (dados.dataRecebimento.includes('T') ? '' : 'T12:00:00Z')
+      );
     } else {
       updateData.dataRecebimento = null;
     }
@@ -35,7 +56,7 @@ export async function atualizarFinanceiroConfigAction(
         bancoDestino: dados.bancoDestino || 'BB BRASIL',
         statusRecebimento: dados.statusRecebimento || 'A_RECEBER',
         dataRecebimento: updateData.dataRecebimento ?? null,
-      } as any
+      } as any,
     });
   } catch (err: any) {
     console.warn('[Financeiro] Falha com dataRecebimento, tentando fallback:', err?.message);
@@ -49,7 +70,7 @@ export async function atualizarFinanceiroConfigAction(
         precoUsd: 0,
         bancoDestino: dados.bancoDestino || 'BB BRASIL',
         statusRecebimento: dados.statusRecebimento || 'A_RECEBER',
-      }
+      },
     });
   }
 
@@ -59,6 +80,7 @@ export async function atualizarFinanceiroConfigAction(
 }
 
 export async function salvarBancoDestinoAction(formData: FormData) {
+  await requireFinanceiroSession();
   const processoId = formData.get('processoId') as string;
   const bancoDestino = formData.get('bancoDestino') as string;
   if (!processoId) return;
@@ -67,6 +89,8 @@ export async function salvarBancoDestinoAction(formData: FormData) {
 }
 
 export async function adicionarTravamentoAction(formData: FormData) {
+  await requireFinanceiroSession();
+
   const processoId = formData.get('processoId') as string;
   let financeiroId = formData.get('financeiroId') as string;
   const valorUsdParcial = parseBRLToNumber(formData.get('valorUsdParcial'));
@@ -82,7 +106,7 @@ export async function adicionarTravamentoAction(formData: FormData) {
       financeiroId = fin.id;
     } else {
       const novo = await prisma.financeiro.create({
-        data: { processoId, precoUsd: 0, bancoDestino: 'BB BRASIL', statusRecebimento: 'A_RECEBER' }
+        data: { processoId, precoUsd: 0, bancoDestino: 'BB BRASIL', statusRecebimento: 'A_RECEBER' },
       });
       financeiroId = novo.id;
     }
@@ -96,35 +120,39 @@ export async function adicionarTravamentoAction(formData: FormData) {
 
   // Se taxa for em USD: (USD - TaxaUSD) * PTAX
   // Se taxa for em BRL: (USD * PTAX) - TaxaBRL
-  const valorLiquido = moedaTaxa === 'USD'
-    ? Math.max(0, valorUsdParcial - taxa) * ptax
-    : Math.max(0, (valorUsdParcial * ptax) - taxa);
+  const valorLiquido =
+    moedaTaxa === 'USD'
+      ? Math.max(0, valorUsdParcial - taxa) * ptax
+      : Math.max(0, valorUsdParcial * ptax - taxa);
 
   const observacaoComTag = formatObservacaoWithTaxa(observacao, taxa, moedaTaxa as any, valorLiquido);
 
   try {
     await prisma.cambioTravado.create({
-      data: { 
-        financeiroId, 
-        valorUsdParcial, 
+      data: {
+        financeiroId,
+        valorUsdParcial,
         ptax,
         taxa,
         moedaTaxa,
         valorLiquido,
         dataTravamento,
         observacao: observacaoComTag,
-      } as any
+      } as any,
     });
   } catch (err: any) {
-    console.warn('[Financeiro] Falha ao gravar colunas taxa/moedaTaxa no banco, utilizando fallback na observação:', err?.message);
+    console.warn(
+      '[Financeiro] Falha ao gravar colunas taxa/moedaTaxa no banco, utilizando fallback na observação:',
+      err?.message
+    );
     await prisma.cambioTravado.create({
-      data: { 
-        financeiroId, 
-        valorUsdParcial, 
+      data: {
+        financeiroId,
+        valorUsdParcial,
         ptax,
         dataTravamento,
         observacao: observacaoComTag,
-      }
+      },
     });
   }
 
@@ -134,6 +162,8 @@ export async function adicionarTravamentoAction(formData: FormData) {
 }
 
 export async function deletarTravamentoAction(formData: FormData) {
+  await requireFinanceiroSession();
+
   const travamentoId = formData.get('travamentoId') as string;
   const processoId = formData.get('processoId') as string;
   if (!travamentoId) return;
@@ -145,6 +175,8 @@ export async function deletarTravamentoAction(formData: FormData) {
 }
 
 export async function editarTravamentoAction(formData: FormData) {
+  await requireFinanceiroSession();
+
   const travamentoId = formData.get('travamentoId') as string;
   const processoId = formData.get('processoId') as string;
   const valorUsdParcial = parseBRLToNumber(formData.get('valorUsdParcial'));
@@ -160,9 +192,10 @@ export async function editarTravamentoAction(formData: FormData) {
     ? new Date(dataTravaRaw + (dataTravaRaw.includes('T') ? '' : 'T12:00:00Z'))
     : new Date();
 
-  const valorLiquido = moedaTaxa === 'USD'
-    ? Math.max(0, valorUsdParcial - taxa) * ptax
-    : Math.max(0, (valorUsdParcial * ptax) - taxa);
+  const valorLiquido =
+    moedaTaxa === 'USD'
+      ? Math.max(0, valorUsdParcial - taxa) * ptax
+      : Math.max(0, valorUsdParcial * ptax - taxa);
 
   const observacaoComTag = formatObservacaoWithTaxa(observacao, taxa, moedaTaxa as any, valorLiquido);
 
@@ -198,6 +231,8 @@ export async function editarTravamentoAction(formData: FormData) {
 }
 
 export async function salvarCustoAction(formData: FormData) {
+  const userSession = await requireFinanceiroSession();
+
   const processoId = formData.get('processoId') as string;
   const financeiroId = formData.get('financeiroId') as string;
   const categoria = formData.get('categoria') as CategoriaCusto;
@@ -205,13 +240,17 @@ export async function salvarCustoAction(formData: FormData) {
 
   if (!financeiroId || !categoria) return;
 
-  let usuario = await prisma.usuario.findFirst();
-  if (!usuario) throw new Error("Nenhum usuário cadastrado.");
+  let usuarioId = userSession?.id;
+  if (!usuarioId) {
+    const usuario = await prisma.usuario.findFirst({ select: { id: true } });
+    if (!usuario) throw new Error('Nenhum usuário cadastrado.');
+    usuarioId = usuario.id;
+  }
 
   await prisma.custoItem.upsert({
     where: { financeiroId_categoria: { financeiroId, categoria } },
-    update: { valor },
-    create: { financeiroId, categoria, valor, atualizadoPorId: usuario.id }
+    update: { valor, atualizadoPorId: usuarioId },
+    create: { financeiroId, categoria, valor, atualizadoPorId: usuarioId },
   });
 
   revalidatePath(`/negociacoes/${processoId}/financeiro`);
@@ -220,14 +259,20 @@ export async function salvarCustoAction(formData: FormData) {
 }
 
 export async function salvarTodosCustosAction(formData: FormData) {
+  const userSession = await requireFinanceiroSession();
+
   const processoId = formData.get('processoId') as string;
   const financeiroId = formData.get('financeiroId') as string;
   const custosJson = formData.get('custosJson') as string;
 
   if (!financeiroId || !custosJson) return;
 
-  const usuario = await prisma.usuario.findFirst();
-  if (!usuario) throw new Error("Nenhum usuário cadastrado.");
+  let usuarioId = userSession?.id;
+  if (!usuarioId) {
+    const usuario = await prisma.usuario.findFirst({ select: { id: true } });
+    if (!usuario) throw new Error('Nenhum usuário cadastrado.');
+    usuarioId = usuario.id;
+  }
 
   const itens: Array<{ categoria: CategoriaCusto; valor: number }> = JSON.parse(custosJson);
 
@@ -235,8 +280,13 @@ export async function salvarTodosCustosAction(formData: FormData) {
     itens.map((item) =>
       prisma.custoItem.upsert({
         where: { financeiroId_categoria: { financeiroId, categoria: item.categoria } },
-        update: { valor: item.valor },
-        create: { financeiroId, categoria: item.categoria, valor: item.valor, atualizadoPorId: usuario.id }
+        update: { valor: item.valor, atualizadoPorId: usuarioId },
+        create: {
+          financeiroId,
+          categoria: item.categoria,
+          valor: item.valor,
+          atualizadoPorId: usuarioId,
+        },
       })
     )
   );
