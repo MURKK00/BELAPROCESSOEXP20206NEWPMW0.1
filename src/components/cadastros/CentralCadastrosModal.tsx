@@ -40,6 +40,15 @@ import {
   type FazendaItem
 } from '@/server/actions/cadastrosActions';
 import type { TipoEntidadeComercial } from '@prisma/client';
+import { ehBrasil } from '@/lib/localidadesHelper';
+import {
+  CepLookupField,
+  BrasilUfSelect,
+  BrasilCidadeCombobox,
+  PaisCombobox,
+  PaisCidadeCombobox,
+  type CepResultado,
+} from './LocalizacaoInputs';
 
 export interface FazendaValidacaoDetalhe {
   fazendaId: string;
@@ -161,6 +170,9 @@ export function CentralCadastrosModal({
         inscricaoEstadual: '',
         municipio: prev[0]?.municipio || 'Confresa',
         uf: prev[0]?.uf || 'MT',
+        codigoPostal: '',
+        endereco: '',
+        complemento: '',
         coordenadasGps: '',
         areaTotalHectares: null,
         certificacoes: 'RTRS Certified, Zero Desmatamento',
@@ -211,6 +223,12 @@ export function CentralCadastrosModal({
           return err;
         })
         .filter((err) => err.faltandoCar || err.faltandoIE || err.faltandoNome)
+    );
+  }
+
+  function handleAtualizarFazendaCampos(id: string, campos: Partial<FazendaItem>) {
+    setFazendas((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, ...campos } : f))
     );
   }
 
@@ -296,6 +314,9 @@ export function CentralCadastrosModal({
           inscricaoEstadual: '',
           municipio: 'Confresa',
           uf: 'MT',
+          codigoPostal: '',
+          endereco: '',
+          complemento: '',
           coordenadasGps: '',
           areaTotalHectares: null,
           certificacoes: 'RTRS, Zero Desmatamento',
@@ -307,7 +328,7 @@ export function CentralCadastrosModal({
       setFazendas([]);
     }
 
-    setPais(tipo === 'PRODUTOR' || tipo === 'ARMAZEM' ? 'Brasil' : 'Vietnã');
+    setPais(tipo === 'PRODUTOR' || tipo === 'ARMAZEM' ? 'Brasil' : '');
     setCidade('');
     setEndereco('');
     setComplemento('');
@@ -366,6 +387,9 @@ export function CentralCadastrosModal({
             inscricaoEstadual: item.inscricaoEstadual || '',
             municipio: item.municipio || 'Confresa',
             uf: item.uf || 'MT',
+            codigoPostal: item.codigoPostal || '',
+            endereco: item.endereco || '',
+            complemento: item.complemento || '',
             coordenadasGps: item.coordenadasGps || '',
             areaTotalHectares: item.areaTotalHectares ? Number(item.areaTotalHectares) : null,
             certificacoes: item.certificacoes || '',
@@ -483,10 +507,10 @@ export function CentralCadastrosModal({
       fazendas: formTipo === 'PRODUTOR' ? fazendas : null,
 
       pais,
-      cidade,
-      endereco,
-      complemento,
-      codigoPostal,
+      cidade: formTipo === 'PRODUTOR' && fazendaPrincipal ? (fazendaPrincipal.municipio || cidade) : cidade,
+      endereco: formTipo === 'PRODUTOR' && fazendaPrincipal ? (fazendaPrincipal.endereco || endereco) : endereco,
+      complemento: formTipo === 'PRODUTOR' && fazendaPrincipal ? (fazendaPrincipal.complemento || complemento) : complemento,
+      codigoPostal: formTipo === 'PRODUTOR' && fazendaPrincipal ? (fazendaPrincipal.codigoPostal || codigoPostal) : codigoPostal,
       email,
       telefone,
       iecTaxId,
@@ -1183,6 +1207,23 @@ export function CentralCadastrosModal({
                             </div>
                           </div>
 
+                          {(fz.codigoPostal || fz.endereco) && (
+                            <div className="text-[10px] text-slate-600 dark:text-slate-300 mb-2 space-y-0.5">
+                              {fz.codigoPostal && (
+                                <div>
+                                  <span className="text-slate-400">CEP: </span>
+                                  <span className="font-mono font-bold">{fz.codigoPostal}</span>
+                                </div>
+                              )}
+                              {fz.endereco && (
+                                <div className="truncate">
+                                  <span className="text-slate-400">Endereço: </span>
+                                  <span>{fz.endereco}{fz.complemento ? ` (${fz.complemento})` : ''}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {(fz.areaTotalHectares || fz.coordenadasGps) && (
                             <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600 dark:text-slate-300 pt-1 border-t border-amber-200/40 dark:border-amber-800/20">
                               {fz.areaTotalHectares && (
@@ -1231,10 +1272,19 @@ export function CentralCadastrosModal({
                         <div className="font-bold text-slate-900 dark:text-white">{entidadeVisualizar.cidade || entidadeVisualizar.municipio || '—'}</div>
                       </div>
                     </div>
+                    {entidadeVisualizar.codigoPostal && (
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400">CEP:</span>
+                        <div className="font-mono font-bold text-slate-800 dark:text-slate-200">{entidadeVisualizar.codigoPostal}</div>
+                      </div>
+                    )}
                     {entidadeVisualizar.endereco && (
                       <div>
                         <span className="text-slate-500 dark:text-slate-400">Endereço da Unidade:</span>
-                        <div className="text-slate-800 dark:text-slate-200">{entidadeVisualizar.endereco}</div>
+                        <div className="text-slate-800 dark:text-slate-200">
+                          {entidadeVisualizar.endereco}
+                          {entidadeVisualizar.complemento ? ` — ${entidadeVisualizar.complemento}` : ''}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1278,13 +1328,25 @@ export function CentralCadastrosModal({
                   <div>
                     <span className="text-slate-500 dark:text-slate-400">Local:</span>
                     <div className="text-slate-800 dark:text-slate-200">
-                      {entidadeVisualizar.cidade ? `${entidadeVisualizar.cidade}, ` : ''}{entidadeVisualizar.pais || 'Brasil'}
+                      {entidadeVisualizar.cidade ? `${entidadeVisualizar.cidade}${entidadeVisualizar.uf ? ` - ${entidadeVisualizar.uf}` : ''}, ` : ''}
+                      {entidadeVisualizar.pais || (entidadeVisualizar.tipo === 'PRODUTOR' || entidadeVisualizar.tipo === 'ARMAZEM' ? 'Brasil' : '—')}
                     </div>
                   </div>
+                  {entidadeVisualizar.codigoPostal && (
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {ehBrasil(entidadeVisualizar.pais) ? 'CEP:' : 'Código Postal:'}
+                      </span>
+                      <div className="font-mono font-bold text-slate-800 dark:text-slate-200">{entidadeVisualizar.codigoPostal}</div>
+                    </div>
+                  )}
                   {entidadeVisualizar.endereco && (
                     <div>
                       <span className="text-slate-500 dark:text-slate-400">Endereço:</span>
-                      <div className="text-slate-800 dark:text-slate-200">{entidadeVisualizar.endereco}</div>
+                      <div className="text-slate-800 dark:text-slate-200">
+                        {entidadeVisualizar.endereco}
+                        {entidadeVisualizar.complemento ? ` — ${entidadeVisualizar.complemento}` : ''}
+                      </div>
                     </div>
                   )}
                   {entidadeVisualizar.email && (
@@ -1366,7 +1428,14 @@ export function CentralCadastrosModal({
 
                   <button
                     type="button"
-                    onClick={() => setFormTipo('IMPORTADOR')}
+                    onClick={() => {
+                      if (!editId && (formTipo === 'PRODUTOR' || formTipo === 'ARMAZEM')) {
+                        setPais('');
+                        setCidade('');
+                        setUf('');
+                      }
+                      setFormTipo('IMPORTADOR');
+                    }}
                     className={`p-3 rounded-2xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
                       formTipo === 'IMPORTADOR'
                         ? 'border-purple-500 bg-purple-500/10 dark:bg-purple-500/15 ring-2 ring-purple-500/20'
@@ -1386,7 +1455,14 @@ export function CentralCadastrosModal({
 
                   <button
                     type="button"
-                    onClick={() => setFormTipo('BUYER')}
+                    onClick={() => {
+                      if (!editId && (formTipo === 'PRODUTOR' || formTipo === 'ARMAZEM')) {
+                        setPais('');
+                        setCidade('');
+                        setUf('');
+                      }
+                      setFormTipo('BUYER');
+                    }}
                     className={`p-3 rounded-2xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
                       formTipo === 'BUYER'
                         ? 'border-blue-500 bg-blue-500/10 dark:bg-blue-500/15 ring-2 ring-blue-500/20'
@@ -1642,32 +1718,72 @@ export function CentralCadastrosModal({
                             )}
                           </div>
 
-                          {/* MUNICÍPIO */}
-                          <div>
-                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                              Município da Propriedade
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Ex: Confresa, Sinop, Canarana"
-                              value={fz.municipio || ''}
-                              onChange={(e) => handleAtualizarFazenda(fz.id, 'municipio', e.target.value)}
-                              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                          {/* CEP DA PROPRIEDADE */}
+                          <div className="sm:col-span-2">
+                            <CepLookupField
+                              label="CEP da Propriedade"
+                              value={fz.codigoPostal || ''}
+                              onChange={(val) => handleAtualizarFazenda(fz.id, 'codigoPostal', val)}
+                              onCepEncontrado={(dados: CepResultado) => {
+                                handleAtualizarFazendaCampos(fz.id, {
+                                  codigoPostal: dados.cep,
+                                  endereco: dados.endereco || fz.endereco || '',
+                                  uf: dados.uf || fz.uf || '',
+                                  municipio: dados.cidade || fz.municipio || '',
+                                  complemento:
+                                    !(fz.complemento || '').trim() && dados.complemento
+                                      ? dados.complemento
+                                      : fz.complemento || '',
+                                });
+                              }}
                             />
                           </div>
 
                           {/* UF */}
+                          <BrasilUfSelect
+                            label="UF (Estado)"
+                            value={fz.uf || ''}
+                            onChange={(novaUf) =>
+                              handleAtualizarFazendaCampos(fz.id, { uf: novaUf, municipio: '' })
+                            }
+                          />
+
+                          {/* MUNICÍPIO */}
+                          <BrasilCidadeCombobox
+                            label="Município da Propriedade"
+                            uf={fz.uf || ''}
+                            value={fz.municipio || ''}
+                            onChange={(novaCidade) =>
+                              handleAtualizarFazenda(fz.id, 'municipio', novaCidade)
+                            }
+                            placeholder="Selecione o município..."
+                          />
+
+                          {/* ENDEREÇO */}
                           <div>
                             <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                              UF (Estado)
+                              Endereço / Rodovia da Fazenda
                             </label>
                             <input
                               type="text"
-                              maxLength={2}
-                              placeholder="Ex: MT"
-                              value={fz.uf || 'MT'}
-                              onChange={(e) => handleAtualizarFazenda(fz.id, 'uf', e.target.value.toUpperCase())}
-                              className="w-full uppercase font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                              placeholder="Ex: Rodovia MT-430, Km 42 - Zona Rural"
+                              value={fz.endereco || ''}
+                              onChange={(e) => handleAtualizarFazenda(fz.id, 'endereco', e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                            />
+                          </div>
+
+                          {/* COMPLEMENTO */}
+                          <div>
+                            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                              Complemento / Referência
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Gleba B, Estrada Vicinal"
+                              value={fz.complemento || ''}
+                              onChange={(e) => handleAtualizarFazenda(fz.id, 'complemento', e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
                             />
                           </div>
 
@@ -1732,36 +1848,43 @@ export function CentralCadastrosModal({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        UF (Estado) <span className="text-[#f58220]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        maxLength={2}
-                        placeholder="Ex: MT"
-                        value={uf}
-                        onChange={(e) => setUf(e.target.value.toUpperCase())}
-                        className="w-full uppercase font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                        Cidade / Município <span className="text-[#f58220]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ex: Confresa ou Sinop"
-                        value={cidade}
-                        onChange={(e) => setCidade(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
-
                     <div className="sm:col-span-2">
+                      <CepLookupField
+                        label="CEP do Armazém"
+                        value={codigoPostal}
+                        onChange={setCodigoPostal}
+                        onCepEncontrado={(dados: CepResultado) => {
+                          setCodigoPostal(dados.cep);
+                          if (dados.endereco) setEndereco(dados.endereco);
+                          if (dados.uf) setUf(dados.uf);
+                          if (dados.cidade) setCidade(dados.cidade);
+                          if (!complemento.trim() && dados.complemento) {
+                            setComplemento(dados.complemento);
+                          }
+                        }}
+                      />
+                    </div>
+
+                    <BrasilUfSelect
+                      label="UF (Estado)"
+                      required
+                      value={uf}
+                      onChange={(novaUf) => {
+                        setUf(novaUf);
+                        setCidade('');
+                      }}
+                    />
+
+                    <BrasilCidadeCombobox
+                      label="Cidade / Município"
+                      required
+                      uf={uf}
+                      value={cidade}
+                      onChange={setCidade}
+                      placeholder="Selecione o município..."
+                    />
+
+                    <div>
                       <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
                         Endereço / Rodovia / Setor Industrial <span className="text-[#f58220]">*</span>
                       </label>
@@ -1771,6 +1894,19 @@ export function CentralCadastrosModal({
                         placeholder="Ex: Rodovia BR-158, Km 120, Distrito Agroindustrial"
                         value={endereco}
                         onChange={(e) => setEndereco(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                        Complemento
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Bloco B, Pátio 2"
+                        value={complemento}
+                        onChange={(e) => setComplemento(e.target.value)}
                         className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
                       />
                     </div>
@@ -1785,33 +1921,81 @@ export function CentralCadastrosModal({
                     2. Localização & Documentos Internacionais
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        País de Destino
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex: Vietnã, Índia, EAU"
-                        value={pais}
-                        onChange={(e) => setPais(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
+                    <PaisCombobox
+                      label="País de Destino"
+                      value={pais}
+                      onChange={(novoPais) => {
+                        setPais(novoPais);
+                        setCidade('');
+                        if (!ehBrasil(novoPais)) {
+                          setUf('');
+                        }
+                      }}
+                      placeholder="Selecione o país..."
+                      allowClear
+                    />
+
+                    {ehBrasil(pais) ? (
+                      <>
+                        <CepLookupField
+                          label="CEP"
+                          value={codigoPostal}
+                          onChange={setCodigoPostal}
+                          onCepEncontrado={(dados: CepResultado) => {
+                            setCodigoPostal(dados.cep);
+                            if (dados.endereco) setEndereco(dados.endereco);
+                            if (dados.uf) setUf(dados.uf);
+                            if (dados.cidade) setCidade(dados.cidade);
+                            if (!complemento.trim() && dados.complemento) {
+                              setComplemento(dados.complemento);
+                            }
+                          }}
+                        />
+
+                        <BrasilUfSelect
+                          label="UF (Estado)"
+                          value={uf}
+                          onChange={(novaUf) => {
+                            setUf(novaUf);
+                            setCidade('');
+                          }}
+                        />
+
+                        <BrasilCidadeCombobox
+                          label="Cidade"
+                          uf={uf}
+                          value={cidade}
+                          onChange={setCidade}
+                          placeholder="Selecione a cidade..."
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                            Código Postal (ZIP Code)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: 180000, 400001"
+                            value={codigoPostal}
+                            onChange={(e) => setCodigoPostal(e.target.value)}
+                            className="w-full font-mono px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                          />
+                        </div>
+
+                        <PaisCidadeCombobox
+                          label="Cidade"
+                          pais={pais}
+                          value={cidade}
+                          onChange={setCidade}
+                          placeholder="Selecione a cidade..."
+                          className="sm:col-span-2"
+                        />
+                      </>
+                    )}
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                        Cidade
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Ex: Hai Phong, Dhaka, Dubai"
-                        value={cidade}
-                        onChange={(e) => setCidade(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                         Endereço Completo
                       </label>
@@ -1820,6 +2004,19 @@ export function CentralCadastrosModal({
                         placeholder="Logradouro, número, bairro ou zona industrial"
                         value={endereco}
                         onChange={(e) => setEndereco(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Complemento
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Sala, andar, bloco ou referência"
+                        value={complemento}
+                        onChange={(e) => setComplemento(e.target.value)}
                         className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:ring-2 focus:ring-[#f58220]/40 outline-none"
                       />
                     </div>

@@ -121,6 +121,15 @@ export async function salvarCadastroEntidadeAction(data: CadastroEntidadeInput) 
         data.nomePropriedade = fazendaPrincipal.nomePropriedade;
         data.municipio = fazendaPrincipal.municipio;
         data.uf = fazendaPrincipal.uf;
+        if (fazendaPrincipal.codigoPostal !== undefined && fazendaPrincipal.codigoPostal !== null) {
+          data.codigoPostal = fazendaPrincipal.codigoPostal;
+        }
+        if (fazendaPrincipal.endereco !== undefined && fazendaPrincipal.endereco !== null) {
+          data.endereco = fazendaPrincipal.endereco;
+        }
+        if (fazendaPrincipal.complemento !== undefined && fazendaPrincipal.complemento !== null) {
+          data.complemento = fazendaPrincipal.complemento;
+        }
         data.coordenadasGps = fazendaPrincipal.coordenadasGps;
         data.areaTotalHectares =
           fazendaPrincipal.areaTotalHectares !== undefined && fazendaPrincipal.areaTotalHectares !== null
@@ -189,7 +198,9 @@ export async function salvarCadastroEntidadeAction(data: CadastroEntidadeInput) 
           ? (data.fazendas as unknown as Prisma.InputJsonValue)
           : Prisma.DbNull,
 
-      pais: data.pais?.trim() || 'Brasil',
+      pais:
+        data.pais?.trim() ||
+        (data.tipo === 'PRODUTOR' || data.tipo === 'ARMAZEM' ? 'Brasil' : null),
       cidade: data.cidade?.trim() || null,
       endereco: data.endereco?.trim() || null,
       complemento: data.complemento?.trim() || null,

@@ -5,6 +5,9 @@ export interface FazendaItem {
   inscricaoEstadual: string;
   municipio?: string | null;
   uf?: string | null;
+  codigoPostal?: string | null;
+  endereco?: string | null;
+  complemento?: string | null;
   coordenadasGps?: string | null;
   areaTotalHectares?: number | null;
   certificacoes?: string | null;
