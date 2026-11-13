@@ -7,6 +7,8 @@
  * Funciona de forma isomórfica (tanto no navegador quanto em runtime Node.js/Next.js).
  */
 
+import { formatarCfop } from './cfopPorEtapa';
+
 export interface DadosNFeExtraidos {
   /** Nome original do arquivo XML importado */
   nomeArquivo: string;
@@ -270,7 +272,11 @@ export function processarXmlNFe(xmlText: string, nomeArquivo: string = 'nfe.xml'
     const destinatarioCnpj = formatarCnpjOuCpf(destCnpjBruto);
 
     // 5. CFOP e Natureza da Operação
-    const cfop = extrairTagXml(xmlText, doc, 'CFOP') || '5.901';
+    const cfopBruto = extrairTagXml(xmlText, doc, 'CFOP');
+    const cfop = cfopBruto ? formatarCfop(cfopBruto) : '';
+    if (!cfop) {
+      alertas.push('Tag <CFOP> não localizada no XML.');
+    }
     const naturezaOperacao = extrairTagXml(xmlText, doc, 'natOp') || 'Operação Fiscal';
 
     // 6. VALOR TOTAL DA NOTA (<vNF> dentro de <ICMSTot> / <total>)

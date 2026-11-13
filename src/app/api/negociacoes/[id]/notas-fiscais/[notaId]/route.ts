@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
+import { formatarCfop, validarCfopEtapa } from '@/lib/cfopPorEtapa';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,12 @@ export async function DELETE(
   try {
     const { id: processoId, notaId } = await context.params;
     const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado. Faça login.' },
+        { status: 401 }
+      );
+    }
 
     const nota = await prisma.notaFiscal.findUnique({
       where: { id: notaId },
@@ -186,6 +193,12 @@ export async function PATCH(
   try {
     const { id: processoId, notaId } = await context.params;
     const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado. Faça login.' },
+        { status: 401 }
+      );
+    }
     const body = await request.json();
 
     const nota = await prisma.notaFiscal.findUnique({
@@ -205,7 +218,22 @@ export async function PATCH(
     }
     if (body.numero !== undefined) updateData.numero = String(body.numero).trim();
     if (body.serie !== undefined) updateData.serie = String(body.serie).trim();
-    if (body.cfop !== undefined) updateData.cfop = String(body.cfop).trim();
+    if (body.cfop !== undefined) {
+      const cfopCheck = validarCfopEtapa(nota.etapa, body.cfop);
+      if (!cfopCheck.valido && !body.confirmarCfopForaPadrao) {
+        return NextResponse.json(
+          {
+            success: false,
+            requiresCfopConfirmation: true,
+            error: `${cfopCheck.motivo} Deseja salvar mesmo assim?`,
+            cfopInformado: cfopCheck.cfopFormatado || '',
+            cfopsPermitidos: cfopCheck.permitidos,
+          },
+          { status: 422 }
+        );
+      }
+      updateData.cfop = formatarCfop(body.cfop) || null;
+    }
     if (body.emitente !== undefined) updateData.emitente = String(body.emitente).trim();
     if (body.destinatario !== undefined) updateData.destinatario = String(body.destinatario).trim();
     if (body.anexoUrl !== undefined) updateData.anexoUrl = body.anexoUrl;

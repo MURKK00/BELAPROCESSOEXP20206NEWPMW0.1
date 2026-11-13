@@ -1,8 +1,26 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, AlertCircle, Plus, Trash2, CheckCircle2, ShieldCheck, Container, FileText } from 'lucide-react';
+import {
+  X,
+  AlertCircle,
+  AlertTriangle,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  ShieldCheck,
+  Container,
+  FileText,
+  Scale,
+} from 'lucide-react';
 import { parseNumeroBR, formatNumeroBR, sanitizarInputNumeroBR } from '@/lib/numeroBR';
+import {
+  formatarCfop,
+  obterCfopsPermitidos,
+  obterRotuloEtapa,
+  validarCfopEtapa,
+  type EtapaNotaFiscalKey,
+} from '@/lib/cfopPorEtapa';
 
 interface ModalNovaNotaFiscalProps {
   isOpen: boolean;
@@ -12,7 +30,7 @@ interface ModalNovaNotaFiscalProps {
   containers: Array<{ id: string; ordem: number; numeroContainer?: string | null; pesoLiquido?: number | null }>;
   etapa1Notas: any[];
   etapa3Notas: any[];
-  etapaInicial?: 'ETAPA_1_ENTRADA_INDUSTRIA' | 'ETAPA_2_RETORNO_ARMAZENAGEM' | 'ETAPA_3_REMESSA_REDEX' | 'ETAPA_4_EXPORTACAO';
+  etapaInicial?: EtapaNotaFiscalKey;
 }
 
 export function ModalNovaNotaFiscal({
@@ -34,7 +52,9 @@ export function ModalNovaNotaFiscal({
   const [emitenteCnpj, setEmitenteCnpj] = useState('15.726.793/0001-06');
   const [destinatario, setDestinatario] = useState('');
   const [destinatarioCnpj, setDestinatarioCnpj] = useState('');
-  const [cfop, setCfop] = useState('5.901');
+  const [cfop, setCfop] = useState('');
+  const [confirmarCfopForaPadrao, setConfirmarCfopForaPadrao] = useState(false);
+  const [pedidoConfirmacaoCfop, setPedidoConfirmacaoCfop] = useState(false);
   const [pesoBruto, setPesoBruto] = useState('');
   const [pesoLiquido, setPesoLiquido] = useState('');
   const [quantidadeSacas, setQuantidadeSacas] = useState('');
@@ -53,47 +73,55 @@ export function ModalNovaNotaFiscal({
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  const atualizarValoresPadraoPorEtapa = useCallback((novaEtapa: string) => {
-    if (novaEtapa === 'ETAPA_1_ENTRADA_INDUSTRIA') {
-      setCfop('5.901');
-      setEmitente('Produtor / Fornecedor Parceiro');
-      setEmitenteCnpj('');
-      setDestinatario('Bela Cereais Indústria & Beneficiamento');
-      setDestinatarioCnpj('15.726.793/0001-06');
-    } else if (novaEtapa === 'ETAPA_2_RETORNO_ARMAZENAGEM') {
-      setCfop('5.902');
-      setEmitente('Bela Cereais Indústria & Beneficiamento');
-      setEmitenteCnpj('15.726.793/0001-06');
-      setDestinatario('Bela Cereais Exportação');
-      setDestinatarioCnpj('15.726.793/0001-06');
-    } else if (novaEtapa === 'ETAPA_3_REMESSA_REDEX') {
-      setCfop('5.501');
-      setEmitente('Bela Cereais Comércio Ltda.');
-      setEmitenteCnpj('15.726.793/0001-06');
-      setDestinatario('Terminal REDEX / Armazém Alfandegado');
-      setDestinatarioCnpj('');
-    } else if (novaEtapa === 'ETAPA_4_EXPORTACAO') {
-      setCfop('7.101');
-      setEmitente('Bela Cereais Comércio Ltda.');
-      setEmitenteCnpj('15.726.793/0001-06');
-      setDestinatario('Comprador Internacional (Buyer)');
-      setDestinatarioCnpj('');
-      // Inicializar item da etapa 3 se vazio
-      setItensEtapa3((atuais) => {
-        if (atuais.length === 0 || !atuais[0].notaLoteRedexId) {
-          const primeiraComSaldo = etapa3Notas.find((n) => Number(n.saldoDisponivelKg || 0) > 0);
-          if (primeiraComSaldo) {
-            return [{ notaLoteRedexId: primeiraComSaldo.id, pesoConsumidoKg: '' }];
+  const atualizarValoresPadraoPorEtapa = useCallback(
+    (novaEtapa: string) => {
+      setCfop('');
+      setConfirmarCfopForaPadrao(false);
+      setPedidoConfirmacaoCfop(false);
+
+      if (novaEtapa === 'ETAPA_1_ENTRADA_INDUSTRIA') {
+        setEmitente('Produtor / Fornecedor Parceiro');
+        setEmitenteCnpj('');
+        setDestinatario('Bela Cereais Indústria & Beneficiamento');
+        setDestinatarioCnpj('15.726.793/0001-06');
+      } else if (novaEtapa === 'ETAPA_2_RETORNO_ARMAZENAGEM') {
+        setEmitente('Bela Cereais Indústria & Beneficiamento');
+        setEmitenteCnpj('15.726.793/0001-06');
+        setDestinatario('Bela Cereais Exportação');
+        setDestinatarioCnpj('15.726.793/0001-06');
+      } else if (novaEtapa === 'ETAPA_3_REMESSA_REDEX') {
+        setEmitente('Bela Cereais Comércio Ltda.');
+        setEmitenteCnpj('15.726.793/0001-06');
+        setDestinatario('Terminal REDEX / Armazém Alfandegado');
+        setDestinatarioCnpj('');
+      } else if (novaEtapa === 'ETAPA_4_EXPORTACAO') {
+        setEmitente('Bela Cereais Comércio Ltda.');
+        setEmitenteCnpj('15.726.793/0001-06');
+        setDestinatario('Comprador Internacional (Buyer)');
+        setDestinatarioCnpj('');
+        setItensEtapa3((atuais) => {
+          if (atuais.length === 0 || !atuais[0].notaLoteRedexId) {
+            const primeiraComSaldo = etapa3Notas.find((n) => Number(n.saldoDisponivelKg || 0) > 0);
+            if (primeiraComSaldo) {
+              return [{ notaLoteRedexId: primeiraComSaldo.id, pesoConsumidoKg: '' }];
+            }
           }
-        }
-        return atuais;
-      });
-    }
-  }, [etapa3Notas]);
+          return atuais;
+        });
+      } else if (novaEtapa === 'ETAPA_5_AJUSTE_FISCAL') {
+        setEmitente('Bela Cereais Comércio Ltda.');
+        setEmitenteCnpj('15.726.793/0001-06');
+        setDestinatario('');
+        setDestinatarioCnpj('');
+      }
+    },
+    [etapa3Notas]
+  );
 
   useEffect(() => {
-    if (etapaInicial) {
+    if (isOpen && etapaInicial) {
       setEtapa(etapaInicial);
+      setErro(null);
       atualizarValoresPadraoPorEtapa(etapaInicial);
     }
   }, [etapaInicial, isOpen, atualizarValoresPadraoPorEtapa]);
@@ -102,6 +130,13 @@ export function ModalNovaNotaFiscal({
     setEtapa(novaEtapa);
     setErro(null);
     atualizarValoresPadraoPorEtapa(novaEtapa);
+  }
+
+  function handleAlterarCfop(novoValor: string) {
+    setCfop(novoValor);
+    setConfirmarCfopForaPadrao(false);
+    setPedidoConfirmacaoCfop(false);
+    setErro(null);
   }
 
   // Manipulação de itens da Etapa 3 na Etapa 4
@@ -130,7 +165,6 @@ export function ModalNovaNotaFiscal({
     novos[index][campo] = valor;
     setItensEtapa3(novos);
 
-    // Se for Etapa 4, o peso líquido total é a soma dos pesos consumidos
     if (campo === 'pesoConsumidoKg') {
       const soma = novos.reduce((acc, it) => acc + (parseNumeroBR(it.pesoConsumidoKg) || 0), 0);
       if (soma > 0) {
@@ -139,15 +173,21 @@ export function ModalNovaNotaFiscal({
     }
   }
 
-  // Calcula total consumido calculado
   const somaPesoConsumidoEtapa4 = itensEtapa3.reduce((acc, it) => acc + (parseNumeroBR(it.pesoConsumidoKg) || 0), 0);
+  const cfopsPermitidosEtapa = obterCfopsPermitidos(etapa);
+  const cfopValidacao = validarCfopEtapa(etapa, cfop);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function enviarNota(forcarConfirmacao = false) {
     setErro(null);
 
     if (!numero.trim()) {
       setErro('Informe o número da Nota Fiscal.');
+      return;
+    }
+
+    const confirmadoEfetivo = confirmarCfopForaPadrao || forcarConfirmacao;
+    if (!cfopValidacao.valido && !confirmadoEfetivo) {
+      setPedidoConfirmacaoCfop(true);
       return;
     }
 
@@ -167,7 +207,6 @@ export function ModalNovaNotaFiscal({
         return;
       }
 
-      // Validar pesos consumidos contra saldos disponíveis
       for (const item of itensEtapa3) {
         if (!item.notaLoteRedexId) {
           setErro('Selecione uma Nota Fiscal da Etapa 3 para cada item.');
@@ -199,7 +238,8 @@ export function ModalNovaNotaFiscal({
       emitenteCnpj: emitenteCnpj.trim() || null,
       destinatario: destinatario.trim(),
       destinatarioCnpj: destinatarioCnpj.trim() || null,
-      cfop: cfop.trim() || null,
+      cfop: cfop.trim() ? formatarCfop(cfop.trim()) : null,
+      confirmarCfopForaPadrao: confirmadoEfetivo,
       pesoBruto: pesoBruto ? parseNumeroBR(pesoBruto) : null,
       pesoLiquido: etapa === 'ETAPA_4_EXPORTACAO' ? somaPesoConsumidoEtapa4 : (parseNumeroBR(pesoLiquido) ?? 0),
       quantidadeSacas: quantidadeSacas ? parseNumeroBR(quantidadeSacas) : null,
@@ -228,6 +268,12 @@ export function ModalNovaNotaFiscal({
       });
 
       const data = await res.json();
+      if (res.status === 422 && data?.requiresCfopConfirmation) {
+        setPedidoConfirmacaoCfop(true);
+        setErro(data.error || 'CFOP fora do padrão da etapa.');
+        return;
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Erro ao registrar Nota Fiscal');
       }
@@ -239,6 +285,11 @@ export function ModalNovaNotaFiscal({
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await enviarNota(false);
   }
 
   if (!isOpen) return null;
@@ -254,10 +305,11 @@ export function ModalNovaNotaFiscal({
               Lançar Nota Fiscal na Triangulação
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Cadastre e vincule notas de entrada, retorno, formação de lote REDEX ou exportação por contêiner.
+              Cadastre notas de entrada, retorno, formação de lote REDEX, exportação ou ajuste fiscal de encerramento.
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
@@ -265,25 +317,28 @@ export function ModalNovaNotaFiscal({
           </button>
         </div>
 
-        {/* Seletor de Etapas (Abas Superiores) */}
+        {/* Seletor de Etapas (5 Etapas) */}
         <div className="mt-5">
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
             Selecione a Etapa da Triangulação Fiscal:
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {[
               { id: 'ETAPA_1_ENTRADA_INDUSTRIA', label: '1. Entrada Indústria', tag: 'Remessa' },
               { id: 'ETAPA_2_RETORNO_ARMAZENAGEM', label: '2. Retorno Indústria', tag: 'Retorno' },
               { id: 'ETAPA_3_REMESSA_REDEX', label: '3. Formação Lote', tag: 'REDEX' },
-              { id: 'ETAPA_4_EXPORTACAO', label: '4. Exportação Contêiner', tag: 'Averbação' },
+              { id: 'ETAPA_4_EXPORTACAO', label: '4. Exportação', tag: 'Averbação' },
+              { id: 'ETAPA_5_AJUSTE_FISCAL', label: '5. Ajuste Fiscal', tag: 'Baixa / Dev.' },
             ].map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => handleMudarEtapa(item.id)}
-                className={`px-3 py-2.5 rounded-xl border text-left text-xs transition-all ${
+                className={`px-3 py-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
                   etapa === item.id
-                    ? 'border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 font-bold shadow-xs ring-1 ring-emerald-500/20'
+                    ? item.id === 'ETAPA_5_AJUSTE_FISCAL'
+                      ? 'border-violet-600 bg-violet-50/80 dark:bg-violet-950/30 text-violet-950 dark:text-violet-200 font-bold shadow-xs ring-1 ring-violet-500/20'
+                      : 'border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 font-bold shadow-xs ring-1 ring-emerald-500/20'
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400'
                 }`}
               >
@@ -304,6 +359,18 @@ export function ModalNovaNotaFiscal({
 
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          {/* Seção Etapa 5: Ajuste Fiscal */}
+          {etapa === 'ETAPA_5_AJUSTE_FISCAL' && (
+            <div className="p-3.5 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 rounded-xl text-xs text-violet-950 dark:text-violet-200 flex items-start gap-2.5">
+              <Scale className="w-4 h-4 shrink-0 text-violet-600 dark:text-violet-400 mt-0.5" />
+              <div>
+                <span className="font-bold">Ajuste Fiscal de Encerramento:</span> Utilize esta etapa ao final do processo
+                quando houver saldo a devolver simbolicamente (<strong className="font-mono">CFOP 2.506</strong>) ou saldo
+                para baixa/ajuste de estoque (<strong className="font-mono">CFOP 5.927</strong>).
+              </div>
+            </div>
+          )}
+
           {/* Seção Etapa 4: Vínculo Obrigatório com Contêiner e NFs Etapa 3 */}
           {etapa === 'ETAPA_4_EXPORTACAO' && (
             <div className="p-4 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-4">
@@ -312,7 +379,6 @@ export function ModalNovaNotaFiscal({
                 Vínculo com Contêiner & Baixa de Saldo REDEX (Etapa 3)
               </div>
 
-              {/* Seletor do Contêiner */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Contêiner da Negociação <span className="text-red-500">*</span>
@@ -333,7 +399,6 @@ export function ModalNovaNotaFiscal({
                 </select>
               </div>
 
-              {/* Referências da Etapa 3 (1 a 3 NFs) */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -429,7 +494,6 @@ export function ModalNovaNotaFiscal({
                   })}
                 </div>
 
-                {/* Resumo do peso da Etapa 4 */}
                 <div className="mt-2.5 flex items-center justify-between text-xs px-3 py-2 bg-emerald-100/60 dark:bg-emerald-950/40 rounded-lg text-emerald-900 dark:text-emerald-200">
                   <span className="font-semibold">Peso Líquido Total da Exportação (Soma Consumida):</span>
                   <span className="font-mono font-bold text-sm">
@@ -590,16 +654,71 @@ export function ModalNovaNotaFiscal({
             </div>
           </div>
 
+          {/* CFOP Configurável por Etapa */}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  CFOP da {obterRotuloEtapa(etapa)}
+                </span>
+                <p className="text-[11px] text-slate-500">
+                  Selecione um CFOP padrão desta etapa ou digite o código específico da nota:
+                </p>
+              </div>
+              {cfopValidacao.valido && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold self-start sm:self-center">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  CFOP padrão da etapa
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {cfopsPermitidosEtapa.map((op) => {
+                const selecionado = formatarCfop(cfop) === op.codigo;
+                return (
+                  <button
+                    key={op.codigo}
+                    type="button"
+                    onClick={() => handleAlterarCfop(op.codigo)}
+                    className={`px-2.5 py-1.5 rounded-lg border text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
+                      selecionado
+                        ? 'border-emerald-600 bg-emerald-600 text-white font-bold shadow-2xs'
+                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:border-emerald-500'
+                    }`}
+                    title={op.descricao}
+                  >
+                    <span className="font-mono font-bold">{op.codigo}</span>
+                    <span className={`text-[10px] ${selecionado ? 'text-emerald-50' : 'text-slate-400'}`}>
+                      · {op.descricao}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Pesos e Valores */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">CFOP</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                CFOP <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
-                placeholder="Ex: 5.901"
+                placeholder={`Ex: ${cfopsPermitidosEtapa[0]?.codigo || ''}`}
                 value={cfop}
-                onChange={(e) => setCfop(e.target.value)}
-                className="w-full text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg outline-none font-mono"
+                onChange={(e) => handleAlterarCfop(e.target.value)}
+                onBlur={() => {
+                  if (cfop.trim()) {
+                    setCfop(formatarCfop(cfop));
+                  }
+                }}
+                className={`w-full text-xs px-3 py-2 bg-white dark:bg-slate-900 border rounded-lg outline-none font-mono ${
+                  cfopValidacao.preenchido && !cfopValidacao.valido
+                    ? 'border-amber-500 text-amber-800 dark:text-amber-200'
+                    : 'border-slate-300 dark:border-slate-700'
+                }`}
               />
             </div>
 
@@ -662,6 +781,34 @@ export function ModalNovaNotaFiscal({
             </div>
           </div>
 
+          {/* Alerta e Confirmação quando CFOP está fora do padrão */}
+          {!cfopValidacao.valido && (cfopValidacao.preenchido || pedidoConfirmacaoCfop) && (
+            <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs space-y-2.5">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-bold">CFOP fora do padrão da {obterRotuloEtapa(etapa)}</div>
+                  <p className="mt-0.5 leading-relaxed">
+                    {cfopValidacao.motivo} Deseja anexar esta nota fiscal mesmo assim?
+                  </p>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 pt-1 cursor-pointer font-semibold">
+                <input
+                  type="checkbox"
+                  checked={confirmarCfopForaPadrao}
+                  onChange={(e) => {
+                    setConfirmarCfopForaPadrao(e.target.checked);
+                    if (e.target.checked) setErro(null);
+                  }}
+                  className="rounded text-amber-600 focus:ring-amber-500"
+                />
+                <span>Sim, confirmar e anexar com CFOP {cfopValidacao.cfopFormatado || '(sem CFOP)'} mesmo assim</span>
+              </label>
+            </div>
+          )}
+
           {/* Observações */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -686,20 +833,35 @@ export function ModalNovaNotaFiscal({
             >
               Cancelar
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2 disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Salvando Nota...
-                </>
-              ) : (
-                'Salvar Nota Fiscal'
-              )}
-            </button>
+            {pedidoConfirmacaoCfop && !cfopValidacao.valido && !confirmarCfopForaPadrao ? (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  setConfirmarCfopForaPadrao(true);
+                  enviarNota(true);
+                }}
+                className="px-5 py-2.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                {loading ? 'Salvando Nota...' : 'Anexar Mesmo Assim'}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Salvando Nota...
+                  </>
+                ) : (
+                  'Salvar Nota Fiscal'
+                )}
+              </button>
+            )}
           </div>
         </form>
       </div>

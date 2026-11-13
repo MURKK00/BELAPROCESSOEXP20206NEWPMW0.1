@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { parseNumeroBR } from '@/lib/numeroBR';
+import { isEtapaNotaFiscalValida, validarCfopEtapa } from '@/lib/cfopPorEtapa';
+import { calcularPrazoAverbacao } from '@/lib/prazoAverbacao';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +12,14 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado. Faça login.' },
+        { status: 401 }
+      );
+    }
+
     const { id: processoId } = await context.params;
 
     const processo = await prisma.processo.findUnique({
@@ -27,7 +37,7 @@ export async function GET(
     }
 
     // Buscar todas as notas fiscais da negociação com relações completas
-    const notas = await prisma.notaFiscal.findMany({
+    const notasBrutas = await prisma.notaFiscal.findMany({
       where: { processoId },
       include: {
         container: true,
@@ -59,10 +69,23 @@ export async function GET(
       orderBy: { dataEmissao: 'desc' },
     });
 
+    const agora = new Date();
+    const notas = notasBrutas.map((n) => ({
+      ...n,
+      cfopValidacao: validarCfopEtapa(n.etapa, n.cfop),
+      prazoAverbacao: calcularPrazoAverbacao({
+        etapa: n.etapa,
+        dataEmissao: n.dataEmissao,
+        statusAverbacao: n.statusAverbacao,
+        dataReferencia: agora,
+      }),
+    }));
+
     const etapa1 = notas.filter((n) => n.etapa === 'ETAPA_1_ENTRADA_INDUSTRIA');
     const etapa2 = notas.filter((n) => n.etapa === 'ETAPA_2_RETORNO_ARMAZENAGEM');
     const etapa3 = notas.filter((n) => n.etapa === 'ETAPA_3_REMESSA_REDEX');
     const etapa4 = notas.filter((n) => n.etapa === 'ETAPA_4_EXPORTACAO');
+    const etapa5 = notas.filter((n) => n.etapa === 'ETAPA_5_AJUSTE_FISCAL');
 
     // Cálculos de Resumo
     const totalEntradaKg = etapa1.reduce((acc, n) => acc + Number(n.pesoLiquido || 0), 0);
@@ -79,6 +102,8 @@ export async function GET(
     const totalExportacaoKg = etapa4.reduce((acc, n) => acc + Number(n.pesoLiquido || 0), 0);
     const qtdExportacaoAverbada = etapa4.filter((n) => n.statusAverbacao === 'AVERBADA').length;
     const qtdExportacaoPendenteAverbacao = etapa4.length - qtdExportacaoAverbada;
+
+    const totalAjusteFiscalKg = etapa5.reduce((acc, n) => acc + Number(n.pesoLiquido || 0), 0);
 
     const totalContainers = processo.containers.length;
     const containersComNf = new Set(etapa4.map((n) => n.containerId).filter(Boolean)).size;
@@ -105,6 +130,8 @@ export async function GET(
           totalExportacaoKg,
           qtdExportacaoAverbada,
           qtdExportacaoPendenteAverbacao,
+          totalAjusteFiscalKg,
+          qtdAjusteFiscal: etapa5.length,
           totalContainers,
           containersComNf,
         },
@@ -113,6 +140,7 @@ export async function GET(
           etapa2,
           etapa3,
           etapa4,
+          etapa5,
         },
       },
     });
@@ -130,8 +158,15 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: processoId } = await context.params;
     const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado. Faça login.' },
+        { status: 401 }
+      );
+    }
+
+    const { id: processoId } = await context.params;
     const body = await request.json();
 
     const {
@@ -145,6 +180,7 @@ export async function POST(
       destinatario,
       destinatarioCnpj,
       cfop,
+      confirmarCfopForaPadrao = false,
       pesoBruto,
       pesoLiquido,
       quantidadeSacas,
@@ -167,6 +203,29 @@ export async function POST(
       );
     }
 
+    if (!isEtapaNotaFiscalValida(etapa)) {
+      return NextResponse.json(
+        { success: false, error: 'Etapa fiscal inválida.' },
+        { status: 400 }
+      );
+    }
+
+    // Validação do CFOP conforme a etapa (sem fallback silencioso)
+    const cfopCheck = validarCfopEtapa(etapa, cfop);
+    if (!cfopCheck.valido && !confirmarCfopForaPadrao) {
+      return NextResponse.json(
+        {
+          success: false,
+          requiresCfopConfirmation: true,
+          error: `${cfopCheck.motivo} Deseja anexar mesmo assim?`,
+          cfopInformado: cfopCheck.cfopFormatado || '',
+          cfopsPermitidos: cfopCheck.permitidos,
+        },
+        { status: 422 }
+      );
+    }
+
+    const cfopFinal = cfopCheck.cfopFormatado || null;
     const numPesoLiquido = parseNumeroBR(pesoLiquido) ?? 0;
     const numPesoBruto = parseNumeroBR(pesoBruto);
     const numSacas = parseNumeroBR(quantidadeSacas);
@@ -262,7 +321,7 @@ export async function POST(
             emitenteCnpj: emitenteCnpj ? String(emitenteCnpj).trim() : null,
             destinatario: String(destinatario).trim(),
             destinatarioCnpj: destinatarioCnpj ? String(destinatarioCnpj).trim() : null,
-            cfop: cfop ? String(cfop).trim() : '7.101',
+            cfop: cfopFinal,
             pesoBruto: numPesoBruto,
             pesoLiquido: pesoFinalExportacao,
             quantidadeSacas: numSacas !== null ? Math.round(numSacas) : null,
@@ -306,7 +365,7 @@ export async function POST(
         await prisma.auditLog.create({
           data: {
             processoId,
-            usuarioId: user?.id || 'usr_dev_admin',
+            usuarioId: user.id,
             acao: 'EMISSAO_NF_EXPORTACAO',
             detalhe: `Cadastrada NF de Exportação ${novaNfExportacao.numero} (${pesoFinalExportacao.toLocaleString('pt-BR')} kg) vinculada ao contêiner com baixa em ${notasEtapa3Validadas.length} NF(s) de lote REDEX.`,
           },
@@ -319,6 +378,54 @@ export async function POST(
         success: true,
         data: novaNfExportacao,
         message: 'Nota Fiscal de Exportação cadastrada e saldos da Etapa 3 abatidos com sucesso.',
+      });
+    }
+
+    // =========================================================================
+    // REGRA ETAPA 5 - AJUSTE FISCAL (BAIXA DE ESTOQUE / DEVOLUÇÃO SIMBÓLICA)
+    // =========================================================================
+    if (etapa === 'ETAPA_5_AJUSTE_FISCAL') {
+      const novaNfEtapa5 = await prisma.notaFiscal.create({
+        data: {
+          processoId,
+          etapa: 'ETAPA_5_AJUSTE_FISCAL',
+          numero: String(numero).trim(),
+          serie: String(serie || '1').trim(),
+          chaveAcesso: chaveAcesso ? String(chaveAcesso).replace(/\D/g, '') : null,
+          dataEmissao: new Date(dataEmissao),
+          emitente: String(emitente).trim(),
+          emitenteCnpj: emitenteCnpj ? String(emitenteCnpj).trim() : null,
+          destinatario: String(destinatario).trim(),
+          destinatarioCnpj: destinatarioCnpj ? String(destinatarioCnpj).trim() : null,
+          cfop: cfopFinal,
+          pesoBruto: numPesoBruto,
+          pesoLiquido: numPesoLiquido,
+          quantidadeSacas: numSacas !== null ? Math.round(numSacas) : null,
+          valorTotal: numValorTotal,
+          anexoUrl: anexoUrl || null,
+          anexoNome: anexoNome || null,
+          statusSefaz: 'AUTORIZADA',
+          observacoes: observacoes || null,
+        },
+      });
+
+      try {
+        await prisma.auditLog.create({
+          data: {
+            processoId,
+            usuarioId: user.id,
+            acao: 'EMISSAO_NF_AJUSTE_FISCAL',
+            detalhe: `Cadastrada NF de Ajuste Fiscal (Etapa 5) nº ${novaNfEtapa5.numero} · CFOP ${cfopFinal || '—'} · ${numPesoLiquido.toLocaleString('pt-BR')} kg.`,
+          },
+        });
+      } catch (err) {
+        console.warn('Falha ao gravar audit log:', err);
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: novaNfEtapa5,
+        message: 'Nota Fiscal de Ajuste Fiscal (Etapa 5) cadastrada com sucesso.',
       });
     }
 
@@ -346,7 +453,7 @@ export async function POST(
           emitenteCnpj: emitenteCnpj ? String(emitenteCnpj).trim() : null,
           destinatario: String(destinatario).trim(),
           destinatarioCnpj: destinatarioCnpj ? String(destinatarioCnpj).trim() : null,
-          cfop: cfop ? String(cfop).trim() : '5.501',
+          cfop: cfopFinal,
           pesoBruto: numPesoBruto,
           pesoLiquido: numPesoLiquido,
           saldoDisponivelKg: numPesoLiquido,
@@ -384,7 +491,7 @@ export async function POST(
             emitenteCnpj: emitenteCnpj ? String(emitenteCnpj).trim() : null,
             destinatario: String(destinatario).trim(),
             destinatarioCnpj: destinatarioCnpj ? String(destinatarioCnpj).trim() : null,
-            cfop: cfop ? String(cfop).trim() : '5.902',
+            cfop: cfopFinal,
             pesoBruto: numPesoBruto,
             pesoLiquido: numPesoLiquido,
             quantidadeSacas: numSacas !== null ? Math.round(numSacas) : null,
@@ -436,7 +543,7 @@ export async function POST(
         emitenteCnpj: emitenteCnpj ? String(emitenteCnpj).trim() : null,
         destinatario: String(destinatario).trim(),
         destinatarioCnpj: destinatarioCnpj ? String(destinatarioCnpj).trim() : null,
-        cfop: cfop ? String(cfop).trim() : '5.901',
+        cfop: cfopFinal,
         pesoBruto: numPesoBruto,
         pesoLiquido: numPesoLiquido,
         quantidadeSacas: numSacas !== null ? Math.round(numSacas) : null,

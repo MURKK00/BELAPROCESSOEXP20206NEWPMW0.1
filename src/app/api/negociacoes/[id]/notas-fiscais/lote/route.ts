@@ -2,23 +2,42 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { parseNumeroBR } from '@/lib/numeroBR';
+import { formatarCfop, obterRotuloEtapa, validarCfopEtapa } from '@/lib/cfopPorEtapa';
 
 export const dynamic = 'force-dynamic';
+
+const ETAPAS_LOTE_PERMITIDAS = [
+  'ETAPA_1_ENTRADA_INDUSTRIA',
+  'ETAPA_2_RETORNO_ARMAZENAGEM',
+  'ETAPA_3_REMESSA_REDEX',
+  'ETAPA_5_AJUSTE_FISCAL',
+];
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: processoId } = await context.params;
     const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado. Faça login.' },
+        { status: 401 }
+      );
+    }
+
+    const { id: processoId } = await context.params;
     const body = await request.json();
 
-    const { etapa, notas } = body;
+    const { etapa, notas, confirmarCfopForaPadrao = false } = body;
 
-    if (!etapa || !['ETAPA_1_ENTRADA_INDUSTRIA', 'ETAPA_2_RETORNO_ARMAZENAGEM', 'ETAPA_3_REMESSA_REDEX'].includes(etapa)) {
+    if (!etapa || !ETAPAS_LOTE_PERMITIDAS.includes(etapa)) {
       return NextResponse.json(
-        { success: false, error: 'Etapa inválida para lançamento em lote. O lançamento em lote é permitido para as Etapas 1, 2 e 3.' },
+        {
+          success: false,
+          error:
+            'Etapa inválida para lançamento em lote. O lançamento em lote é permitido para as Etapas 1, 2, 3 e 5 (Ajuste Fiscal).',
+        },
         { status: 400 }
       );
     }
@@ -27,6 +46,43 @@ export async function POST(
       return NextResponse.json(
         { success: false, error: 'Nenhuma nota fiscal informada no lote.' },
         { status: 400 }
+      );
+    }
+
+    // Validar CFOPs de todas as notas do lote antes de gravar
+    const itensDivergentes: Array<{
+      numero: string;
+      cfopInformado: string;
+      motivo: string;
+    }> = [];
+
+    for (const item of notas) {
+      const cfopCheck = validarCfopEtapa(etapa, item.cfop);
+      const itemConfirmado = Boolean(confirmarCfopForaPadrao || item.confirmarCfopForaPadrao);
+      if (!cfopCheck.valido && !itemConfirmado) {
+        itensDivergentes.push({
+          numero: String(item.numero || 'S/N'),
+          cfopInformado: cfopCheck.cfopFormatado || '(vazio)',
+          motivo: cfopCheck.motivo || 'CFOP fora do padrão da etapa.',
+        });
+      }
+    }
+
+    if (itensDivergentes.length > 0) {
+      const resumoNfs = itensDivergentes
+        .slice(0, 5)
+        .map((d) => `NF ${d.numero} (CFOP ${d.cfopInformado})`)
+        .join(', ');
+      const permitidos = validarCfopEtapa(etapa, '').permitidosCodigos.join(', ');
+      return NextResponse.json(
+        {
+          success: false,
+          requiresCfopConfirmation: true,
+          error: `${itensDivergentes.length} NF(s) com CFOP fora do padrão de ${obterRotuloEtapa(etapa)} (${resumoNfs}). Esperado: ${permitidos}. Deseja anexar mesmo assim?`,
+          itensDivergentes,
+          cfopsPermitidos: validarCfopEtapa(etapa, '').permitidos,
+        },
+        { status: 422 }
       );
     }
 
@@ -54,7 +110,7 @@ export async function POST(
       for (const item of notas) {
         const chaveLimpa = (item.chaveAcesso || '').replace(/\D/g, '') || null;
 
-        // Se já existe uma nota com a mesma chave, ignora ou avisa
+        // Se já existe uma nota com a mesma chave, ignora para evitar duplicação
         if (chaveLimpa && chavesExistentes.has(chaveLimpa)) {
           console.warn(`[Lote XML] NF com chave ${chaveLimpa} já existe. Pulando duplicação.`);
           continue;
@@ -65,6 +121,7 @@ export async function POST(
         const valorTotalNum = parseNumeroBR(item.valorTotal);
         const sacasParsed = parseNumeroBR(item.quantidadeSacas);
         const sacasNum = sacasParsed !== null ? Math.round(sacasParsed) : null;
+        const cfopLimpo = item.cfop ? formatarCfop(item.cfop) || null : null;
 
         const novaNota = await tx.notaFiscal.create({
           data: {
@@ -78,7 +135,7 @@ export async function POST(
             emitenteCnpj: item.emitenteCnpj ? String(item.emitenteCnpj).trim() : null,
             destinatario: String(item.destinatario || 'Destinatário').trim(),
             destinatarioCnpj: item.destinatarioCnpj ? String(item.destinatarioCnpj).trim() : null,
-            cfop: item.cfop ? String(item.cfop).trim() : (etapa === 'ETAPA_3_REMESSA_REDEX' ? '5.501' : etapa === 'ETAPA_2_RETORNO_ARMAZENAGEM' ? '5.902' : '5.901'),
+            cfop: cfopLimpo,
             pesoLiquido: pesoLiquidoNum,
             pesoBruto: pesoBrutoNum,
             quantidadeSacas: sacasNum,
@@ -134,16 +191,12 @@ export async function POST(
 
     // Gravar auditoria
     try {
-      const etapaNome = etapa === 'ETAPA_1_ENTRADA_INDUSTRIA'
-        ? 'Etapa 1 (Entrada Indústria)'
-        : etapa === 'ETAPA_2_RETORNO_ARMAZENAGEM'
-        ? 'Etapa 2 (Retorno Armazenagem)'
-        : 'Etapa 3 (Formação Lote REDEX)';
+      const etapaNome = obterRotuloEtapa(etapa);
 
       await prisma.auditLog.create({
         data: {
           processoId,
-          usuarioId: user?.id || 'usr_dev_admin',
+          usuarioId: user.id,
           acao: 'IMPORTACAO_LOTE_XML_NF',
           detalhe: `Importado lote de ${notasCriadas.length} Nota(s) Fiscal(is) via arquivo(s) XML na ${etapaNome}.`,
         },
@@ -155,7 +208,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       totalCriadas: notasCriadas.length,
-      message: `${notasCriadas.length} Nota(s) Fiscal(is) importada(s) com sucesso na ${etapa}!`,
+      message: `${notasCriadas.length} Nota(s) Fiscal(is) importada(s) com sucesso na ${obterRotuloEtapa(etapa)}!`,
       notas: notasCriadas,
     });
   } catch (error: any) {

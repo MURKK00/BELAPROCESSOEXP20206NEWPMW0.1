@@ -20,11 +20,14 @@ import {
   ArrowRight,
   Clock,
   Sparkles,
-  Upload
+  Upload,
+  Scale,
+  AlertTriangle
 } from 'lucide-react';
 import { ModalNovaNotaFiscal } from './ModalNovaNotaFiscal';
 import { ModalDetalhesSefaz } from './ModalDetalhesSefaz';
 import { ModalImportarLoteXml } from './ModalImportarLoteXml';
+import { formatarCfop, validarCfopEtapa, type EtapaNotaFiscalKey } from '@/lib/cfopPorEtapa';
 
 interface NotasFiscaisDashboardProps {
   processoId: string;
@@ -35,15 +38,15 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  // Filtro de etapa ativa: 'todas' | 'etapa1' | 'etapa2' | 'etapa3' | 'etapa4'
-  const [abaAtiva, setAbaAtiva] = useState<'todas' | 'etapa1' | 'etapa2' | 'etapa3' | 'etapa4'>('todas');
+  // Filtro de etapa ativa: 'todas' | 'etapa1' | 'etapa2' | 'etapa3' | 'etapa4' | 'etapa5'
+  const [abaAtiva, setAbaAtiva] = useState<'todas' | 'etapa1' | 'etapa2' | 'etapa3' | 'etapa4' | 'etapa5'>('todas');
 
   // Modais
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
-  const [etapaParaNovaNota, setEtapaParaNovaNota] = useState<any>('ETAPA_1_ENTRADA_INDUSTRIA');
+  const [etapaParaNovaNota, setEtapaParaNovaNota] = useState<EtapaNotaFiscalKey>('ETAPA_1_ENTRADA_INDUSTRIA');
   const [notaSelecionadaSefaz, setNotaSelecionadaSefaz] = useState<any>(null);
   const [modalLoteAberto, setModalLoteAberto] = useState(false);
-  const [etapaParaLote, setEtapaParaLote] = useState<'ETAPA_1_ENTRADA_INDUSTRIA' | 'ETAPA_2_RETORNO_ARMAZENAGEM' | 'ETAPA_3_REMESSA_REDEX'>('ETAPA_1_ENTRADA_INDUSTRIA');
+  const [etapaParaLote, setEtapaParaLote] = useState<'ETAPA_1_ENTRADA_INDUSTRIA' | 'ETAPA_2_RETORNO_ARMAZENAGEM' | 'ETAPA_3_REMESSA_REDEX' | 'ETAPA_5_AJUSTE_FISCAL'>('ETAPA_1_ENTRADA_INDUSTRIA');
 
   // Estados de ação
   const [sincronizandoSefaz, setSincronizandoSefaz] = useState(false);
@@ -71,14 +74,40 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
     carregarDados();
   }, [carregarDados]);
 
-  function abrirModalNova(etapa: 'ETAPA_1_ENTRADA_INDUSTRIA' | 'ETAPA_2_RETORNO_ARMAZENAGEM' | 'ETAPA_3_REMESSA_REDEX' | 'ETAPA_4_EXPORTACAO') {
+  function abrirModalNova(etapa: EtapaNotaFiscalKey) {
     setEtapaParaNovaNota(etapa);
     setModalNovoAberto(true);
   }
 
-  function abrirModalLoteXml(etapa: 'ETAPA_1_ENTRADA_INDUSTRIA' | 'ETAPA_2_RETORNO_ARMAZENAGEM' | 'ETAPA_3_REMESSA_REDEX') {
+  function abrirModalLoteXml(etapa: 'ETAPA_1_ENTRADA_INDUSTRIA' | 'ETAPA_2_RETORNO_ARMAZENAGEM' | 'ETAPA_3_REMESSA_REDEX' | 'ETAPA_5_AJUSTE_FISCAL') {
     setEtapaParaLote(etapa);
     setModalLoteAberto(true);
+  }
+
+  function renderBadgeCfop(etapa: string, cfop?: string | null) {
+    const validacao = validarCfopEtapa(etapa, cfop);
+    const exibicao = validacao.cfopFormatado || (cfop ? formatarCfop(cfop) : '—');
+    return (
+      <div className="inline-flex items-center gap-1.5 flex-wrap">
+        <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold">
+          {exibicao}
+        </span>
+        {validacao.descricaoEncontrada && (
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">
+            ({validacao.descricaoEncontrada})
+          </span>
+        )}
+        {!validacao.valido && (
+          <span
+            title={validacao.motivo || 'CFOP fora do padrão configurado para esta etapa'}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-[10px] font-bold text-amber-800 dark:text-amber-300 cursor-help"
+          >
+            <AlertTriangle className="w-3 h-3 shrink-0" />
+            <span>CFOP fora do padrão</span>
+          </span>
+        )}
+      </div>
+    );
   }
 
   async function handleSincronizarTodasSefaz() {
@@ -161,7 +190,7 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
   }
 
   const { resumo, etapas, processo } = dados || {};
-  const { etapa1 = [], etapa2 = [], etapa3 = [], etapa4 = [] } = etapas || {};
+  const { etapa1 = [], etapa2 = [], etapa3 = [], etapa4 = [], etapa5 = [] } = etapas || {};
 
   return (
     <div className="space-y-6">
@@ -178,8 +207,8 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
         </div>
       )}
 
-      {/* PAINEL DE RESUMO DA TRIANGULAÇÃO FISCAL (3 CARDS PRINCIPAIS) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* PAINEL DE RESUMO DA TRIANGULAÇÃO FISCAL (4 CARDS PRINCIPAIS - ETAPAS 1 A 5) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Card 1: Indústria (Etapa 1 vs 2) */}
         <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between mb-3">
@@ -316,6 +345,40 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
             />
           </div>
         </div>
+
+        {/* Card 4: Ajuste Fiscal de Encerramento (Etapa 5) */}
+        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-xs relative overflow-hidden">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+              <Scale className="w-4 h-4 text-violet-500" />
+              <span>5. Ajuste Fiscal</span>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 font-semibold">
+              {etapa5.length} NF{etapa5.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-baseline text-xs">
+              <span className="text-slate-500">Volume Ajustado / Dev.:</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-white">
+                {Number(resumo.totalAjusteFiscalKg || 0).toLocaleString('pt-BR')} kg
+              </span>
+            </div>
+            <div className="flex justify-between items-baseline text-xs">
+              <span className="text-slate-500">Baixa Estoque (5.927):</span>
+              <span className="font-mono font-semibold text-violet-600 dark:text-violet-400">
+                {etapa5.filter((n: any) => formatarCfop(n.cfop) === '5.927').length} NF(s)
+              </span>
+            </div>
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-baseline text-xs font-semibold">
+              <span className="text-slate-600 dark:text-slate-400">Devolução Simb. (2.506):</span>
+              <span className="font-mono font-bold text-violet-700 dark:text-violet-300">
+                {etapa5.filter((n: any) => formatarCfop(n.cfop) === '2.506').length} NF(s)
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* BARRA DE AÇÕES E NAVEGAÇÃO ENTRE ETAPAS JUSTIFICADA */}
@@ -323,11 +386,12 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
         {/* Filtro de Abas Sem Cortes */}
         <div className="flex items-center gap-1 p-1 bg-slate-100/90 dark:bg-slate-800/80 rounded-xl overflow-x-auto no-scrollbar max-w-full">
           {[
-            { id: 'todas', label: 'Visão Geral', count: etapa1.length + etapa2.length + etapa3.length + etapa4.length },
+            { id: 'todas', label: 'Visão Geral', count: etapa1.length + etapa2.length + etapa3.length + etapa4.length + etapa5.length },
             { id: 'etapa1', label: '1. Entrada Indústria', count: etapa1.length },
             { id: 'etapa2', label: '2. Retorno Armazenagem', count: etapa2.length },
             { id: 'etapa3', label: '3. Formação Lote REDEX', count: etapa3.length },
             { id: 'etapa4', label: '4. Exportação Contêiner', count: etapa4.length },
+            { id: 'etapa5', label: '5. Ajuste Fiscal', count: etapa5.length },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -368,6 +432,7 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
             onClick={() => abrirModalLoteXml(
               abaAtiva === 'etapa2' ? 'ETAPA_2_RETORNO_ARMAZENAGEM' :
               abaAtiva === 'etapa3' ? 'ETAPA_3_REMESSA_REDEX' :
+              abaAtiva === 'etapa5' ? 'ETAPA_5_AJUSTE_FISCAL' :
               'ETAPA_1_ENTRADA_INDUSTRIA'
             )}
             className="h-8 px-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg transition-all shadow-2xs flex items-center gap-1.5 whitespace-nowrap shrink-0"
@@ -383,6 +448,7 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
               abaAtiva === 'etapa2' ? 'ETAPA_2_RETORNO_ARMAZENAGEM' :
               abaAtiva === 'etapa3' ? 'ETAPA_3_REMESSA_REDEX' :
               abaAtiva === 'etapa4' ? 'ETAPA_4_EXPORTACAO' :
+              abaAtiva === 'etapa5' ? 'ETAPA_5_AJUSTE_FISCAL' :
               'ETAPA_1_ENTRADA_INDUSTRIA'
             )}
             className="h-8 px-3 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm shadow-emerald-600/20 transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0"
@@ -462,7 +528,7 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
                         <div className="truncate font-medium text-slate-800 dark:text-slate-200">{n.emitente}</div>
                         <div className="truncate text-[10px] text-slate-400">Para: {n.destinatario}</div>
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-400">{n.cfop || '5.901'}</td>
+                      <td className="py-2.5 px-3">{renderBadgeCfop('ETAPA_1_ENTRADA_INDUSTRIA', n.cfop)}</td>
                       <td className="py-2.5 px-3 font-mono">
                         {n.chaveAcesso ? (
                           <div className="flex items-center gap-1.5">
@@ -556,6 +622,7 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
                     <th className="py-2.5 px-3">NF / Série</th>
                     <th className="py-2.5 px-3">Data Emissão</th>
                     <th className="py-2.5 px-3">Emitente & Destinatário</th>
+                    <th className="py-2.5 px-3">CFOP</th>
                     <th className="py-2.5 px-3">NFs Etapa 1 Referenciadas</th>
                     <th className="py-2.5 px-3 text-right">Peso Retornado</th>
                     <th className="py-2.5 px-3 text-right">Valor Total R$</th>
@@ -575,6 +642,7 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
                         <div className="truncate font-medium text-slate-800 dark:text-slate-200">{n.emitente}</div>
                         <div className="truncate text-[10px] text-slate-400">Para: {n.destinatario}</div>
                       </td>
+                      <td className="py-2.5 px-3">{renderBadgeCfop('ETAPA_2_RETORNO_ARMAZENAGEM', n.cfop)}</td>
                       <td className="py-2.5 px-3">
                         {n.retornosComoOrigem && n.retornosComoOrigem.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
@@ -690,8 +758,10 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] text-slate-500 mt-1">
-                          Emissão: {new Date(n.dataEmissao).toLocaleDateString('pt-BR')} · CFOP: {n.cfop || '5.501'}
+                        <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+                          <span>Emissão: {new Date(n.dataEmissao).toLocaleDateString('pt-BR')}</span>
+                          <span>·</span>
+                          <span>CFOP: {renderBadgeCfop('ETAPA_3_REMESSA_REDEX', n.cfop)}</span>
                         </div>
                       </div>
 
@@ -840,7 +910,7 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
                         <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1 break-words">
                           <span className="break-words">Emissão: <strong className="text-slate-700 dark:text-slate-300">{new Date(n.dataEmissao).toLocaleDateString('pt-BR')}</strong></span>
                           <span>·</span>
-                          <span className="break-words">CFOP: <strong className="font-mono text-slate-700 dark:text-slate-300">{n.cfop || '7.101'}</strong></span>
+                          <span className="inline-flex items-center gap-1 break-words">CFOP: {renderBadgeCfop('ETAPA_4_EXPORTACAO', n.cfop)}</span>
                           <span>·</span>
                           <span className="break-words">DUE: <strong className="font-mono text-slate-800 dark:text-slate-200">{n.numeroDue || 'Em processamento'}</strong></span>
                           {n.dataAverbacao && (
@@ -925,6 +995,123 @@ export function NotasFiscaisDashboard({ processoId }: NotasFiscaisDashboardProps
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* SEÇÃO: ETAPA 5 - AJUSTE FISCAL (BAIXA ESTOQUE / DEV. SIMBÓLICA)      */}
+      {/* ==================================================================== */}
+      {(abaAtiva === 'todas' || abaAtiva === 'etapa5') && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-3 border-b border-slate-100 dark:border-slate-800 gap-3">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <div className="p-2 bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-lg shrink-0">
+                <Scale className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Etapa 5 - Ajuste Fiscal de Encerramento
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Notas fiscais de ajuste ao final do processo: baixa de estoque (CFOP 5.927), devolução simbólica de lote (CFOP 2.506) e outros ajustes.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => abrirModalLoteXml('ETAPA_5_AJUSTE_FISCAL')}
+                className="text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                title="Importar XMLs de Ajuste Fiscal (Etapa 5)"
+              >
+                <Upload className="w-3 h-3 text-violet-600" /> Importar XMLs
+              </button>
+              <button
+                onClick={() => abrirModalNova('ETAPA_5_AJUSTE_FISCAL')}
+                className="text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400 flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" /> Lançar Ajuste Fiscal
+              </button>
+            </div>
+          </div>
+
+          {etapa5.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-400">
+              Nenhuma Nota Fiscal de Ajuste Fiscal lançada nesta negociação.
+            </div>
+          ) : (
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-xs text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                    <th className="py-2.5 px-3">NF / Série</th>
+                    <th className="py-2.5 px-3">Data Emissão</th>
+                    <th className="py-2.5 px-3">Emitente &amp; Destinatário</th>
+                    <th className="py-2.5 px-3">CFOP / Natureza do Ajuste</th>
+                    <th className="py-2.5 px-3">Chave de Acesso (44 dígitos)</th>
+                    <th className="py-2.5 px-3 text-right">Peso Líquido</th>
+                    <th className="py-2.5 px-3 text-right">Valor Total R$</th>
+                    <th className="py-2.5 px-3">Observações</th>
+                    <th className="py-2.5 px-3 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {etapa5.map((n: any) => (
+                    <tr key={n.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-white">
+                        {n.numero} <span className="text-slate-400 font-normal">/ {n.serie || '1'}</span>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
+                        {new Date(n.dataEmissao).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="py-2.5 px-3 max-w-[210px]">
+                        <div className="truncate font-medium text-slate-800 dark:text-slate-200">{n.emitente}</div>
+                        <div className="truncate text-[10px] text-slate-400">Para: {n.destinatario}</div>
+                      </td>
+                      <td className="py-2.5 px-3">{renderBadgeCfop('ETAPA_5_AJUSTE_FISCAL', n.cfop)}</td>
+                      <td className="py-2.5 px-3 font-mono">
+                        {n.chaveAcesso ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate max-w-[130px] text-slate-600 dark:text-slate-400">
+                              {n.chaveAcesso}
+                            </span>
+                            <button
+                              onClick={() => copiarChave(n.id, n.chaveAcesso)}
+                              className="text-slate-400 hover:text-violet-600 transition-colors"
+                              title="Copiar chave completa"
+                            >
+                              {chaveCopiadaId === n.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-violet-700 dark:text-violet-300">
+                        {Number(n.pesoLiquido).toLocaleString('pt-BR')} kg
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                        {n.valorTotal ? Number(n.valorTotal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
+                      </td>
+                      <td className="py-2.5 px-3 max-w-[180px]">
+                        <span className="text-[11px] text-slate-500 truncate block" title={n.observacoes || ''}>
+                          {n.observacoes || '—'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <button
+                          onClick={() => handleExcluirNota(n)}
+                          className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                          title="Excluir Nota Fiscal de Ajuste"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
