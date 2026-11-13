@@ -8,6 +8,7 @@ export interface SessionUser {
   id: string;
   papel: string;
   papeis?: string[];
+  username?: string | null;
   nome?: string | null;
   email?: string | null;
 }
@@ -34,6 +35,7 @@ export async function getSessionUser(_req?: any): Promise<SessionUser | null> {
         id: u.id,
         papel: u.papel || u.perfil || papeis[0] || 'VISUALIZADOR',
         papeis,
+        username: u.username || null,
         nome: session.user.name,
         email: session.user.email,
       };

@@ -25,6 +25,7 @@ import {
   formatarChaveAcesso,
   type DadosNFeExtraidos 
 } from '@/lib/nfeXmlService';
+import { parseNumeroBR, formatNumeroBR, sanitizarInputNumeroBR } from '@/lib/numeroBR';
 
 interface ModalImportarLoteXmlProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ interface ItemLotePreview extends DadosNFeExtraidos {
   idTemp: string;
   selecionado: boolean;
   notaEntradaIdVinculada?: string;
+  pesoLiquidoTexto?: string;
 }
 
 export function ModalImportarLoteXml({
@@ -124,6 +126,7 @@ export function ModalImportarLoteXml({
           idTemp: `temp_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
           selecionado: parsed.valida,
           notaEntradaIdVinculada: sugestao,
+          pesoLiquidoTexto: parsed.pesoLiquido ? formatNumeroBR(parsed.pesoLiquido, 2, 2) : '0,00',
         });
       } catch (err: any) {
         console.error('Erro ao ler arquivo XML:', file.name, err);
@@ -179,9 +182,34 @@ export function ModalImportarLoteXml({
     setItens((atuais) => atuais.filter((it) => it.idTemp !== idTemp));
   }
 
-  function atualizarPesoLiquido(idTemp: string, novoPeso: number) {
+  function atualizarPesoLiquidoTexto(idTemp: string, textoBruto: string) {
+    const sanitizado = sanitizarInputNumeroBR(textoBruto);
+    const parsed = parseNumeroBR(sanitizado);
     setItens((atuais) =>
-      atuais.map((it) => (it.idTemp === idTemp ? { ...it, pesoLiquido: novoPeso } : it))
+      atuais.map((it) =>
+        it.idTemp === idTemp
+          ? {
+              ...it,
+              pesoLiquidoTexto: sanitizado,
+              pesoLiquido: parsed !== null ? parsed : 0,
+            }
+          : it
+      )
+    );
+  }
+
+  function formatarPesoLiquidoNoBlur(idTemp: string) {
+    setItens((atuais) =>
+      atuais.map((it) => {
+        if (it.idTemp !== idTemp) return it;
+        const parsed = parseNumeroBR(it.pesoLiquidoTexto ?? it.pesoLiquido);
+        const numero = parsed !== null ? parsed : 0;
+        return {
+          ...it,
+          pesoLiquido: numero,
+          pesoLiquidoTexto: formatNumeroBR(numero, 2, 2),
+        };
+      })
     );
   }
 
@@ -388,7 +416,7 @@ export function ModalImportarLoteXml({
                   <div>
                     <span className="text-slate-500 font-sans">Peso Líquido Total:</span>{' '}
                     <strong className="text-slate-900 dark:text-white text-sm">
-                      {totalPesoLiquido.toLocaleString('pt-BR')} kg
+                      {formatNumeroBR(totalPesoLiquido, 2, 2)} kg
                     </strong>
                   </div>
                   <div>
@@ -506,11 +534,12 @@ export function ModalImportarLoteXml({
                         {/* 5. Peso Líquido (kg) */}
                         <td className="py-2.5 px-3 text-right">
                           <input
-                            type="number"
-                            step="any"
-                            value={it.pesoLiquido}
-                            onChange={(e) => atualizarPesoLiquido(it.idTemp, parseFloat(e.target.value) || 0)}
-                            className="w-24 text-xs font-mono font-bold text-right px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                            type="text"
+                            inputMode="decimal"
+                            value={it.pesoLiquidoTexto ?? formatNumeroBR(it.pesoLiquido, 2, 2)}
+                            onChange={(e) => atualizarPesoLiquidoTexto(it.idTemp, e.target.value)}
+                            onBlur={() => formatarPesoLiquidoNoBlur(it.idTemp)}
+                            className="w-28 text-xs font-mono font-bold text-right px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                           />
                         </td>
 

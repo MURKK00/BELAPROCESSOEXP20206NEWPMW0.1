@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { TimelineEtapasManager, type EtapaItem, type ProcessoResumo } from '@/components/negociacoes/TimelineEtapasManager';
+import { calcularPesoEValorContratoUsd } from '@/lib/numeroBR';
+import { getSessionUser } from '@/lib/auth';
+import { isAdmin, isDiretoria } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,11 +39,17 @@ export default async function ChecklistPage({ params }: { params: Promise<{ id: 
   // Métricas do processo para alimentar o painel dos marcos
   const containers = processo.containers || [];
   const containersPreenchidosCount = containers.filter((c) => Boolean(c.numeroContainer?.trim())).length;
-  const precoUsd = processo.financeiro?.precoUsd ? Number(processo.financeiro.precoUsd) : (processo.valorDeclaradoUsd ? Number(processo.valorDeclaradoUsd) : null);
-  
-  const volumeKg = Number(processo.volumeKg) || 0;
-  const volumeTon = volumeKg / 1000;
-  const valorTotalUsd = precoUsd ? volumeTon * precoUsd : 0;
+  const {
+    pesoFinalKg: volumeKg,
+    precoUnitarioUsd,
+    valorTotalUsd,
+  } = calcularPesoEValorContratoUsd({
+    containers,
+    volumeKgContratado: processo.volumeKg,
+    precoUsdFinanceiro: processo.financeiro?.precoUsd,
+    valorDeclaradoUsd: processo.valorDeclaradoUsd,
+  });
+  const precoUsd = precoUnitarioUsd > 0 ? precoUnitarioUsd : null;
 
   const travamentos = processo.financeiro?.travamentos || [];
   const totalUsdTravado = travamentos.reduce((acc, t) => acc + Number(t.valorUsdParcial), 0);
@@ -75,11 +84,15 @@ export default async function ChecklistPage({ params }: { params: Promise<{ id: 
     valorTotalUsd,
   };
 
+  const user = await getSessionUser();
+  const podeGerarChecklist = Boolean(user && (isAdmin(user) || isDiretoria(user)));
+
   return (
     <div className="py-2">
       <TimelineEtapasManager
         processo={processoResumo}
         etapas={etapasSimplificadas}
+        podeGerarChecklist={podeGerarChecklist}
       />
     </div>
   );

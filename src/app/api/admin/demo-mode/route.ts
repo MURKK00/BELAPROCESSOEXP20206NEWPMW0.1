@@ -10,10 +10,16 @@ let demoModeState = false
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) {
-    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 })
   }
 
-  return NextResponse.json({ demoMode: demoModeState, enabled: demoModeState })
+  return NextResponse.json({
+    success: true,
+    isDemoMode: demoModeState,
+    demoMode: demoModeState,
+    enabled: demoModeState,
+    countProcessos: 0,
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -21,10 +27,15 @@ export async function POST(req: NextRequest) {
     // Exige sessão ativa e perfil ADMIN para ativar/desativar modo demo
     const session = await getServerSession(authOptions)
     const user = session?.user as any
+    const isAdmin =
+      user?.papel === 'ADMIN' ||
+      user?.role === 'ADMIN' ||
+      user?.perfil === 'ADMIN' ||
+      (Array.isArray(user?.papeis) && user.papeis.includes('ADMIN'))
 
-    if (!session || user?.perfil !== 'ADMIN') {
+    if (!session || !isAdmin) {
       return NextResponse.json(
-        { error: 'Acesso negado. Apenas ADMIN pode alterar o Modo Demo.' },
+        { success: false, error: 'Acesso negado. Apenas ADMIN pode alterar o Modo Demo.' },
         { status: 403 }
       )
     }

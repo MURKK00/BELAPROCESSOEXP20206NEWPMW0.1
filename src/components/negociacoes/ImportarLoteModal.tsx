@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ClipboardPaste, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { parseNumeroBR, formatNumeroBR } from '@/lib/numeroBR';
 
 interface ContainerRow {
   id: string;
@@ -66,26 +67,19 @@ export function ImportarLoteModal({
         continue;
       }
 
-      const parseNumber = (val?: string) => {
-        if (!val) return null;
-        // Limpar pontos de milhar e trocar vírgula por ponto
-        const cleaned = val.replace(/\./g, '').replace(',', '.').replace(/[^0-9.-]/g, '');
-        const num = parseFloat(cleaned);
-        return isNaN(num) ? null : num;
-      };
-
       const numeroContainer = cleanCols[0] || '';
       const lacre = cleanCols[1] || '';
-      const pesoBruto = parseNumber(cleanCols[2]);
-      const pesoLiquido = parseNumber(cleanCols[3]);
-      const totalSacos = parseNumber(cleanCols[4]);
-      const tara = parseNumber(cleanCols[5]);
+      const pesoBruto = parseNumeroBR(cleanCols[2]);
+      const pesoLiquido = parseNumeroBR(cleanCols[3]);
+      const totalSacosRaw = parseNumeroBR(cleanCols[4]);
+      const totalSacos = totalSacosRaw !== null ? Math.round(totalSacosRaw) : null;
+      const tara = parseNumeroBR(cleanCols[5]);
 
       parsed.push({
         numeroContainer,
         lacre,
         pesoBruto,
-        pesoLiquido: pesoLiquido ?? (pesoBruto && tara ? pesoBruto - tara : null),
+        pesoLiquido: pesoLiquido ?? (pesoBruto !== null && tara !== null ? pesoBruto - tara : null),
         totalSacos,
         tara,
       });
@@ -197,10 +191,10 @@ export function ImportarLoteModal({
                         <td className="px-3 py-1.5 font-mono text-gray-400">#{i + 1}</td>
                         <td className="px-3 py-1.5 font-semibold text-gray-900">{r.numeroContainer || '-'}</td>
                         <td className="px-3 py-1.5">{r.lacre || '-'}</td>
-                        <td className="px-3 py-1.5 text-right font-mono">{r.pesoBruto?.toLocaleString('pt-BR') ?? '-'}</td>
-                        <td className="px-3 py-1.5 text-right font-mono">{r.pesoLiquido?.toLocaleString('pt-BR') ?? '-'}</td>
-                        <td className="px-3 py-1.5 text-right font-mono">{r.totalSacos ?? '-'}</td>
-                        <td className="px-3 py-1.5 text-right font-mono">{r.tara?.toLocaleString('pt-BR') ?? '-'}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{formatNumeroBR(r.pesoBruto, 2, 2) || '-'}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{formatNumeroBR(r.pesoLiquido, 2, 2) || '-'}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{formatNumeroBR(r.totalSacos, 0, 0) || '-'}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">{formatNumeroBR(r.tara, 2, 2) || '-'}</td>
                       </tr>
                     ))}
                   </tbody>

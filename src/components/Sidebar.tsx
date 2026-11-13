@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Compass, Handshake, FileSpreadsheet, DollarSign, TrendingUp, ShieldCheck, Tv2, Container } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { 
   canAccessAdmin, 
   canAccessCotacoes, 
@@ -20,14 +21,17 @@ export interface SidebarProps {
 
 export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
   const pathname = usePathname();
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { data: session } = useSession();
+  const [localUser, setLocalUser] = useState<any>(null);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem('bela_user');
-      if (saved) setCurrentUser(JSON.parse(saved));
+      if (saved) setLocalUser(JSON.parse(saved));
     } catch {}
   }, []);
+
+  const currentUser = session?.user || localUser;
 
   const isVisaoGeral = pathname === '/';
   const isCadastros = pathname.startsWith('/cadastros');
@@ -83,28 +87,28 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       label: 'Financeiro',
       active: isFinanceiro,
       icon: DollarSign,
-      visivel: !tvOnly && (currentUser ? canAccessFinanceiro(currentUser) : true),
+      visivel: !tvOnly && canAccessFinanceiro(currentUser),
     },
     {
       href: '/cotacoes',
       label: 'Cotações Mercado',
       active: isCotacoes,
       icon: TrendingUp,
-      visivel: !tvOnly && (currentUser ? canAccessCotacoes(currentUser) : true),
+      visivel: !tvOnly && canAccessCotacoes(currentUser),
     },
     {
       href: '/backoffice',
       label: 'Backoffice Cockpit',
       active: isBackoffice,
       icon: Tv2,
-      visivel: currentUser ? canAccessBackoffice(currentUser) : true,
+      visivel: canAccessBackoffice(currentUser),
     },
     {
       href: '/admin',
       label: 'Painel Admin',
       active: isAdmin,
       icon: ShieldCheck,
-      visivel: !tvOnly && (currentUser ? canAccessAdmin(currentUser) : true),
+      visivel: !tvOnly && canAccessAdmin(currentUser),
     },
   ];
 

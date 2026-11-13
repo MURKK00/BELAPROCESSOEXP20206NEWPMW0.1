@@ -3,6 +3,7 @@ import { prisma, ensureDatabaseSchema } from '@/lib/prisma';
 import { verifyPassword, hashPassword } from '@/lib/passwordUtils';
 import { registerLoginSession } from '@/lib/sessionTracker';
 import { getMockStore, saveMockStoreToFile } from '@/lib/mockStore';
+import { getUserPapeis } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -192,14 +193,8 @@ export async function POST(req: NextRequest) {
     }
 
     const papelBanco = (usuario as any).papel || 'COMERCIAL';
-    const papeis = [
-      ...(Array.isArray((usuario as any).papeis) ? (usuario as any).papeis : []),
-      ...((usuario as any).papel ? String((usuario as any).papel).split(',') : []),
-    ]
-      .map((p: string) => p.trim().toUpperCase())
-      .filter((p: string) => ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p));
-
-    const papeisFinal = papeis.length > 0 ? Array.from(new Set(papeis)) : [papelBanco];
+    const papeis = getUserPapeis(usuario);
+    const papeisFinal = papeis.length > 0 ? papeis : [papelBanco];
 
     const userData = {
       id: usuario.id,

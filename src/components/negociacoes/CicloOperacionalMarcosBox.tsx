@@ -22,10 +22,16 @@ import {
   RotateCcw,
   Plus,
   Minus,
-  Star
+  Star,
+  Loader2
 } from 'lucide-react';
 import { formatDateBR } from '@/lib/formatters';
-import { marcarEtapaAction, marcarLoteEtapasAction, avancarMarcoStatusAction } from '@/server/actions/etapaActions';
+import {
+  marcarEtapaAction,
+  marcarLoteEtapasAction,
+  avancarMarcoStatusAction,
+  gerarChecklistProcessoAction,
+} from '@/server/actions/etapaActions';
 import { avaliarResponsividadeEtapa } from '@/lib/checklistResponsivo';
 
 export interface CicloOperacionalMarcosBoxProps {
@@ -36,6 +42,7 @@ export interface CicloOperacionalMarcosBoxProps {
     fase: string;
     etapa: string;
   }>;
+  podeGerarChecklist?: boolean;
 }
 
 interface MacroEtapaDef {
@@ -128,8 +135,14 @@ const MACRO_ETAPAS: MacroEtapaDef[] = [
   },
 ];
 
-export function CicloOperacionalMarcosBox({ processo, etapas }: CicloOperacionalMarcosBoxProps) {
+export function CicloOperacionalMarcosBox({
+  processo,
+  etapas,
+  podeGerarChecklist = false,
+}: CicloOperacionalMarcosBoxProps) {
   const [painelAberto, setPainelAberto] = useState(false);
+  const [gerandoChecklist, setGerandoChecklist] = useState(false);
+  const [erroChecklist, setErroChecklist] = useState<string | null>(null);
 
   // Calcula quais tarefas pertencem a qual macro-etapa
   const marcosComTarefas = MACRO_ETAPAS.map((m) => {
@@ -198,6 +211,23 @@ export function CicloOperacionalMarcosBox({ processo, etapas }: CicloOperacional
       console.error('Erro ao atualizar marco operacional:', err);
     } finally {
       setSalvandoMarco(false);
+    }
+  };
+
+  const handleGerarChecklist = async () => {
+    setErroChecklist(null);
+    setGerandoChecklist(true);
+    try {
+      const res = await gerarChecklistProcessoAction(processo.id);
+      if (res?.error) {
+        setErroChecklist(res.error);
+      } else {
+        router.refresh();
+      }
+    } catch (err: any) {
+      setErroChecklist(err?.message || 'Erro ao gerar checklist desta negociação.');
+    } finally {
+      setGerandoChecklist(false);
     }
   };
 
@@ -456,9 +486,37 @@ export function CicloOperacionalMarcosBox({ processo, etapas }: CicloOperacional
 
           {/* LISTA DAS TAREFAS DA ETAPA */}
           <div className="space-y-2">
+            {erroChecklist && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{erroChecklist}</span>
+              </div>
+            )}
             {etapaSelecionada.tarefas.length === 0 ? (
-              <div className="p-4 text-center text-xs text-slate-500">
-                Nenhuma tarefa pendente para esta etapa.
+              <div className="p-5 text-center rounded-xl bg-white dark:bg-slate-800/70 border border-dashed border-slate-200 dark:border-slate-700 space-y-3">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Nenhuma tarefa gerada para esta etapa.
+                </p>
+                {podeGerarChecklist && (
+                  <button
+                    type="button"
+                    onClick={handleGerarChecklist}
+                    disabled={gerandoChecklist}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#f58220] hover:bg-orange-600 text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    {gerandoChecklist ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Gerando checklist...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Gerar checklist desta negociação</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             ) : (
               etapaSelecionada.tarefas.map((tarefa) => {

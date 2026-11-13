@@ -53,31 +53,45 @@ export const PAPEIS_DISPONIVEIS: PapelMeta[] = [
 export function getUserPapeis(user: any): Papel[] {
   if (!user) return [];
 
-  const rawList: string[] = [];
+  const validRoles = ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN', 'BACKOFFICE_TV'];
 
+  const fromPapeis: string[] = [];
   if (Array.isArray(user.papeis)) {
-    rawList.push(...user.papeis);
+    fromPapeis.push(...user.papeis);
   } else if (typeof user.papeis === 'string') {
-    rawList.push(...user.papeis.split(','));
+    fromPapeis.push(...user.papeis.split(','));
   }
 
+  const normalizedFromPapeis = Array.from(
+    new Set(
+      fromPapeis
+        .map((p) => String(p).trim().toUpperCase())
+        .filter((p): p is Papel => validRoles.includes(p))
+    )
+  );
+
+  // Quando `papeis` já possui papéis válidos explícitos (ex: ['BACKOFFICE_TV'] com enum fallback no banco),
+  // ele tem precedência sobre `papel` legado para não vazar o papel fallback.
+  if (normalizedFromPapeis.length > 0) {
+    return normalizedFromPapeis;
+  }
+
+  const rawFallback: string[] = [];
   if (typeof user.papel === 'string') {
-    rawList.push(...user.papel.split(','));
+    rawFallback.push(...user.papel.split(','));
   } else if (Array.isArray(user.papel)) {
-    rawList.push(...user.papel);
+    rawFallback.push(...user.papel);
   }
 
   if (typeof user.role === 'string') {
-    rawList.push(...user.role.split(','));
+    rawFallback.push(...user.role.split(','));
   }
 
   const normalized = Array.from(
     new Set(
-      rawList
-        .map((p) => p.trim().toUpperCase())
-        .filter((p): p is Papel =>
-          ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN', 'BACKOFFICE_TV'].includes(p)
-        )
+      rawFallback
+        .map((p) => String(p).trim().toUpperCase())
+        .filter((p): p is Papel => validRoles.includes(p))
     )
   );
 
@@ -107,20 +121,23 @@ export const canAccessCotacoes = (user: any): boolean =>
 export const canAccessFinanceiro = (user: any): boolean =>
   isAdmin(user) || isDiretoria(user) || isFinanceiro(user);
 
-// 3.1 Módulo Backoffice TV: Acesso amplo para todos os usuários logados
-export const canAccessBackoffice = (_user: any): boolean => true;
+// 3.1 Módulo Backoffice TV: Exclusivo para ADMIN e BACKOFFICE_TV
+export const canAccessBackoffice = (user: any): boolean =>
+  isAdmin(user) || isBackofficeTv(user) || isBackofficeTvOnly(user);
 
 // 3.2 Usuário exclusivo para TV (exibe somente a tela de Backoffice TV sem outras abas)
 export const isBackofficeTvOnly = (user: any): boolean => {
   if (!user) return false;
   const papeis = getUserPapeis(user);
+  if (papeis.includes('ADMIN')) return false;
   if (papeis.length === 1 && papeis[0] === 'BACKOFFICE_TV') return true;
+  if (papeis.length > 0 && !papeis.includes('BACKOFFICE_TV')) return false;
   const username = String(user.username || '').toUpperCase();
   const email = String(user.email || '').toLowerCase();
   return (
-    username === 'TVOFFICE' || 
-    username === 'BACKOFFICE' || 
-    email.startsWith('tv@') || 
+    username === 'TVOFFICE' ||
+    username === 'BACKOFFICE' ||
+    email.startsWith('tv@') ||
     email.startsWith('backoffice@')
   );
 };

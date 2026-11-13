@@ -2,11 +2,27 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getLiveMarketData } from '@/lib/liveMarket';
 import { getPrevisaoTempoLocais } from '@/lib/climaLocais';
+import { getSessionUser } from '@/lib/auth';
+import { canAccessBackoffice } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Não autorizado. Faça login.' },
+        { status: 401 }
+      );
+    }
+    if (!canAccessBackoffice(user)) {
+      return NextResponse.json(
+        { success: false, error: 'Acesso negado ao Backoffice TV.' },
+        { status: 403 }
+      );
+    }
+
     const agora = new Date();
 
     // 1. Buscar todos os processos do sistema

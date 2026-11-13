@@ -5,15 +5,16 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
+import { parseNumeroBR } from '@/lib/numeroBR';
 
 type LinhaContainer = {
   id: string;
   numeroContainer: string;
   lacre: string;
-  pesoBruto: number | null;
-  pesoLiquido: number | null;
-  totalSacos: number | null;
-  tara: number | null;
+  pesoBruto: number | string | null;
+  pesoLiquido: number | string | null;
+  totalSacos: number | string | null;
+  tara: number | string | null;
 };
 
 export async function salvarContainersAction(formData: FormData) {
@@ -26,10 +27,11 @@ export async function salvarContainersAction(formData: FormData) {
 
   await prisma.$transaction(async (tx) => {
     for (const linha of linhas) {
-      const pBruto = linha.pesoBruto !== null && linha.pesoBruto !== undefined && !isNaN(Number(linha.pesoBruto)) ? Number(linha.pesoBruto) : null;
-      const pLiquido = linha.pesoLiquido !== null && linha.pesoLiquido !== undefined && !isNaN(Number(linha.pesoLiquido)) ? Number(linha.pesoLiquido) : null;
-      const pTara = linha.tara !== null && linha.tara !== undefined && !isNaN(Number(linha.tara)) ? Number(linha.tara) : null;
-      const totSacos = linha.totalSacos !== null && linha.totalSacos !== undefined && !isNaN(Number(linha.totalSacos)) ? Math.round(Number(linha.totalSacos)) : null;
+      const pBruto = parseNumeroBR(linha.pesoBruto);
+      const pLiquido = parseNumeroBR(linha.pesoLiquido);
+      const pTara = parseNumeroBR(linha.tara);
+      const totSacosRaw = parseNumeroBR(linha.totalSacos);
+      const totSacos = totSacosRaw !== null ? Math.round(totSacosRaw) : null;
 
       await tx.container.update({
         where: { id: linha.id },

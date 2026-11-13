@@ -13,10 +13,17 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+function isAdminUser(user: any): boolean {
+  if (!user) return false;
+  if (user.papel === 'ADMIN' || user.role === 'ADMIN' || user.perfil === 'ADMIN') return true;
+  if (Array.isArray(user.papeis) && user.papeis.includes('ADMIN')) return true;
+  return false;
+}
+
 async function checkAdminAuth() {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
-  if (!session || user?.perfil !== 'ADMIN') {
+  if (!session || !isAdminUser(user)) {
     return null;
   }
   return user;
@@ -25,15 +32,16 @@ async function checkAdminAuth() {
 export async function GET(req: NextRequest) {
   const admin = await checkAdminAuth();
   if (!admin) {
-    return NextResponse.json({ error: 'Acesso restrito a administradores.' }, { status: 403 });
+    return NextResponse.json({ success: false, error: 'Acesso restrito a administradores.' }, { status: 403 });
   }
 
   try {
     const { searchParams } = new URL(req.url);
     const download = searchParams.get('download');
+    const action = searchParams.get('action');
 
     // Se o admin pediu para baixar o JSON do snapshot na hora
-    if (download === '1' || download === 'true') {
+    if (action === 'download' || download === '1' || download === 'true') {
       const snapshot = await extrairSnapshotBanco();
       const jsonStr = JSON.stringify(snapshot, null, 2);
       const fileDate = new Date().toISOString().replace(/[:.]/g, '-');
@@ -50,10 +58,25 @@ export async function GET(req: NextRequest) {
     const config = getBackupConfig();
     const logs = getBackupLogs();
 
-    return NextResponse.json({ config, logs, backups: logs });
+    const totalBackups = logs.length;
+    const backupsSucesso = logs.filter((l) => l.status === 'SUCESSO').length;
+    const totalBytesArmazenados = logs.reduce((acc, l) => acc + (l.tamanhoBytes || 0), 0);
+
+    return NextResponse.json({
+      success: true,
+      config,
+      logs,
+      backups: logs,
+      estatisticas: {
+        totalBackups,
+        backupsSucesso,
+        totalBytesArmazenados,
+        ultimoBackup: logs[0] || null,
+      },
+    });
   } catch (error: any) {
     return NextResponse.json(
-      { error: 'Erro ao carregar informações de backup.', details: error?.message },
+      { success: false, error: 'Erro ao carregar informações de backup.', details: error?.message },
       { status: 500 }
     );
   }

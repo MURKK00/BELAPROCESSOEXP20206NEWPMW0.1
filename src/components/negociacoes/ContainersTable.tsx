@@ -4,9 +4,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClipboardPaste } from 'lucide-react';
+import { ClipboardPaste, AlertCircle } from 'lucide-react';
 import { salvarContainersAction } from '@/server/actions/containerActions';
 import { canEditContainers } from '@/lib/permissions';
+import { parseNumeroBR, formatNumeroBR, sanitizarInputNumeroBR } from '@/lib/numeroBR';
 import { ImportarLoteModal } from './ImportarLoteModal';
 
 type ContainerRow = {
@@ -22,6 +23,20 @@ type ContainerRow = {
 
 type CampoTexto = 'numeroContainer' | 'lacre';
 type CampoNumero = 'pesoBruto' | 'pesoLiquido' | 'totalSacos' | 'tara';
+type TextosLinhaMap = Record<string, Record<CampoNumero, string>>;
+
+function buildTextosMap(rows: ContainerRow[]): TextosLinhaMap {
+  const map: TextosLinhaMap = {};
+  for (const r of rows) {
+    map[r.id] = {
+      pesoBruto: formatNumeroBR(r.pesoBruto, 2, 2),
+      pesoLiquido: formatNumeroBR(r.pesoLiquido, 2, 2),
+      totalSacos: formatNumeroBR(r.totalSacos, 0, 0),
+      tara: formatNumeroBR(r.tara, 2, 2),
+    };
+  }
+  return map;
+}
 
 export function ContainersTable({
   processoId,
@@ -35,7 +50,9 @@ export function ContainersTable({
   const [editando, setEditando] = useState(false);
   const [modalLoteAberto, setModalLoteAberto] = useState(false);
   const [linhas, setLinhas] = useState<ContainerRow[]>(containers);
+  const [textosInputs, setTextosInputs] = useState<TextosLinhaMap>(() => buildTextosMap(containers));
   const [salvando, setSalvando] = useState(false);
+  const [erroSalvar, setErroSalvar] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -53,37 +70,89 @@ export function ContainersTable({
     setLinhas((atuais) => atuais.map((l) => (l.id === id ? { ...l, [campo]: valor } : l)));
   }
 
-  function atualizarNumero(id: string, campo: CampoNumero, valor: string) {
-    const numero = valor === '' ? null : Number(valor);
+  function atualizarNumero(id: string, campo: CampoNumero, valorBruto: string) {
+    const valor = sanitizarInputNumeroBR(valorBruto);
+    const parsed = parseNumeroBR(valor);
+    const numero = campo === 'totalSacos' && parsed !== null ? Math.round(parsed) : parsed;
+
+    let liquidoRecalculadoTexto: string | null = null;
+
     setLinhas((atuais) =>
       atuais.map((l) => {
         if (l.id !== id) return l;
         const atualizado = { ...l, [campo]: numero };
         // Se alterou pesoBruto ou tara e o outro existir, recalcula pesoLiquido automaticamente
         if (campo === 'pesoBruto' && atualizado.tara !== null && atualizado.tara !== undefined) {
-          atualizado.pesoLiquido = (numero ?? 0) - atualizado.tara;
+          const liquido = Number(((numero ?? 0) - atualizado.tara).toFixed(3));
+          atualizado.pesoLiquido = liquido;
+          liquidoRecalculadoTexto = formatNumeroBR(liquido, 2, 2);
         } else if (campo === 'tara' && atualizado.pesoBruto !== null && atualizado.pesoBruto !== undefined) {
-          atualizado.pesoLiquido = atualizado.pesoBruto - (numero ?? 0);
+          const liquido = Number((atualizado.pesoBruto - (numero ?? 0)).toFixed(3));
+          atualizado.pesoLiquido = liquido;
+          liquidoRecalculadoTexto = formatNumeroBR(liquido, 2, 2);
         }
         return atualizado;
       })
     );
+
+    setTextosInputs((prev) => {
+      const atualLinha = prev[id] ?? { pesoBruto: '', pesoLiquido: '', totalSacos: '', tara: '' };
+      return {
+        ...prev,
+        [id]: {
+          ...atualLinha,
+          [campo]: valor,
+          ...(liquidoRecalculadoTexto !== null ? { pesoLiquido: liquidoRecalculadoTexto } : {}),
+        },
+      };
+    });
+  }
+
+  function formatarAoSair(id: string, campo: CampoNumero) {
+    const textoAtual = textosInputs[id]?.[campo] ?? '';
+    const num = parseNumeroBR(textoAtual);
+    const formatado =
+      num === null
+        ? ''
+        : campo === 'totalSacos'
+        ? formatNumeroBR(Math.round(num), 0, 0)
+        : formatNumeroBR(num, 2, 2);
+
+    setTextosInputs((prev) => ({
+      ...prev,
+      [id]: {
+        ...(prev[id] ?? { pesoBruto: '', pesoLiquido: '', totalSacos: '', tara: '' }),
+        [campo]: formatado,
+      },
+    }));
+  }
+
+  function handleIniciarEdicao() {
+    setErroSalvar(null);
+    setTextosInputs(buildTextosMap(linhas));
+    setEditando(true);
   }
 
   function handleAplicarLote(novosContainers: ContainerRow[]) {
+    setErroSalvar(null);
     setLinhas(novosContainers);
+    setTextosInputs(buildTextosMap(novosContainers));
     setEditando(true);
   }
 
   async function salvar() {
     setSalvando(true);
+    setErroSalvar(null);
     try {
       const formData = new FormData();
       formData.set('processoId', processoId);
       formData.set('containersJson', JSON.stringify(linhas));
       await salvarContainersAction(formData);
+      setTextosInputs(buildTextosMap(linhas));
       setEditando(false);
       router.refresh();
+    } catch (err: any) {
+      setErroSalvar(err?.message || 'Não foi possível salvar os contêineres.');
     } finally {
       setSalvando(false);
     }
@@ -101,14 +170,14 @@ export function ContainersTable({
       <div className="grid grid-cols-2 gap-5 mb-6">
         <div className="bg-surface border border-border rounded-xl p-5">
           <h4 className="text-gray-500 text-sm font-medium mb-2.5">Net weight (total)</h4>
-          <div className="text-2xl font-bold">
-            {somaLiquido.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kg
+          <div className="text-2xl font-bold font-mono tabular-nums">
+            {formatNumeroBR(somaLiquido, 2, 3) || '0,00'} kg
           </div>
         </div>
         <div className="bg-surface border border-border rounded-xl p-5">
           <h4 className="text-gray-500 text-sm font-medium mb-2.5">Gross weight (total)</h4>
-          <div className="text-2xl font-bold">
-            {somaBruto.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} kg
+          <div className="text-2xl font-bold font-mono tabular-nums">
+            {formatNumeroBR(somaBruto, 2, 3) || '0,00'} kg
           </div>
         </div>
       </div>
@@ -143,7 +212,7 @@ export function ContainersTable({
                 </button>
               ) : (
                 <button
-                  onClick={() => setEditando(true)}
+                  onClick={handleIniciarEdicao}
                   className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50 cursor-pointer"
                 >
                   ✏️ Editar
@@ -157,6 +226,13 @@ export function ContainersTable({
           )}
         </div>
       </div>
+
+      {erroSalvar && (
+        <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{erroSalvar}</span>
+        </div>
+      )}
 
       <div className="bg-surface border border-border rounded-2xl overflow-x-auto">
         {linhas.length === 0 ? (
@@ -177,90 +253,116 @@ export function ContainersTable({
               </tr>
             </thead>
             <tbody>
-              {linhas.map((l) => (
-                <tr key={l.id} className="border-t border-border">
-                  <td className="px-4 py-2">
-                    {editando ? (
-                      <input
-                        defaultValue={l.numeroContainer}
-                        onChange={(e) => atualizarTexto(l.id, 'numeroContainer', e.target.value)}
-                        onKeyDown={handleEnter}
-                        placeholder={`Contêiner ${l.ordem}`}
-                        className="border border-gray-300 rounded-md px-2 py-1 text-sm w-32"
-                      />
-                    ) : (
-                      <span className="text-sm">{l.numeroContainer || `Contêiner ${l.ordem}`}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    {editando ? (
-                      <input
-                        defaultValue={l.lacre}
-                        onChange={(e) => atualizarTexto(l.id, 'lacre', e.target.value)}
-                        onKeyDown={handleEnter}
-                        className="border border-gray-300 rounded-md px-2 py-1 text-sm w-28"
-                      />
-                    ) : (
-                      <span className="text-sm">{l.lacre || '-'}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    {editando ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        defaultValue={l.pesoBruto ?? ''}
-                        onChange={(e) => atualizarNumero(l.id, 'pesoBruto', e.target.value)}
-                        onKeyDown={handleEnter}
-                        className="border border-gray-300 rounded-md px-2 py-1 text-sm w-28"
-                      />
-                    ) : (
-                      <span className="text-sm">{l.pesoBruto ?? '-'}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    {editando ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        defaultValue={l.pesoLiquido ?? ''}
-                        onChange={(e) => atualizarNumero(l.id, 'pesoLiquido', e.target.value)}
-                        onKeyDown={handleEnter}
-                        className="border border-gray-300 rounded-md px-2 py-1 text-sm w-28"
-                      />
-                    ) : (
-                      <span className="text-sm">{l.pesoLiquido ?? '-'}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    {editando ? (
-                      <input
-                        type="number"
-                        defaultValue={l.totalSacos ?? ''}
-                        onChange={(e) => atualizarNumero(l.id, 'totalSacos', e.target.value)}
-                        onKeyDown={handleEnter}
-                        className="border border-gray-300 rounded-md px-2 py-1 text-sm w-24"
-                      />
-                    ) : (
-                      <span className="text-sm">{l.totalSacos ?? '-'}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    {editando ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        defaultValue={l.tara ?? ''}
-                        onChange={(e) => atualizarNumero(l.id, 'tara', e.target.value)}
-                        onKeyDown={handleEnter}
-                        className="border border-gray-300 rounded-md px-2 py-1 text-sm w-24"
-                      />
-                    ) : (
-                      <span className="text-sm">{l.tara ?? '-'}</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {linhas.map((l) => {
+                const txt = textosInputs[l.id] ?? {
+                  pesoBruto: formatNumeroBR(l.pesoBruto, 2, 2),
+                  pesoLiquido: formatNumeroBR(l.pesoLiquido, 2, 2),
+                  totalSacos: formatNumeroBR(l.totalSacos, 0, 0),
+                  tara: formatNumeroBR(l.tara, 2, 2),
+                };
+
+                return (
+                  <tr key={l.id} className="border-t border-border">
+                    <td className="px-4 py-2">
+                      {editando ? (
+                        <input
+                          value={l.numeroContainer}
+                          onChange={(e) => atualizarTexto(l.id, 'numeroContainer', e.target.value)}
+                          onKeyDown={handleEnter}
+                          placeholder={`Contêiner ${l.ordem}`}
+                          className="border border-gray-300 rounded-md px-2 py-1 text-sm w-32"
+                        />
+                      ) : (
+                        <span className="text-sm">{l.numeroContainer || `Contêiner ${l.ordem}`}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {editando ? (
+                        <input
+                          value={l.lacre}
+                          onChange={(e) => atualizarTexto(l.id, 'lacre', e.target.value)}
+                          onKeyDown={handleEnter}
+                          className="border border-gray-300 rounded-md px-2 py-1 text-sm w-28"
+                        />
+                      ) : (
+                        <span className="text-sm">{l.lacre || '-'}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {editando ? (
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          value={txt.pesoBruto}
+                          onChange={(e) => atualizarNumero(l.id, 'pesoBruto', e.target.value)}
+                          onBlur={() => formatarAoSair(l.id, 'pesoBruto')}
+                          onKeyDown={handleEnter}
+                          className="border border-gray-300 rounded-md px-2 py-1 text-sm w-28 font-mono tabular-nums text-right"
+                        />
+                      ) : (
+                        <span className="text-sm font-mono tabular-nums">
+                          {l.pesoBruto !== null && l.pesoBruto !== undefined ? formatNumeroBR(l.pesoBruto, 2, 2) : '-'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {editando ? (
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          value={txt.pesoLiquido}
+                          onChange={(e) => atualizarNumero(l.id, 'pesoLiquido', e.target.value)}
+                          onBlur={() => formatarAoSair(l.id, 'pesoLiquido')}
+                          onKeyDown={handleEnter}
+                          className="border border-gray-300 rounded-md px-2 py-1 text-sm w-28 font-mono tabular-nums text-right"
+                        />
+                      ) : (
+                        <span className="text-sm font-mono tabular-nums">
+                          {l.pesoLiquido !== null && l.pesoLiquido !== undefined ? formatNumeroBR(l.pesoLiquido, 2, 2) : '-'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {editando ? (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0"
+                          value={txt.totalSacos}
+                          onChange={(e) => atualizarNumero(l.id, 'totalSacos', e.target.value)}
+                          onBlur={() => formatarAoSair(l.id, 'totalSacos')}
+                          onKeyDown={handleEnter}
+                          className="border border-gray-300 rounded-md px-2 py-1 text-sm w-24 font-mono tabular-nums text-right"
+                        />
+                      ) : (
+                        <span className="text-sm font-mono tabular-nums">
+                          {l.totalSacos !== null && l.totalSacos !== undefined ? formatNumeroBR(l.totalSacos, 0, 0) : '-'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {editando ? (
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          value={txt.tara}
+                          onChange={(e) => atualizarNumero(l.id, 'tara', e.target.value)}
+                          onBlur={() => formatarAoSair(l.id, 'tara')}
+                          onKeyDown={handleEnter}
+                          className="border border-gray-300 rounded-md px-2 py-1 text-sm w-24 font-mono tabular-nums text-right"
+                        />
+                      ) : (
+                        <span className="text-sm font-mono tabular-nums">
+                          {l.tara !== null && l.tara !== undefined ? formatNumeroBR(l.tara, 2, 2) : '-'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

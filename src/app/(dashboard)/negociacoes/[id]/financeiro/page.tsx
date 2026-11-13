@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { deletarTravamentoAction } from '@/server/actions/financeiroActions';
 import { formatNum, safeNumber } from '@/lib/formatters';
+import { calcularPesoEValorContratoUsd } from '@/lib/numeroBR';
 import { CategoriaCusto } from '@prisma/client';
 import { DRECustosManager } from '@/components/financeiro/DRECustosManager';
 import { BancoStatusConfig } from '@/components/financeiro/BancoStatusConfig';
@@ -52,14 +53,18 @@ export default async function FinanceiroNegociacaoPage({ params }: { params: Pro
     });
   }
 
-  // Peso Real (Net Weight)
-  const pesoLiquidoTotalKg = processo.containers.reduce((acc, c) => acc + safeNumber(c.pesoLiquido, 0), 0);
-  const pesoFinalKg = pesoLiquidoTotalKg > 0 ? pesoLiquidoTotalKg : safeNumber(processo.volumeKg, 0);
-  const pesoFinalTon = pesoFinalKg / 1000;
-
-  // Receita Total USD
-  const precoUnitarioUsd = safeNumber(financeiro.precoUsd, 0);
-  const valorTotalUsd = pesoFinalTon * precoUnitarioUsd;
+  // Peso Real (Net Weight) e Receita Total USD padronizados
+  const {
+    pesoFinalKg,
+    pesoFinalTon,
+    precoUnitarioUsd,
+    valorTotalUsd,
+  } = calcularPesoEValorContratoUsd({
+    containers: processo.containers,
+    volumeKgContratado: processo.volumeKg,
+    precoUsdFinanceiro: financeiro.precoUsd,
+    valorDeclaradoUsd: processo.valorDeclaradoUsd,
+  });
 
   // Informações de Recebimento, Taxas Bancárias e Conta
   const proformaInfo = parseRecebimentoProformaInfo(

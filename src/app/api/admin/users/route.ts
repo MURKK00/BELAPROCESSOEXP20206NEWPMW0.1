@@ -139,11 +139,14 @@ export async function POST(req: NextRequest) {
         : ['COMERCIAL'];
 
     const papeisValidos = papeisLista.filter((p: string) =>
-      ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
+      ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN', 'BACKOFFICE_TV'].includes(p)
     );
 
     const papeisFinal = papeisValidos.length > 0 ? papeisValidos : ['COMERCIAL'];
-    const cargoPrimario = (papeisFinal[0] as Papel) || 'COMERCIAL';
+    const papelEnumValido = papeisFinal.find((p: string) =>
+      ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
+    );
+    const cargoPrimario = (papelEnumValido || 'CLIENTE_PORTAL') as any;
 
     const senhaHash = await hashPassword(senhaFinal);
 
@@ -296,19 +299,27 @@ export async function PATCH(req: NextRequest) {
     // 3. Edição de Perfis de Acesso
     if (Array.isArray(papeis) && papeis.length > 0) {
       const papeisValidos = papeis.filter((p: string) =>
-        ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
+        ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN', 'BACKOFFICE_TV'].includes(p)
       );
       if (papeisValidos.length > 0) {
         updateData.papeis = papeisValidos;
-        updateData.papel = papeisValidos[0] as Papel;
+        const papelEnumValido = papeisValidos.find((p: string) =>
+          ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
+        );
+        updateData.papel = papelEnumValido || 'CLIENTE_PORTAL';
       }
     } else if (papel) {
       const pArr = String(papel)
         .split(',')
         .map((p: string) => p.trim());
       updateData.papeis = pArr;
-      if (['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(pArr[0])) {
-        updateData.papel = pArr[0] as Papel;
+      const papelEnumValido = pArr.find((p: string) =>
+        ['COMERCIAL', 'ADMINISTRATIVO', 'FINANCEIRO', 'DIRETORIA', 'ADMIN'].includes(p)
+      );
+      if (papelEnumValido) {
+        updateData.papel = papelEnumValido as Papel;
+      } else if (pArr.includes('BACKOFFICE_TV')) {
+        updateData.papel = 'CLIENTE_PORTAL';
       }
     }
 

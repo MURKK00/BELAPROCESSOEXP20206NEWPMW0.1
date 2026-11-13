@@ -18,6 +18,17 @@ import {
 import { vincularProdutorTrajetoAction } from '@/server/actions/cadastrosActions';
 import { CentralCadastrosModal } from '@/components/cadastros/CentralCadastrosModal';
 
+function formatarCnpjArmazem(valor: string | null | undefined): string {
+  if (!valor) return '';
+  const digits = valor.replace(/\D/g, '');
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
+}
+
 interface RastreabilidadeTrajetoCardProps {
   processo: any;
 }
@@ -86,22 +97,28 @@ export function RastreabilidadeTrajetoCard({ processo }: RastreabilidadeTrajetoC
     }
   }
 
+  function aplicarProdutorNaTela(p: any) {
+    if (!p) return;
+    setProdutorId(p.id || '');
+    if (Array.isArray(p.fazendas) && p.fazendas.length > 0) {
+      const fz = p.fazendas.find((f: any) => f.padrao) || p.fazendas[0];
+      setFazendaSelecionadaId(fz.id);
+      setFazendaOrigemNome(fz.nomePropriedade || p.nomeFantasia || p.razaoSocial || '');
+      setProdutorCarCache(fz.carNumero || '');
+      setProdutorIeCache(fz.inscricaoEstadual || '');
+    } else {
+      setFazendaSelecionadaId('');
+      setFazendaOrigemNome(p.nomePropriedade || p.nomeFantasia || p.razaoSocial || '');
+      setProdutorCarCache(p.carNumero || '');
+      setProdutorIeCache(p.inscricaoEstadual || '');
+    }
+  }
+
   function handleSelecionarProdutor(prodId: string) {
     setProdutorId(prodId);
     const p = produtores.find((item) => item.id === prodId);
     if (p) {
-      if (Array.isArray(p.fazendas) && p.fazendas.length > 0) {
-        const fz = p.fazendas.find((f: any) => f.padrao) || p.fazendas[0];
-        setFazendaSelecionadaId(fz.id);
-        setFazendaOrigemNome(fz.nomePropriedade || p.nomeFantasia || p.razaoSocial || '');
-        setProdutorCarCache(fz.carNumero || '');
-        setProdutorIeCache(fz.inscricaoEstadual || '');
-      } else {
-        setFazendaSelecionadaId('');
-        setFazendaOrigemNome(p.nomePropriedade || p.nomeFantasia || p.razaoSocial || '');
-        setProdutorCarCache(p.carNumero || '');
-        setProdutorIeCache(p.inscricaoEstadual || '');
-      }
+      aplicarProdutorNaTela(p);
     } else {
       setFazendaSelecionadaId('');
     }
@@ -118,28 +135,41 @@ export function RastreabilidadeTrajetoCard({ processo }: RastreabilidadeTrajetoC
     }
   }
 
+  function aplicarArmazemNaTela(a: any) {
+    if (!a) return;
+    setArmazemId(a.id || '');
+    setSiloArmazemOrigem(a.razaoSocial || a.nomeFantasia || '');
+    const cnpjRaw = a.documento || '';
+    const digits = String(cnpjRaw).replace(/\D/g, '');
+    setArmazemCnpj(digits.length === 14 ? formatarCnpjArmazem(digits) : cnpjRaw);
+    setArmazemUf((a.uf || '').toUpperCase());
+    setArmazemCidade(a.cidade || a.municipio || '');
+    setArmazemEndereco(a.endereco || '');
+  }
+
   function handleSelecionarArmazemCadastrado(armId: string) {
     setArmazemId(armId);
+    if (!armId) return;
     const a = armazens.find((item) => item.id === armId);
     if (a) {
-      setSiloArmazemOrigem(a.razaoSocial || a.nomeFantasia || '');
-      setArmazemCnpj(a.documento || '');
-      setArmazemUf(a.uf || '');
-      setArmazemCidade(a.cidade || a.municipio || '');
-      setArmazemEndereco(a.endereco || '');
+      aplicarArmazemNaTela(a);
     }
   }
 
   function handleProdutorCriado(novoProdutor: any) {
-    carregarProdutores().then(() => {
-      handleSelecionarProdutor(novoProdutor.id);
-    });
+    if (!novoProdutor) return;
+    setProdutores((prev) => (prev.some((p) => p.id === novoProdutor.id) ? prev.map((p) => (p.id === novoProdutor.id ? novoProdutor : p)) : [novoProdutor, ...prev]));
+    aplicarProdutorNaTela(novoProdutor);
+    setModalProdutorAberto(false);
+    carregarProdutores();
   }
 
   function handleArmazemCriado(novoArmazem: any) {
-    carregarArmazens().then(() => {
-      handleSelecionarArmazemCadastrado(novoArmazem.id);
-    });
+    if (!novoArmazem) return;
+    setArmazens((prev) => (prev.some((a) => a.id === novoArmazem.id) ? prev.map((a) => (a.id === novoArmazem.id ? novoArmazem : a)) : [novoArmazem, ...prev]));
+    aplicarArmazemNaTela(novoArmazem);
+    setModalArmazemAberto(false);
+    carregarArmazens();
   }
 
   async function handleSalvarRastreabilidade(e: React.FormEvent) {
@@ -148,28 +178,33 @@ export function RastreabilidadeTrajetoCard({ processo }: RastreabilidadeTrajetoC
     setMsgErro(null);
     setMsgSucesso(null);
 
-    const res = await vincularProdutorTrajetoAction(processo.id, {
-      produtorId: produtorId || null,
-      fazendaId: fazendaSelecionadaId || null,
-      fazendaOrigemNome: fazendaOrigemNome || null,
-      produtorCarCache: produtorCarCache || null,
-      produtorIeCache: produtorIeCache || null,
-      coletaDiretaLavoura: false,
-      armazemId: armazemId || null,
-      siloArmazemOrigem: siloArmazemOrigem || null,
-      armazemCnpj: armazemCnpj || null,
-      armazemUf: armazemUf || null,
-      armazemCidade: armazemCidade || null,
-      armazemEndereco: armazemEndereco || null,
-    });
+    try {
+      const res = await vincularProdutorTrajetoAction(processo.id, {
+        produtorId: produtorId || null,
+        fazendaId: fazendaSelecionadaId || null,
+        fazendaOrigemNome: fazendaOrigemNome || null,
+        produtorCarCache: produtorCarCache || null,
+        produtorIeCache: produtorIeCache || null,
+        coletaDiretaLavoura: false,
+        armazemId: armazemId || null,
+        siloArmazemOrigem: siloArmazemOrigem || null,
+        armazemCnpj: armazemCnpj || null,
+        armazemUf: armazemUf || null,
+        armazemCidade: armazemCidade || null,
+        armazemEndereco: armazemEndereco || null,
+      });
 
-    setSalvando(false);
-    if (res.success) {
-      setMsgSucesso('Dados de rastreabilidade salvos com sucesso!');
-      router.refresh();
-      setTimeout(() => setMsgSucesso(null), 4000);
-    } else {
-      setMsgErro(res.error || 'Erro ao salvar rastreabilidade do grão.');
+      if (res.success) {
+        setMsgSucesso('Dados de rastreabilidade salvos com sucesso!');
+        router.refresh();
+        setTimeout(() => setMsgSucesso(null), 4000);
+      } else {
+        setMsgErro(res.error || 'Erro ao salvar rastreabilidade do grão.');
+      }
+    } catch (err: any) {
+      setMsgErro(err?.message || 'Erro de conexão ao salvar rastreabilidade.');
+    } finally {
+      setSalvando(false);
     }
   }
 
@@ -454,9 +489,10 @@ export function RastreabilidadeTrajetoCard({ processo }: RastreabilidadeTrajetoC
                 </label>
                 <input
                   type="text"
+                  maxLength={18}
                   placeholder="Ex: 08.765.432/0001-90"
                   value={armazemCnpj}
-                  onChange={(e) => setArmazemCnpj(e.target.value)}
+                  onChange={(e) => setArmazemCnpj(formatarCnpjArmazem(e.target.value))}
                   className="w-full font-mono text-xs px-3 py-2 text-slate-900 dark:text-white rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 focus:ring-2 focus:ring-blue-500/40 outline-none"
                 />
               </div>

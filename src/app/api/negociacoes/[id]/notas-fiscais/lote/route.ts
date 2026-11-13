@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
+import { parseNumeroBR } from '@/lib/numeroBR';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,10 +60,11 @@ export async function POST(
           continue;
         }
 
-        const pesoLiquidoNum = Number(item.pesoLiquido || 0);
-        const pesoBrutoNum = item.pesoBruto ? Number(item.pesoBruto) : null;
-        const valorTotalNum = item.valorTotal ? Number(item.valorTotal) : null;
-        const sacasNum = item.quantidadeSacas ? parseInt(item.quantidadeSacas, 10) : null;
+        const pesoLiquidoNum = parseNumeroBR(item.pesoLiquido) ?? 0;
+        const pesoBrutoNum = parseNumeroBR(item.pesoBruto);
+        const valorTotalNum = parseNumeroBR(item.valorTotal);
+        const sacasParsed = parseNumeroBR(item.quantidadeSacas);
+        const sacasNum = sacasParsed !== null ? Math.round(sacasParsed) : null;
 
         const novaNota = await tx.notaFiscal.create({
           data: {
@@ -104,7 +106,10 @@ export async function POST(
                   data: {
                     notaRetornoId: novaNota.id,
                     notaEntradaId,
-                    pesoRetornadoKg: typeof ref === 'object' && ref.pesoRetornadoKg ? Number(ref.pesoRetornadoKg) : pesoLiquidoNum,
+                    pesoRetornadoKg:
+                      typeof ref === 'object' && ref.pesoRetornadoKg
+                        ? (parseNumeroBR(ref.pesoRetornadoKg) ?? pesoLiquidoNum)
+                        : pesoLiquidoNum,
                   },
                 });
               }

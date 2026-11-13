@@ -17,7 +17,10 @@ async function requireFinanceiroSession() {
     throw new Error('Não autorizado. Faça login para alterar dados financeiros.');
   }
 
-  if (user.perfil === 'VISUALIZADOR') {
+  const role = user.papel || user.perfil || user.role || 'COMERCIAL';
+  const papeis: string[] = Array.isArray(user.papeis) ? user.papeis : [role];
+
+  if (role === 'VISUALIZADOR' && !papeis.includes('ADMIN')) {
     throw new Error('Acesso negado. Perfil de visualizador não pode alterar dados financeiros.');
   }
 

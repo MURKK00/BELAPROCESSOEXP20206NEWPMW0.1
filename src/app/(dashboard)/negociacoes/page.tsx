@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { NegotiationTable } from '@/components/negociacoes/NegotiationTable';
 import { serializeDecimals } from '@/lib/serialize';
 import { parseRecebimentoProformaInfo } from '@/lib/proformaHelper';
+import { calcularPesoEValorContratoUsd } from '@/lib/numeroBR';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,11 +29,18 @@ export default async function NegociacoesPage() {
 
     // Métricas Financeiras
     const fin = p.financeiro;
-    const precoUsd = fin ? Number(fin.precoUsd) : (valorDeclaradoUsd || 0);
-    const pesoLiquidoTotalKg = p.containers.reduce((acc, c) => acc + (c.pesoLiquido ? Number(c.pesoLiquido) : 0), 0);
-    const pesoFinalKg = pesoLiquidoTotalKg > 0 ? pesoLiquidoTotalKg : volumeKg;
-    const pesoFinalTon = pesoFinalKg / 1000;
-    const valorTotalUsd = pesoFinalTon * precoUsd;
+    const {
+      temContainersPreenchidos,
+      pesoFinalKg,
+      pesoFinalTon,
+      precoUnitarioUsd: precoUsd,
+      valorTotalUsd,
+    } = calcularPesoEValorContratoUsd({
+      containers: p.containers,
+      volumeKgContratado: p.volumeKg,
+      precoUsdFinanceiro: fin?.precoUsd,
+      valorDeclaradoUsd,
+    });
 
     const proformaInfo = parseRecebimentoProformaInfo(fin?.bancoDestino, fin?.statusRecebimento, fin?.dataRecebimento, valorTotalUsd);
     const valorLiquidoTotalUsd = proformaInfo.totalLiquidoUsd > 0 ? proformaInfo.totalLiquidoUsd : valorTotalUsd;
@@ -84,7 +92,7 @@ export default async function NegociacoesPage() {
       volumeKg: pesoFinalKg,
       volumeTon: pesoFinalTon,
       volumeInicialContratadoKg: volumeKg,
-      temContainersPreenchidos: pesoLiquidoTotalKg > 0,
+      temContainersPreenchidos,
       valorDeclaradoUsd,
       containers: containersSerialized,
       custos: custosSerialized,

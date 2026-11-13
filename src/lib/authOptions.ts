@@ -14,7 +14,9 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
     error: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret:
+    process.env.NEXTAUTH_SECRET ||
+    (process.env.NODE_ENV !== 'production' ? 'bela-cereais-export-secret-chaves-2026-seguro' : undefined),
   cookies: {
     sessionToken: {
       name: `next-auth.session-token`,
@@ -181,6 +183,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as any).role || (user as any).papel || 'COMERCIAL';
         token.papeis = (user as any).papeis || [token.role];
+        token.username = (user as any).username || null;
         token.name = user.name;
         token.email = user.email;
         token.authCreatedAt = Date.now();
@@ -197,10 +200,13 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session?.user && token?.id) {
+        const role = (token.role as string) || 'COMERCIAL';
         (session.user as any).id = token.id as string;
-        (session.user as any).papel = (token.role as string) || 'COMERCIAL';
-        (session.user as any).role = (token.role as string) || 'COMERCIAL';
-        (session.user as any).papeis = (token as any).papeis || [(token.role as string) || 'COMERCIAL'];
+        (session.user as any).papel = role;
+        (session.user as any).role = role;
+        (session.user as any).perfil = role;
+        (session.user as any).papeis = (token as any).papeis || [role];
+        (session.user as any).username = (token as any).username || null;
         (session.user as any).authCreatedAt = token.authCreatedAt;
         if (token.name) session.user.name = token.name as string;
         if (token.email) session.user.email = token.email as string;

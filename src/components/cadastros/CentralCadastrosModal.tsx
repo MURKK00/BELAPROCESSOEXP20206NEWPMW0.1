@@ -503,21 +503,26 @@ export function CentralCadastrosModal({
       observacoes,
     };
 
-    const res = await salvarCadastroEntidadeAction(input);
-    setSalvando(false);
+    try {
+      const res = await salvarCadastroEntidadeAction(input);
 
-    if (res.success && res.entidade) {
-      setMsgSucesso('Cadastro salvo com sucesso no banco de dados!');
-      await carregarEntidades();
-      if (onEntidadeSelecionada) {
-        onEntidadeSelecionada(res.entidade);
+      if (res.success && res.entidade) {
+        setMsgSucesso('Cadastro salvo com sucesso no banco de dados!');
+        await carregarEntidades();
+        if (onEntidadeSelecionada) {
+          onEntidadeSelecionada(res.entidade);
+        }
+        setTimeout(() => {
+          setViewMode('LISTA');
+          setMsgSucesso(null);
+        }, 700);
+      } else {
+        setMsgErro(res.error || 'Erro ao salvar o parceiro.');
       }
-      setTimeout(() => {
-        setViewMode('LISTA');
-        setMsgSucesso(null);
-      }, 700);
-    } else {
-      setMsgErro(res.error || 'Erro ao salvar o parceiro.');
+    } catch (err: any) {
+      setMsgErro(err?.message || 'Erro de conexão ao salvar o parceiro.');
+    } finally {
+      setSalvando(false);
     }
   }
 

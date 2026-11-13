@@ -35,8 +35,12 @@ export async function POST(req: NextRequest) {
     }
 
     const hasSessionCookie = cookies.has('bela_session');
-    const secret = process.env.NEXTAUTH_SECRET;
-    const token = await getToken({ req, secret }).catch(() => null);
+    const secret =
+      process.env.NEXTAUTH_SECRET ||
+      (process.env.NODE_ENV !== 'production' ? 'bela-cereais-export-secret-chaves-2026-seguro' : undefined);
+    const token =
+      (await getToken({ req, secret, cookieName: 'next-auth.session-token' }).catch(() => null)) ||
+      (await getToken({ req, secret }).catch(() => null));
 
     if (!hasSessionCookie && !token) {
       return NextResponse.json(

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { canAccessBackoffice, isAdmin, isBackofficeTvOnly } from '@/lib/permissions'
 
 const PUBLIC_PATHS = [
   '/login',
@@ -17,7 +18,7 @@ const ADMIN_ONLY_PATHS = [
 function isUserAdmin(token: any): boolean {
   if (!token) return false
   if (token.papel === 'ADMIN' || token.perfil === 'ADMIN' || token.role === 'ADMIN') return true
-  if (Array.isArray(token.papeis) && token.papeis.includes('ADMIN')) return true
+  if (isAdmin(token)) return true
   return false
 }
 
@@ -32,7 +33,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const secret = process.env.NEXTAUTH_SECRET
+  const secret =
+    process.env.NEXTAUTH_SECRET ||
+    (process.env.NODE_ENV !== 'production' ? 'bela-cereais-export-secret-chaves-2026-seguro' : undefined)
+
   if (!secret) {
     console.error('[SECURITY CRITICAL] Variável NEXTAUTH_SECRET não está configurada no ambiente.')
     if (pathname.startsWith('/api/')) {
@@ -48,7 +52,10 @@ export async function middleware(request: NextRequest) {
 
   let token = null
   try {
-    token = await getToken({ req: request, secret })
+    token = await getToken({ req: request, secret, cookieName: 'next-auth.session-token' })
+    if (!token) {
+      token = await getToken({ req: request, secret })
+    }
   } catch {
     token = null
   }
@@ -73,6 +80,36 @@ export async function middleware(request: NextRequest) {
       )
     }
     return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  // Proteção estrita da rota Backoffice TV e API de métricas (somente ADMIN e BACKOFFICE_TV)
+  const isBackofficePage = pathname === '/backoffice' || pathname.startsWith('/backoffice/')
+  const isBackofficeApi = pathname === '/api/backoffice' || pathname.startsWith('/api/backoffice/')
+
+  if (isBackofficeApi && !canAccessBackoffice(token)) {
+    return NextResponse.json(
+      { error: 'Acesso negado ao Backoffice TV.' },
+      { status: 403 }
+    )
+  }
+
+  if (isBackofficePage && !canAccessBackoffice(token)) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  // Isolamento para perfil exclusivo BACKOFFICE_TV: mantém acesso apenas ao /backoffice e APIs necessárias
+  if (isBackofficeTvOnly(token)) {
+    const isCotacoesApi = pathname === '/api/cotacoes' || pathname.startsWith('/api/cotacoes/')
+    if (pathname.startsWith('/api/')) {
+      if (!isBackofficeApi && !isCotacoesApi) {
+        return NextResponse.json(
+          { error: 'Acesso restrito ao módulo Backoffice TV.' },
+          { status: 403 }
+        )
+      }
+    } else if (!isBackofficePage) {
+      return NextResponse.redirect(new URL('/backoffice', request.url))
+    }
   }
 
   return NextResponse.next()

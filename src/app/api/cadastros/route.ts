@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import type { TipoEntidadeComercial } from '@prisma/client';
 import { getSessionUser } from '@/lib/auth';
@@ -65,16 +67,22 @@ export async function DELETE() {
     return NextResponse.json({ error: 'Apenas administradores podem apagar todos os cadastros.' }, { status: 403 });
   }
   try {
-    try {
-      await (prisma.cadastroEntidade as any).deleteMany({});
-    } catch (dbErr) {
-      console.warn('[DELETE /api/cadastros] Prisma deleteMany aviso:', dbErr);
+    const session = await getServerSession(authOptions);
+    const user = session?.user as any;
+    const isAdmin =
+      user?.papel === 'ADMIN' ||
+      user?.role === 'ADMIN' ||
+      user?.perfil === 'ADMIN' ||
+      (Array.isArray(user?.papeis) && user.papeis.includes('ADMIN'));
+
+    if (!session || !isAdmin) {
+      return NextResponse.json(
+        { error: 'Acesso negado. Apenas administradores podem limpar todos os cadastros.' },
+        { status: 403 }
+      );
     }
 
-    const { getMockStore, saveMockStoreToFile } = await import('@/lib/mockStore');
-    const store = getMockStore();
-    store.cadastroEntidades = [];
-    saveMockStoreToFile(store);
+    await (prisma.cadastroEntidade as any).deleteMany({});
 
     return NextResponse.json({ success: true, message: 'Todos os cadastros foram apagados com sucesso.', total: 0 });
   } catch (error: any) {

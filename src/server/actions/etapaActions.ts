@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
+import { isAdmin, isDiretoria } from '@/lib/permissions';
+import { seedEtapaTemplatesIdempotente } from '@/server/services/etapaTemplateService';
 
 /**
  * Marca/desmarca uma etapa do checklist. Ao contrário do rascunho HTML,
@@ -137,5 +139,98 @@ export async function avancarMarcoStatusAction(formData: FormData) {
   revalidatePath(`/negociacoes/${processoId}/auditoria`);
   revalidatePath('/negociacoes');
   revalidatePath('/');
+}
+
+/**
+ * Gera de forma idempotente as etapas faltantes do checklist para uma negociação.
+ * Permitido apenas para ADMIN ou DIRETORIA. Se EtapaTemplate estiver vazia e o
+ * usuário for ADMIN, executa o seed idempotente antes de gerar as tarefas.
+ */
+export async function gerarChecklistProcessoAction(processoId: string): Promise<{
+  success?: boolean;
+  criadas?: number;
+  error?: string;
+}> {
+  try {
+    const user = await getSessionUser();
+    if (!user) {
+      return { error: 'Sessão expirada ou usuário não autenticado. Faça login novamente.' };
+    }
+
+    const userIsAdmin = isAdmin(user);
+    const userIsDiretoria = isDiretoria(user);
+    if (!userIsAdmin && !userIsDiretoria) {
+      return { error: 'Permissão negada. Apenas ADMIN ou DIRETORIA podem gerar o checklist.' };
+    }
+
+    const processo = await prisma.processo.findUnique({
+      where: { id: processoId },
+      select: { id: true, numeroProcesso: true },
+    });
+    if (!processo) {
+      return { error: 'Negociação não encontrada.' };
+    }
+
+    let templates = await prisma.etapaTemplate.findMany({
+      orderBy: { ordem: 'asc' },
+    });
+
+    if (templates.length === 0) {
+      if (userIsAdmin) {
+        await seedEtapaTemplatesIdempotente();
+        templates = await prisma.etapaTemplate.findMany({
+          orderBy: { ordem: 'asc' },
+        });
+      } else {
+        return {
+          error:
+            'Nenhum template de etapa está cadastrado no banco de dados. Solicite a um ADMIN para inicializar os templates ou clicar em gerar checklist.',
+        };
+      }
+    }
+
+    if (templates.length === 0) {
+      return { error: 'Não foi possível carregar os templates padrão de checklist.' };
+    }
+
+    const existentes = await prisma.processoEtapa.findMany({
+      where: { processoId },
+      select: { etapaTemplateId: true },
+    });
+    const existentesSet = new Set(existentes.map((e) => e.etapaTemplateId));
+
+    const faltantes = templates.filter((t) => !existentesSet.has(t.id));
+
+    if (faltantes.length > 0) {
+      await prisma.processoEtapa.createMany({
+        data: faltantes.map((t) => ({
+          processoId,
+          etapaTemplateId: t.id,
+          status: 'PENDENTE' as const,
+        })),
+        skipDuplicates: true,
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          processoId,
+          usuarioId: user.id,
+          acao: 'CHECKLIST_GERADO',
+          detalhe: `Checklist gerado sob demanda: ${faltantes.length} tarefa(s) criada(s) para o processo ${processo.numeroProcesso}.`,
+        },
+      });
+    }
+
+    revalidatePath(`/negociacoes/${processoId}`);
+    revalidatePath(`/negociacoes/${processoId}/checklist`);
+    revalidatePath(`/negociacoes/${processoId}/auditoria`);
+    revalidatePath('/negociacoes');
+    revalidatePath('/');
+
+    return { success: true, criadas: faltantes.length };
+  } catch (err: any) {
+    console.error('[gerarChecklistProcessoAction] Erro:', err);
+    return { error: err?.message || 'Erro ao gerar checklist desta negociação.' };
+  }
 }
 

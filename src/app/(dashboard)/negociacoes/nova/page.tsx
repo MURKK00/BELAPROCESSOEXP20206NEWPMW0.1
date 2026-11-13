@@ -18,7 +18,8 @@ import {
   Plus,
   Building2,
   Globe2,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 import { buscarBancos, DIRETORIO_BANCOS, type BancoInfo } from '@/lib/bancosDiretorio';
 import { criarProcessoAction } from '@/server/actions/criarProcessoAction';
@@ -37,13 +38,17 @@ import { CentralCadastrosModal } from '@/components/cadastros/CentralCadastrosMo
 export default function NovaNegociacaoPage() {
   const router = useRouter();
 
-  // Lançamento da negociação: mostra erro na tela em vez de falhar em silêncio
+  // Lançamento da negociação: mostra loading/overlay e erro na tela em vez de falhar em silêncio
   const [lancando, setLancando] = useState(false);
+  const [sucessoLancamento, setSucessoLancamento] = useState(false);
   const [erroLancamento, setErroLancamento] = useState<string | null>(null);
 
   async function handleLancar(formData: FormData) {
+    if (lancando || sucessoLancamento) return;
     setErroLancamento(null);
+    setSucessoLancamento(false);
     setLancando(true);
+    let redirecionando = false;
     try {
       const resultado = await criarProcessoAction(formData);
       // Em caso de sucesso a action faz redirect() e esta linha não chega a ser usada
@@ -52,12 +57,18 @@ export default function NovaNegociacaoPage() {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       }
     } catch (e: any) {
-      // redirect() do Next lança NEXT_REDIRECT: precisa ser repassado
-      if (e?.digest?.startsWith?.('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') throw e;
+      // redirect() do Next lança NEXT_REDIRECT: precisa ser repassado mantendo o overlay de abertura
+      if (e?.digest?.startsWith?.('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') {
+        redirecionando = true;
+        setSucessoLancamento(true);
+        throw e;
+      }
       console.error('[Lançar Negociação]', e);
       setErroLancamento('Não foi possível lançar a negociação. Verifique sua conexão e tente novamente.');
     } finally {
-      setLancando(false);
+      if (!redirecionando) {
+        setLancando(false);
+      }
     }
   }
 
@@ -1132,13 +1143,46 @@ export default function NovaNegociacaoPage() {
           )}
           <button
             type="submit"
-            disabled={lancando}
-            className="bg-[#1a365d] hover:bg-blue-900 disabled:opacity-60 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl font-black text-sm transition-all shadow-md hover:shadow-lg cursor-pointer"
+            disabled={lancando || sucessoLancamento}
+            className="inline-flex items-center justify-center gap-2 bg-[#1a365d] hover:bg-blue-900 disabled:opacity-60 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl font-black text-sm transition-all shadow-md hover:shadow-lg cursor-pointer"
           >
-            {lancando ? 'Lançando...' : 'Lançar Negociação'}
+            {lancando || sucessoLancamento ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{sucessoLancamento ? 'Negociação lançada! Abrindo...' : 'Lançando negociação...'}</span>
+              </>
+            ) : (
+              <span>Lançar Negociação</span>
+            )}
           </button>
         </div>
       </form>
+
+      {(lancando || sucessoLancamento) && (
+        <div
+          className="fixed inset-0 z-[9999] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl px-7 py-6 max-w-sm w-full flex flex-col items-center text-center gap-3">
+            {sucessoLancamento ? (
+              <CheckCircle2 className="w-9 h-9 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+            ) : (
+              <Loader2 className="w-9 h-9 text-[#f58220] animate-spin" />
+            )}
+            <div className="space-y-1">
+              <p className="text-sm font-black text-slate-900 dark:text-white">
+                {sucessoLancamento ? 'Negociação lançada! Abrindo...' : 'Criando negociação, aguarde...'}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {sucessoLancamento
+                  ? 'Preparando a visão geral do processo.'
+                  : 'Registrando contrato, checklist e contêineres no banco.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DE CADASTRO RÁPIDO DE IMPORTADOR / BUYER */}
       <CentralCadastrosModal

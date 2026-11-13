@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
+import { parseNumeroBR } from '@/lib/numeroBR';
 
 export const dynamic = 'force-dynamic';
 
@@ -166,7 +167,10 @@ export async function POST(
       );
     }
 
-    const numPesoLiquido = Number(pesoLiquido || 0);
+    const numPesoLiquido = parseNumeroBR(pesoLiquido) ?? 0;
+    const numPesoBruto = parseNumeroBR(pesoBruto);
+    const numSacas = parseNumeroBR(quantidadeSacas);
+    const numValorTotal = parseNumeroBR(valorTotal);
 
     // =========================================================================
     // REGRA ETAPA 4 - EXPORTAÇÃO
@@ -199,7 +203,7 @@ export async function POST(
       const notasEtapa3Validadas: Array<{ id: string; numero: string; saldoAtual: number; pesoConsumido: number }> = [];
 
       for (const item of itensEtapa3) {
-        const pesoConsumo = Number(item.pesoConsumidoKg || 0);
+        const pesoConsumo = parseNumeroBR(item.pesoConsumidoKg) ?? 0;
         if (pesoConsumo <= 0) {
           return NextResponse.json(
             { success: false, error: 'O peso consumido de cada nota referenciada da Etapa 3 deve ser maior que 0 kg.' },
@@ -259,10 +263,10 @@ export async function POST(
             destinatario: String(destinatario).trim(),
             destinatarioCnpj: destinatarioCnpj ? String(destinatarioCnpj).trim() : null,
             cfop: cfop ? String(cfop).trim() : '7.101',
-            pesoBruto: pesoBruto ? Number(pesoBruto) : null,
+            pesoBruto: numPesoBruto,
             pesoLiquido: pesoFinalExportacao,
-            quantidadeSacas: quantidadeSacas ? Number(quantidadeSacas) : null,
-            valorTotal: valorTotal ? Number(valorTotal) : null,
+            quantidadeSacas: numSacas !== null ? Math.round(numSacas) : null,
+            valorTotal: numValorTotal,
             anexoUrl: anexoUrl || null,
             anexoNome: anexoNome || null,
             containerId,
@@ -343,12 +347,12 @@ export async function POST(
           destinatario: String(destinatario).trim(),
           destinatarioCnpj: destinatarioCnpj ? String(destinatarioCnpj).trim() : null,
           cfop: cfop ? String(cfop).trim() : '5.501',
-          pesoBruto: pesoBruto ? Number(pesoBruto) : null,
+          pesoBruto: numPesoBruto,
           pesoLiquido: numPesoLiquido,
           saldoDisponivelKg: numPesoLiquido,
           saldoZerado: false,
-          quantidadeSacas: quantidadeSacas ? Number(quantidadeSacas) : null,
-          valorTotal: valorTotal ? Number(valorTotal) : null,
+          quantidadeSacas: numSacas !== null ? Math.round(numSacas) : null,
+          valorTotal: numValorTotal,
           anexoUrl: anexoUrl || null,
           anexoNome: anexoNome || null,
           statusSefaz: 'AUTORIZADA',
@@ -381,10 +385,10 @@ export async function POST(
             destinatario: String(destinatario).trim(),
             destinatarioCnpj: destinatarioCnpj ? String(destinatarioCnpj).trim() : null,
             cfop: cfop ? String(cfop).trim() : '5.902',
-            pesoBruto: pesoBruto ? Number(pesoBruto) : null,
+            pesoBruto: numPesoBruto,
             pesoLiquido: numPesoLiquido,
-            quantidadeSacas: quantidadeSacas ? Number(quantidadeSacas) : null,
-            valorTotal: valorTotal ? Number(valorTotal) : null,
+            quantidadeSacas: numSacas !== null ? Math.round(numSacas) : null,
+            valorTotal: numValorTotal,
             anexoUrl: anexoUrl || null,
             anexoNome: anexoNome || null,
             statusSefaz: 'AUTORIZADA',
@@ -400,7 +404,7 @@ export async function POST(
                 data: {
                   notaRetornoId: createdNf.id,
                   notaEntradaId: ref.notaEntradaId,
-                  pesoRetornadoKg: ref.pesoRetornadoKg ? Number(ref.pesoRetornadoKg) : null,
+                  pesoRetornadoKg: ref.pesoRetornadoKg ? parseNumeroBR(ref.pesoRetornadoKg) : null,
                 },
               });
             }
@@ -433,10 +437,10 @@ export async function POST(
         destinatario: String(destinatario).trim(),
         destinatarioCnpj: destinatarioCnpj ? String(destinatarioCnpj).trim() : null,
         cfop: cfop ? String(cfop).trim() : '5.901',
-        pesoBruto: pesoBruto ? Number(pesoBruto) : null,
+        pesoBruto: numPesoBruto,
         pesoLiquido: numPesoLiquido,
-        quantidadeSacas: quantidadeSacas ? Number(quantidadeSacas) : null,
-        valorTotal: valorTotal ? Number(valorTotal) : null,
+        quantidadeSacas: numSacas !== null ? Math.round(numSacas) : null,
+        valorTotal: numValorTotal,
         anexoUrl: anexoUrl || null,
         anexoNome: anexoNome || null,
         statusSefaz: 'AUTORIZADA',

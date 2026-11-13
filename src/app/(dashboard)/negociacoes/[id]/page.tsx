@@ -9,6 +9,8 @@ import {
   AlertCircle 
 } from 'lucide-react';
 import { isImportadorPendente } from '@/lib/compradorHelper';
+import { getSessionUser } from '@/lib/auth';
+import { isAdmin, isDiretoria } from '@/lib/permissions';
 
 export default async function VisaoGeralNegociacaoPage({
   params,
@@ -37,6 +39,9 @@ export default async function VisaoGeralNegociacaoPage({
 
   if (!processo) notFound();
 
+  const user = await getSessionUser();
+  const podeGerarChecklist = Boolean(user && (isAdmin(user) || isDiretoria(user)));
+
   const pendenteImportador = isImportadorPendente(processo);
   const isEmbarcado = processo.status === 'EMBARCADO' || processo.status === 'FINALIZADO';
 
@@ -54,6 +59,7 @@ export default async function VisaoGeralNegociacaoPage({
       <CicloOperacionalMarcosBox
         processo={processo}
         etapas={etapasFormatadas}
+        podeGerarChecklist={podeGerarChecklist}
       />
 
       {/* 2. ALERTA CRÍTICO DE DADOS DO IMPORTADOR (QUANDO PENDENTE) */}

@@ -6,6 +6,7 @@ import { serializeDecimals } from '@/lib/serialize';
 import { parseTravamentoInfo } from '@/lib/travamentoHelper';
 import { parseRecebimentoProformaInfo } from '@/lib/proformaHelper';
 import { safeNumber } from '@/lib/formatters';
+import { calcularPesoEValorContratoUsd } from '@/lib/numeroBR';
 
 const CATEGORIAS_CUSTO_LABELS: Record<string, string> = {
   COMPRA: 'Compra Grãos/Matéria-Prima',
@@ -47,17 +48,18 @@ export default async function FinanceiroPage() {
     const containers = p.containers || [];
 
     // Peso Líquido Real dos Containers (definido na estufagem/documento) ou Contratado inicial
-    const pesoLiquidoTotalKg = containers.reduce(
-      (acc, c) => acc + safeNumber(c.pesoLiquido, 0),
-      0
-    );
-    const temContainersPreenchidos = pesoLiquidoTotalKg > 0;
-    const volumeKg = temContainersPreenchidos ? pesoLiquidoTotalKg : safeNumber(p.volumeKg, 0);
-    const volumeTon = volumeKg / 1000;
-
-    // Preço unitário configurado ou declarado no processo
-    const precoUsd = fin?.precoUsd ? safeNumber(fin.precoUsd, 0) : safeNumber(p.valorDeclaradoUsd, 0);
-    const valorTotalUsd = volumeTon * precoUsd;
+    const {
+      temContainersPreenchidos,
+      pesoFinalKg: volumeKg,
+      pesoFinalTon: volumeTon,
+      precoUnitarioUsd: precoUsd,
+      valorTotalUsd,
+    } = calcularPesoEValorContratoUsd({
+      containers,
+      volumeKgContratado: p.volumeKg,
+      precoUsdFinanceiro: fin?.precoUsd,
+      valorDeclaradoUsd: p.valorDeclaradoUsd,
+    });
 
     // Informações de Recebimento e Taxas
     const proformaInfo = parseRecebimentoProformaInfo(fin?.bancoDestino, fin?.statusRecebimento, fin?.dataRecebimento, valorTotalUsd);

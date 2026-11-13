@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { X, AlertCircle, Plus, Trash2, CheckCircle2, ShieldCheck, Container, FileText } from 'lucide-react';
+import { parseNumeroBR, formatNumeroBR, sanitizarInputNumeroBR } from '@/lib/numeroBR';
 
 interface ModalNovaNotaFiscalProps {
   isOpen: boolean;
@@ -131,15 +132,15 @@ export function ModalNovaNotaFiscal({
 
     // Se for Etapa 4, o peso líquido total é a soma dos pesos consumidos
     if (campo === 'pesoConsumidoKg') {
-      const soma = novos.reduce((acc, it) => acc + (Number(it.pesoConsumidoKg) || 0), 0);
+      const soma = novos.reduce((acc, it) => acc + (parseNumeroBR(it.pesoConsumidoKg) || 0), 0);
       if (soma > 0) {
-        setPesoLiquido(soma.toString());
+        setPesoLiquido(formatNumeroBR(soma, 2, 2));
       }
     }
   }
 
   // Calcula total consumido calculado
-  const somaPesoConsumidoEtapa4 = itensEtapa3.reduce((acc, it) => acc + (Number(it.pesoConsumidoKg) || 0), 0);
+  const somaPesoConsumidoEtapa4 = itensEtapa3.reduce((acc, it) => acc + (parseNumeroBR(it.pesoConsumidoKg) || 0), 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -172,7 +173,7 @@ export function ModalNovaNotaFiscal({
           setErro('Selecione uma Nota Fiscal da Etapa 3 para cada item.');
           return;
         }
-        const peso = Number(item.pesoConsumidoKg);
+        const peso = parseNumeroBR(item.pesoConsumidoKg);
         if (!peso || peso <= 0) {
           setErro('O peso consumido de cada nota deve ser maior que 0 kg.');
           return;
@@ -181,7 +182,7 @@ export function ModalNovaNotaFiscal({
         const saldoDisponivel = Number(nfEtapa3?.saldoDisponivelKg ?? 0);
         if (peso > saldoDisponivel + 0.001) {
           setErro(
-            `O peso informado (${peso.toLocaleString('pt-BR')} kg) para a NF ${nfEtapa3?.numero || ''} excede o saldo disponível de ${saldoDisponivel.toLocaleString('pt-BR')} kg.`
+            `O peso informado (${formatNumeroBR(peso, 2, 2)} kg) para a NF ${nfEtapa3?.numero || ''} excede o saldo disponível de ${formatNumeroBR(saldoDisponivel, 2, 2)} kg.`
           );
           return;
         }
@@ -199,10 +200,10 @@ export function ModalNovaNotaFiscal({
       destinatario: destinatario.trim(),
       destinatarioCnpj: destinatarioCnpj.trim() || null,
       cfop: cfop.trim() || null,
-      pesoBruto: pesoBruto ? Number(pesoBruto) : null,
-      pesoLiquido: etapa === 'ETAPA_4_EXPORTACAO' ? somaPesoConsumidoEtapa4 : Number(pesoLiquido || 0),
-      quantidadeSacas: quantidadeSacas ? Number(quantidadeSacas) : null,
-      valorTotal: valorTotal ? Number(valorTotal) : null,
+      pesoBruto: pesoBruto ? parseNumeroBR(pesoBruto) : null,
+      pesoLiquido: etapa === 'ETAPA_4_EXPORTACAO' ? somaPesoConsumidoEtapa4 : (parseNumeroBR(pesoLiquido) ?? 0),
+      quantidadeSacas: quantidadeSacas ? parseNumeroBR(quantidadeSacas) : null,
+      valorTotal: valorTotal ? parseNumeroBR(valorTotal) : null,
       observacoes: observacoes.trim() || null,
     };
 
@@ -214,7 +215,7 @@ export function ModalNovaNotaFiscal({
       payload.containerId = containerId;
       payload.itensEtapa3 = itensEtapa3.map((it) => ({
         notaLoteRedexId: it.notaLoteRedexId,
-        pesoConsumidoKg: Number(it.pesoConsumidoKg),
+        pesoConsumidoKg: parseNumeroBR(it.pesoConsumidoKg) ?? 0,
       }));
     }
 
@@ -354,7 +355,7 @@ export function ModalNovaNotaFiscal({
                   {itensEtapa3.map((item, idx) => {
                     const nfSelecionada = etapa3Notas.find((n) => n.id === item.notaLoteRedexId);
                     const saldoAtual = Number(nfSelecionada?.saldoDisponivelKg ?? 0);
-                    const pesoDigitado = Number(item.pesoConsumidoKg || 0);
+                    const pesoDigitado = parseNumeroBR(item.pesoConsumidoKg) ?? 0;
                     const excedeu = pesoDigitado > saldoAtual + 0.001;
 
                     return (
@@ -393,11 +394,17 @@ export function ModalNovaNotaFiscal({
                             </span>
                           </div>
                           <input
-                            type="number"
-                            step="any"
-                            placeholder="Ex: 27000"
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Ex: 27.000,00"
                             value={item.pesoConsumidoKg}
-                            onChange={(e) => handleAtualizarItemEtapa3(idx, 'pesoConsumidoKg', e.target.value)}
+                            onChange={(e) => handleAtualizarItemEtapa3(idx, 'pesoConsumidoKg', sanitizarInputNumeroBR(e.target.value))}
+                            onBlur={(e) => {
+                              const parsed = parseNumeroBR(e.target.value);
+                              if (parsed !== null) {
+                                handleAtualizarItemEtapa3(idx, 'pesoConsumidoKg', formatNumeroBR(parsed, 2, 2));
+                              }
+                            }}
                             required
                             className={`w-full text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border rounded-md font-mono outline-none ${
                               excedeu
@@ -601,11 +608,15 @@ export function ModalNovaNotaFiscal({
                 Peso Líquido (kg) <span className="text-red-500">*</span>
               </label>
               <input
-                type="number"
-                step="any"
-                placeholder="Ex: 27500"
-                value={etapa === 'ETAPA_4_EXPORTACAO' ? somaPesoConsumidoEtapa4 || '' : pesoLiquido}
-                onChange={(e) => setPesoLiquido(e.target.value)}
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex: 27.500,00"
+                value={etapa === 'ETAPA_4_EXPORTACAO' ? (somaPesoConsumidoEtapa4 ? formatNumeroBR(somaPesoConsumidoEtapa4, 2, 2) : '') : pesoLiquido}
+                onChange={(e) => setPesoLiquido(sanitizarInputNumeroBR(e.target.value))}
+                onBlur={(e) => {
+                  const parsed = parseNumeroBR(e.target.value);
+                  if (parsed !== null) setPesoLiquido(formatNumeroBR(parsed, 2, 2));
+                }}
                 disabled={etapa === 'ETAPA_4_EXPORTACAO'}
                 required
                 className={`w-full text-xs px-3 py-2 border rounded-lg outline-none font-mono ${
@@ -621,11 +632,15 @@ export function ModalNovaNotaFiscal({
                 Peso Bruto (kg)
               </label>
               <input
-                type="number"
-                step="any"
-                placeholder="Ex: 27600"
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex: 27.600,00"
                 value={pesoBruto}
-                onChange={(e) => setPesoBruto(e.target.value)}
+                onChange={(e) => setPesoBruto(sanitizarInputNumeroBR(e.target.value))}
+                onBlur={(e) => {
+                  const parsed = parseNumeroBR(e.target.value);
+                  if (parsed !== null) setPesoBruto(formatNumeroBR(parsed, 2, 2));
+                }}
                 className="w-full text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg outline-none font-mono"
               />
             </div>
@@ -633,11 +648,15 @@ export function ModalNovaNotaFiscal({
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Valor Total R$</label>
               <input
-                type="number"
-                step="any"
-                placeholder="Ex: 154200.00"
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex: 154.200,00"
                 value={valorTotal}
-                onChange={(e) => setValorTotal(e.target.value)}
+                onChange={(e) => setValorTotal(sanitizarInputNumeroBR(e.target.value))}
+                onBlur={(e) => {
+                  const parsed = parseNumeroBR(e.target.value);
+                  if (parsed !== null) setValorTotal(formatNumeroBR(parsed, 2, 2));
+                }}
                 className="w-full text-xs px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg outline-none font-mono"
               />
             </div>

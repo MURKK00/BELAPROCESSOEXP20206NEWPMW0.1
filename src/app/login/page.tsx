@@ -22,6 +22,7 @@ import {
   X
 } from 'lucide-react';
 import { SENHA_PADRAO_NOVO_USUARIO } from '@/lib/userHelper';
+import { isBackofficeTvOnly } from '@/lib/permissions';
 
 interface UserPrimeiroAcesso {
   id: string;
@@ -100,10 +101,19 @@ function LoginForm() {
         }),
       });
 
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        console.error('[Login] Resposta não-JSON do servidor:', res.status, rawText.slice(0, 200));
+        setErro(`Erro no servidor de autenticação (HTTP ${res.status}). Tente novamente em instantes.`);
+        setCarregando(false);
+        return;
+      }
 
-      if (!res.ok || !data.success) {
-        setErro(data.error || 'Usuário ou senha incorretos. Verifique suas credenciais.');
+      if (!res.ok || !data?.success) {
+        setErro(data?.error || 'Usuário ou senha incorretos. Verifique suas credenciais.');
         setCarregando(false);
         return;
       }
@@ -130,21 +140,32 @@ function LoginForm() {
         console.warn('Aviso ao armazenar sessão local:', storageErr);
       }
 
-      // 3. Sincroniza sessão NextAuth em segundo plano
+      // 3. Cria sessão oficial NextAuth (obrigatória para passar pelo middleware)
       try {
-        await signIn('credentials', {
+        const authRes = await signIn('credentials', {
           email: termo,
           password,
           redirect: false,
         });
-      } catch {
-        // Ignora caso iframe bloqueie CSRF interno do NextAuth
+        if (authRes?.error) {
+          setErro(authRes.error);
+          setCarregando(false);
+          return;
+        }
+      } catch (signInErr) {
+        console.error('[Login] Erro ao iniciar sessão NextAuth:', signInErr);
+        setErro('Falha ao iniciar sessão segura. Tente novamente.');
+        setCarregando(false);
+        return;
       }
 
       // 4. Redirecionamento completo para carregar sessão e passar pelo middleware imediatamente
-      const target = callbackUrl && callbackUrl !== '/login' ? callbackUrl : '/';
-      const sep = target.includes('?') ? '&' : '?';
-      window.location.href = `${target}${sep}auth=1`;
+      const target = isBackofficeTvOnly(data.user)
+        ? '/backoffice'
+        : callbackUrl && callbackUrl !== '/login'
+        ? callbackUrl
+        : '/';
+      window.location.href = target;
     } catch (err: any) {
       console.error('[Login] Erro ao autenticar:', err);
       setErro('Falha de conexão com o servidor de autenticação.');
@@ -198,10 +219,19 @@ function LoginForm() {
         }),
       });
 
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        console.error('[Primeiro Acesso] Resposta não-JSON do servidor:', res.status, rawText.slice(0, 200));
+        setErro(`Erro no servidor ao salvar senha (HTTP ${res.status}). Tente novamente.`);
+        setCarregando(false);
+        return;
+      }
 
-      if (!res.ok || !data.success) {
-        setErro(data.error || 'Não foi possível cadastrar a nova senha.');
+      if (!res.ok || !data?.success) {
+        setErro(data?.error || 'Não foi possível cadastrar a nova senha.');
         setCarregando(false);
         return;
       }
@@ -244,7 +274,11 @@ function LoginForm() {
 
       // Redireciona para a aplicação
       setTimeout(() => {
-        const target = callbackUrl && callbackUrl !== '/login' ? callbackUrl : '/';
+        const target = isBackofficeTvOnly(data.user)
+          ? '/backoffice'
+          : callbackUrl && callbackUrl !== '/login'
+          ? callbackUrl
+          : '/';
         const sep = target.includes('?') ? '&' : '?';
         window.location.href = `${target}${sep}auth=1`;
       }, 700);

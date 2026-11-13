@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   CheckCircle2, 
@@ -19,10 +20,17 @@ import {
   Building2,
   Anchor,
   Printer,
-  Sparkles
+  Sparkles,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { formatDateBR } from '@/lib/formatters';
-import { marcarEtapaAction, marcarLoteEtapasAction, avancarMarcoStatusAction } from '@/server/actions/etapaActions';
+import {
+  marcarEtapaAction,
+  marcarLoteEtapasAction,
+  avancarMarcoStatusAction,
+  gerarChecklistProcessoAction,
+} from '@/server/actions/etapaActions';
 
 export interface EtapaItem {
   id: string;
@@ -64,6 +72,7 @@ export interface ProcessoResumo {
 interface TimelineEtapasManagerProps {
   processo: ProcessoResumo;
   etapas: EtapaItem[];
+  podeGerarChecklist?: boolean;
 }
 
 interface MarcoDef {
@@ -155,8 +164,32 @@ const MARCOS: MarcoDef[] = [
   },
 ];
 
-export function TimelineEtapasManager({ processo, etapas }: TimelineEtapasManagerProps) {
+export function TimelineEtapasManager({
+  processo,
+  etapas,
+  podeGerarChecklist = false,
+}: TimelineEtapasManagerProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [gerandoChecklist, setGerandoChecklist] = useState(false);
+  const [erroChecklist, setErroChecklist] = useState<string | null>(null);
+
+  const handleGerarChecklist = async () => {
+    setErroChecklist(null);
+    setGerandoChecklist(true);
+    try {
+      const res = await gerarChecklistProcessoAction(processo.id);
+      if (res?.error) {
+        setErroChecklist(res.error);
+      } else {
+        router.refresh();
+      }
+    } catch (err: any) {
+      setErroChecklist(err?.message || 'Erro ao gerar checklist desta negociação.');
+    } finally {
+      setGerandoChecklist(false);
+    }
+  };
 
   // 1. Determina qual é o marco ativo baseado nos dados reais da negociação
   let defaultMarcoIndex = 0;
@@ -606,11 +639,38 @@ export function TimelineEtapasManager({ processo, etapas }: TimelineEtapasManage
             </h4>
           </div>
 
+          {erroChecklist && (
+            <div className="mb-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{erroChecklist}</span>
+            </div>
+          )}
+
           {marcoAtual.etapas.length === 0 ? (
-            <div className="p-6 text-center bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-200/70 dark:border-slate-800">
+            <div className="p-6 text-center bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-200/70 dark:border-slate-800 space-y-3">
               <p className="text-sm text-slate-500">
-                Nenhuma micro-etapa configurada para este marco. As ações principais podem ser gerenciadas pelos botões acima.
+                Nenhuma tarefa gerada para esta etapa.
               </p>
+              {podeGerarChecklist && (
+                <button
+                  type="button"
+                  onClick={handleGerarChecklist}
+                  disabled={gerandoChecklist}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#f58220] hover:bg-orange-600 text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-60"
+                >
+                  {gerandoChecklist ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Gerando checklist...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Gerar checklist desta negociação</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-2">

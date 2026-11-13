@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { prisma } from '@/lib/prisma';
 import { LogisticaCockpit } from '@/components/logistica/LogisticaCockpit';
 import { serializeDecimals } from '@/lib/serialize';
