@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { canAccessBackoffice, isAdmin, isBackofficeTvOnly } from '@/lib/permissions'
+import { canAccessBackoffice, canManageCertificados, isAdmin, isBackofficeTvOnly } from '@/lib/permissions'
 
 const PUBLIC_PATHS = [
   '/login',
@@ -94,6 +94,21 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isBackofficePage && !canAccessBackoffice(token)) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  // Proteção estrita do módulo Certificados Digitais (somente ADMIN e DIRETORIA)
+  const isCertificadosPage = pathname === '/certificados' || pathname.startsWith('/certificados/')
+  const isCertificadosApi = pathname === '/api/certificados' || pathname.startsWith('/api/certificados/')
+
+  if (isCertificadosApi && !canManageCertificados(token)) {
+    return NextResponse.json(
+      { error: 'Acesso negado. Exclusivo para ADMIN e DIRETORIA.' },
+      { status: 403 }
+    )
+  }
+
+  if (isCertificadosPage && !canManageCertificados(token)) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Compass, Handshake, FileSpreadsheet, DollarSign, TrendingUp, ShieldCheck, Tv2, Container } from 'lucide-react';
+import { LayoutDashboard, Compass, Handshake, FileSpreadsheet, DollarSign, TrendingUp, ShieldCheck, Tv2, Container, FileKey2 } from 'lucide-react';
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -11,6 +11,7 @@ import {
   canAccessCotacoes, 
   canAccessFinanceiro,
   canAccessBackoffice,
+  canManageCertificados,
   isBackofficeTvOnly
 } from '@/lib/permissions';
 
@@ -41,6 +42,7 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
   const isFinanceiro = pathname.startsWith('/financeiro');
   const isCotacoes = pathname.startsWith('/cotacoes');
   const isBackoffice = pathname.startsWith('/backoffice');
+  const isCertificados = pathname.startsWith('/certificados');
   const isAdmin = pathname.startsWith('/admin');
 
   const tvOnly = isBackofficeTvOnly(currentUser);
@@ -102,6 +104,13 @@ export function Sidebar({ collapsed = false, onItemClick }: SidebarProps) {
       active: isBackoffice,
       icon: Tv2,
       visivel: canAccessBackoffice(currentUser),
+    },
+    {
+      href: '/certificados',
+      label: 'Certificados Digitais',
+      active: isCertificados,
+      icon: FileKey2,
+      visivel: !tvOnly && canManageCertificados(currentUser),
     },
     {
       href: '/admin',

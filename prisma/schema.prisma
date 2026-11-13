@@ -41,8 +41,9 @@ model Usuario {
   etapasResponsavel  ProcessoEtapa[] @relation("EtapaResponsavel")
   documentosEnviados Documento[]     @relation("DocumentoUploadedBy")
   mensagens          ChatMessage[]
-  logs               AuditLog[]
-  custosAtualizados  CustoItem[]
+  logs                 AuditLog[]
+  custosAtualizados    CustoItem[]
+  certificadosEnviados CertificadoDigital[] @relation("CertificadoCriadoPor")
 }
 
 model Account {
@@ -465,17 +466,19 @@ model ChatMessage {
 // AUDITORIA
 // ---------------------------------------------------------------------------
 model AuditLog {
-  id         String   @id @default(cuid())
-  processoId String
-  processo   Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  usuarioId  String
-  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
-  acao       String
-  detalhe    String
-  alteracoes Json?
-  criadoEm   DateTime @default(now())
+  id            String    @id @default(cuid())
+  processoId    String?
+  processo      Processo? @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  certificadoId String?
+  usuarioId     String
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id])
+  acao          String
+  detalhe       String
+  alteracoes    Json?
+  criadoEm      DateTime  @default(now())
 
   @@index([processoId, criadoEm])
+  @@index([certificadoId, criadoEm])
 }
 
 // ---------------------------------------------------------------------------
@@ -657,4 +660,30 @@ model CadastroEntidade {
   @@index([razaoSocial])
   @@index([carNumero])
   @@index([documento])
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO: CERTIFICADOS DIGITAIS A1 (.PFX / .P12)
+// ---------------------------------------------------------------------------
+model CertificadoDigital {
+  id                   String   @id @default(cuid())
+  tipo                 String   // 'CNPJ' | 'CPF'
+  documento            String
+  titular              String
+  emissor              String
+  validadeInicio       DateTime
+  validadeFim          DateTime
+  finalidade           String   // 'SEFAZ' | 'SISCOMEX' | 'AMBOS'
+  arquivoCriptografado String   @db.Text
+  senhaCriptografada   String   @db.Text
+  iv                   String
+  authTag              String
+  ativo                Boolean  @default(true)
+  criadoPorId          String
+  criadoPor            Usuario  @relation("CertificadoCriadoPor", fields: [criadoPorId], references: [id])
+  criadoEm             DateTime @default(now())
+  atualizadoEm         DateTime @updatedAt
+
+  @@index([documento, finalidade, ativo])
+  @@index([validadeFim])
 }

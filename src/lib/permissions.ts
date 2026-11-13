@@ -125,6 +125,10 @@ export const canAccessFinanceiro = (user: any): boolean =>
 export const canAccessBackoffice = (user: any): boolean =>
   isAdmin(user) || isBackofficeTv(user) || isBackofficeTvOnly(user);
 
+// 3.2 Módulo Certificados Digitais A1: Exclusivo para ADMIN e DIRETORIA
+export const canManageCertificados = (user: any): boolean =>
+  isAdmin(user) || isDiretoria(user);
+
 // 3.2 Usuário exclusivo para TV (exibe somente a tela de Backoffice TV sem outras abas)
 export const isBackofficeTvOnly = (user: any): boolean => {
   if (!user) return false;
