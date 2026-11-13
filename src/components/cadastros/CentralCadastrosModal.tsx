@@ -1917,7 +1917,7 @@ export function CentralCadastrosModal({
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      <span>Salvar no Banco de Dados</span>
+                      <span>Salvar</span>
                     </>
                   )}
                 </button>

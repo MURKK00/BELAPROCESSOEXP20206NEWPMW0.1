@@ -16,9 +16,24 @@ function parseDate(value: FormDataEntryValue | null): Date | undefined {
   return str ? new Date(str) : undefined;
 }
 
-export async function criarProcessoAction(formData: FormData) {
+function mensagemErroLancamento(e: any): string {
+  const code = e?.code as string | undefined;
+  if (code === 'P2003') {
+    return 'Importador ou usuário não encontrado no banco de dados. Reabra a lista, selecione o importador novamente (ou cadastre-o) e tente de novo.';
+  }
+  if (code === 'P2002') {
+    return 'Já existe uma negociação com esses dados (número duplicado). Tente lançar novamente.';
+  }
+  if (code === 'P2022' || code === 'P2021') {
+    return 'O banco de dados está desatualizado (coluna ou tabela ausente). Avise o administrador do sistema.';
+  }
+  const ultimaLinha = String(e?.message || 'erro desconhecido').trim().split('\n').filter(Boolean).pop();
+  return `Falha ao lançar a negociação${code ? ` (${code})` : ''}: ${ultimaLinha}`;
+}
+
+export async function criarProcessoAction(formData: FormData): Promise<{ error: string } | undefined> {
   const user = await getSessionUser();
-  if (!user) throw new Error('Não autenticado — rode o seed (npm run db:seed) para criar o usuário de dev.');
+  if (!user) return { error: 'Sessão expirada. Faça login novamente.' };
 
   const compradorDiferente = formData.get('compradorDiferente') === 'sim';
   const clienteFinal = String(formData.get('clienteFinal') ?? '').trim();
@@ -57,6 +72,8 @@ export async function criarProcessoAction(formData: FormData) {
     }
   );
 
+  let processoId: string;
+  try {
   const processo = await criarProcesso({
     clienteFinal,
     importadorId,
@@ -100,6 +117,12 @@ export async function criarProcessoAction(formData: FormData) {
 
     criadoPorId: user.id,
   });
+  processoId = processo.id;
+  } catch (e: any) {
+    console.error('[criarProcessoAction] Erro ao criar processo:', e);
+    return { error: mensagemErroLancamento(e) };
+  }
 
-  redirect(`/negociacoes/${processo.id}`);
+  // redirect() fica fora do try/catch (ele funciona lançando uma exceção interna do Next)
+  redirect(`/negociacoes/${processoId}`);
 }

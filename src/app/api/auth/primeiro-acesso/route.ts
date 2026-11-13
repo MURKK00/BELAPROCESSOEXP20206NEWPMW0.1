@@ -78,6 +78,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // SEGURANÇA: esta rota é pública (/api/auth). Só pode definir senha quem ainda está em
+    // primeiro acesso E prova que conhece a senha provisória atual. Sem isso, qualquer
+    // pessoa poderia trocar a senha de qualquer usuário (inclusive o ADMIN).
+    if (usuario.primeiroAcesso === false) {
+      return NextResponse.json(
+        { success: false, error: 'Este usuário já definiu a senha pessoal. Entre normalmente ou peça ao administrador para redefinir.' },
+        { status: 403 }
+      );
+    }
+
+    const senhaAtual = String(body.senhaAtual ?? '');
+    const provisoriaConfere =
+      senhaAtual.length > 0 &&
+      (senhaAtual === SENHA_PADRAO_NOVO_USUARIO ||
+        (usuario.senhaHash ? await verifyPassword(senhaAtual, usuario.senhaHash) : false));
+
+    if (!provisoriaConfere) {
+      return NextResponse.json(
+        { success: false, error: 'Senha provisória incorreta.' },
+        { status: 401 }
+      );
+    }
+
     // Criptografa a nova senha escolhida pelo usuário
     const novaSenhaHash = await hashPassword(novaSenha.trim());
 
@@ -102,41 +125,12 @@ export async function POST(req: NextRequest) {
       papeis,
     };
 
-    const response = NextResponse.json({
+    // A sessão real (NextAuth) é criada pelo cliente com signIn() logo após esta resposta.
+    return NextResponse.json({
       success: true,
       message: 'Nova senha definida com sucesso! Acesso liberado.',
       user: userData,
     });
-
-    const SESSION_MAX_AGE_12H = 12 * 60 * 60; // 12 horas corridas
-    const authCreatedAt = Date.now().toString();
-
-    // Injeta cookies de autenticação (12 horas corridas)
-    response.cookies.set('bela_session', '1', {
-      path: '/',
-      maxAge: SESSION_MAX_AGE_12H,
-      sameSite: 'none',
-      secure: true,
-      httpOnly: false,
-    });
-
-    response.cookies.set('bela_user_email', encodeURIComponent(usuarioAtualizado.email), {
-      path: '/',
-      maxAge: SESSION_MAX_AGE_12H,
-      sameSite: 'none',
-      secure: true,
-      httpOnly: false,
-    });
-
-    response.cookies.set('bela_auth_created_at', authCreatedAt, {
-      path: '/',
-      maxAge: SESSION_MAX_AGE_12H,
-      sameSite: 'none',
-      secure: true,
-      httpOnly: false,
-    });
-
-    return response;
   } catch (error: any) {
     console.error('[API Primeiro Acesso] Erro:', error);
     return NextResponse.json(

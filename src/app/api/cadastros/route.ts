@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { TipoEntidadeComercial } from '@prisma/client';
+import { getSessionUser } from '@/lib/auth';
+import { isAdmin } from '@/lib/permissions';
 
 export async function GET(req: NextRequest) {
   try {
@@ -58,6 +60,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE() {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser || !isAdmin(sessionUser)) {
+    return NextResponse.json({ error: 'Apenas administradores podem apagar todos os cadastros.' }, { status: 403 });
+  }
   try {
     try {
       await (prisma.cadastroEntidade as any).deleteMany({});

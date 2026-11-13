@@ -14,7 +14,7 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
     error: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET || 'bela-cereais-export-secret-chaves-2026-seguro',
+  secret: process.env.NEXTAUTH_SECRET,
   cookies: {
     sessionToken: {
       name: `next-auth.session-token`,
@@ -123,8 +123,8 @@ export const authOptions: NextAuthOptions = {
           });
         }
 
-        // Fallback para mock store caso a conexão relacional esteja instável
-        if (!usuario) {
+        // Fallback para mock store: apenas em desenvolvimento local
+        if (!usuario && process.env.NODE_ENV !== 'production') {
           try {
             const store = getMockStore();
             usuario = (store.usuarios || []).find(
@@ -145,16 +145,15 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Usuário bloqueado pelo administrador. Acesso não permitido.');
         }
 
-        // Validação da senha: aceita senha padrão 'abc12345' se for primeiro acesso ou hash bcrypt
-        const isPrimeiroAcesso = usuario.primeiroAcesso === true || usuario.primeiroAcesso === 'true' || usuario.primeiroAcesso !== false;
-        const digitouPadraoPrimeiroAcesso = isPrimeiroAcesso && credentials.password === 'abc12345';
-
-        let senhaValida = digitouPadraoPrimeiroAcesso;
-        if (!senhaValida && usuario.senhaHash) {
-          senhaValida = await verifyPassword(credentials.password, usuario.senhaHash);
-        } else if (!senhaValida && credentials.password === 'abc12345') {
-          senhaValida = true;
+        // Usuário em primeiro acesso NÃO recebe sessão aqui: precisa definir a senha pessoal
+        // pela tela de primeiro acesso (/api/auth/primeiro-acesso) antes de entrar.
+        if (usuario.primeiroAcesso !== false) {
+          throw new Error('Primeiro acesso: defina sua senha pessoal na tela de login.');
         }
+
+        const senhaValida = usuario.senhaHash
+          ? await verifyPassword(credentials.password, usuario.senhaHash)
+          : false;
 
         if (!senhaValida) {
           throw new Error('Credenciais inválidas. Verifique o usuário e senha.');

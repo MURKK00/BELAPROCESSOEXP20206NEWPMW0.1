@@ -14,7 +14,8 @@ import { prisma } from '@/lib/prisma';
  */
 export async function POST(req: NextRequest) {
   const secret = req.headers.get('x-n8n-secret');
-  if (secret !== process.env.N8N_WEBHOOK_SECRET) {
+  const esperado = process.env.N8N_WEBHOOK_SECRET;
+  if (!esperado || !secret || secret !== esperado) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
 

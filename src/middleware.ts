@@ -5,6 +5,7 @@ import { getToken } from 'next-auth/jwt'
 const PUBLIC_PATHS = [
   '/login',
   '/api/auth',
+  '/api/webhooks', // n8n: autenticado por N8N_WEBHOOK_SECRET dentro da própria rota
   '/favicon.ico',
 ]
 

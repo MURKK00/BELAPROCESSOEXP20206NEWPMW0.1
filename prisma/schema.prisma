@@ -621,6 +621,7 @@ model CadastroEntidade {
   areaTotalHectares Decimal?               @db.Decimal(12, 2)
   certificacoes     String?                // Ex: RTRS, ProTerra, Não-Transgênico
   conformidadeSocioambiental Boolean?      @default(true)
+  fazendas          Json?                  // Lista de fazendas/propriedades do produtor (CAR, IE, GPS, padrão...)
 
   // Dados Comuns & Internacionais (Importador / Buyer)
   pais              String?                @default("Brasil")

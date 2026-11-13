@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     }
 
     const hasSessionCookie = cookies.has('bela_session');
-    const secret = process.env.NEXTAUTH_SECRET || 'bela-cereais-export-secret-chaves-2026-seguro';
+    const secret = process.env.NEXTAUTH_SECRET;
     const token = await getToken({ req, secret }).catch(() => null);
 
     if (!hasSessionCookie && !token) {

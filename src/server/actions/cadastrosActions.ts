@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import type { TipoEntidadeComercial } from '@prisma/client';
 import type { FazendaItem } from '@/lib/demoCadastrosData';
 
@@ -183,7 +184,10 @@ export async function salvarCadastroEntidadeAction(data: CadastroEntidadeInput) 
       certificacoes: data.certificacoes?.trim() || null,
       conformidadeSocioambiental:
         data.conformidadeSocioambiental !== undefined ? Boolean(data.conformidadeSocioambiental) : true,
-      fazendas: data.fazendas || null,
+      fazendas:
+        Array.isArray(data.fazendas) && data.fazendas.length > 0
+          ? (data.fazendas as unknown as Prisma.InputJsonValue)
+          : Prisma.DbNull,
 
       pais: data.pais?.trim() || 'Brasil',
       cidade: data.cidade?.trim() || null,

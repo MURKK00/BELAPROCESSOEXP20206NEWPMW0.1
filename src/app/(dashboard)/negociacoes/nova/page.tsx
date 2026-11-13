@@ -37,6 +37,30 @@ import { CentralCadastrosModal } from '@/components/cadastros/CentralCadastrosMo
 export default function NovaNegociacaoPage() {
   const router = useRouter();
 
+  // Lançamento da negociação: mostra erro na tela em vez de falhar em silêncio
+  const [lancando, setLancando] = useState(false);
+  const [erroLancamento, setErroLancamento] = useState<string | null>(null);
+
+  async function handleLancar(formData: FormData) {
+    setErroLancamento(null);
+    setLancando(true);
+    try {
+      const resultado = await criarProcessoAction(formData);
+      // Em caso de sucesso a action faz redirect() e esta linha não chega a ser usada
+      if (resultado && 'error' in resultado) {
+        setErroLancamento(resultado.error);
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }
+    } catch (e: any) {
+      // redirect() do Next lança NEXT_REDIRECT: precisa ser repassado
+      if (e?.digest?.startsWith?.('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') throw e;
+      console.error('[Lançar Negociação]', e);
+      setErroLancamento('Não foi possível lançar a negociação. Verifique sua conexão e tente novamente.');
+    } finally {
+      setLancando(false);
+    }
+  }
+
   // 1. Estado do Switch: Comprador diferente do importador (PRIMEIRA INFORMAÇÃO)
   const [compradorDiferente, setCompradorDiferente] = useState(false);
 
@@ -296,7 +320,7 @@ export default function NovaNegociacaoPage() {
         </div>
       </div>
 
-      <form action={criarProcessoAction} className="space-y-6">
+      <form action={handleLancar} className="space-y-6">
 
         <Section title="Dados do contrato">
           {/* 1. PRIMEIRA INFORMAÇÃO SELECIONÁVEL: COMPRADOR (BUYER) DIFERENTE DO IMPORTADOR (CONSIGNEE) */}
@@ -724,6 +748,7 @@ export default function NovaNegociacaoPage() {
                 </label>
                 <input
                   type="number"
+                  step="any"
                   name="diasLiquidacao"
                   value={diasLiquidacao}
                   onChange={(e) => setDiasLiquidacao(e.target.value)}
@@ -742,6 +767,7 @@ export default function NovaNegociacaoPage() {
                 </label>
                 <input
                   type="number"
+                  step="any"
                   name="multaAtrasoPerc"
                   value={multaAtrasoPerc}
                   onChange={(e) => setMultaAtrasoPerc(e.target.value)}
@@ -761,6 +787,7 @@ export default function NovaNegociacaoPage() {
                   </label>
                   <input
                     type="number"
+                    step="any"
                     name="adiantamentoPerc"
                     value={adiantamentoPerc}
                     onChange={(e) => setAdiantamentoPerc(e.target.value)}
@@ -1094,12 +1121,21 @@ export default function NovaNegociacaoPage() {
           />
         </Section>
 
-        <div className="pt-2">
+        <div className="pt-2 space-y-3">
+          {erroLancamento && (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-300 bg-red-50 text-red-800 dark:bg-red-950/30 dark:border-red-900 dark:text-red-300 px-4 py-3 text-sm font-semibold"
+            >
+              {erroLancamento}
+            </div>
+          )}
           <button
             type="submit"
-            className="bg-[#1a365d] hover:bg-blue-900 text-white px-8 py-3 rounded-xl font-black text-sm transition-all shadow-md hover:shadow-lg cursor-pointer"
+            disabled={lancando}
+            className="bg-[#1a365d] hover:bg-blue-900 disabled:opacity-60 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl font-black text-sm transition-all shadow-md hover:shadow-lg cursor-pointer"
           >
-            Lançar Negociação
+            {lancando ? 'Lançando...' : 'Lançar Negociação'}
           </button>
         </div>
       </form>

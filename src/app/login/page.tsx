@@ -192,6 +192,7 @@ function LoginForm() {
         body: JSON.stringify({
           userId: usuarioPrimeiroAcesso.id,
           identifier: identificador.trim(),
+          senhaAtual: password,
           novaSenha: novaSenha.trim(),
           confirmacaoSenha: confirmacaoSenha.trim(),
         }),
@@ -215,6 +216,28 @@ function LoginForm() {
         document.cookie = `bela_auth_created_at=${nowTs}; path=/; max-age=43200; SameSite=None; Secure`;
       } catch (storageErr) {
         console.warn('Aviso ao armazenar sessão local:', storageErr);
+      }
+
+      // Cria a sessão real (NextAuth) com a nova senha; o middleware só aceita sessão NextAuth
+      try {
+        const auth = await signIn('credentials', {
+          email: identificador.trim(),
+          password: novaSenha.trim(),
+          redirect: false,
+        });
+        if (auth?.error) {
+          setPassword('');
+          setEmPrimeiroAcesso(false);
+          setCarregando(false);
+          setMensagemSucesso('Senha definida! Entre agora com a sua nova senha.');
+          return;
+        }
+      } catch {
+        setPassword('');
+        setEmPrimeiroAcesso(false);
+        setCarregando(false);
+        setMensagemSucesso('Senha definida! Entre agora com a sua nova senha.');
+        return;
       }
 
       setMensagemSucesso('Senha redefinida com sucesso! Redirecionando...');

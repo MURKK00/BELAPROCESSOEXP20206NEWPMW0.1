@@ -26,6 +26,7 @@ export function Field({
         id={name}
         name={name}
         type={type}
+        step={type === 'number' ? 'any' : undefined}
         placeholder={placeholder}
         required={required}
         readOnly={readOnly}

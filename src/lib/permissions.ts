@@ -81,7 +81,8 @@ export function getUserPapeis(user: any): Papel[] {
     )
   );
 
-  return normalized.length > 0 ? normalized : ['ADMIN'];
+  // Sem papel válido = sem permissão (nunca assumir ADMIN por padrão)
+  return normalized;
 }
 
 // Verificadores rápidos de papel individual
